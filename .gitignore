@@ -1,0 +1,6 @@
+# Ignore repository content directories while keeping the folders themselves.
+raw/**
+wiki/**
+
+!raw/
+!wiki/
