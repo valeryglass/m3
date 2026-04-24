@@ -4,3 +4,6 @@ wiki/**
 
 !raw/
 !wiki/
+
+# Ignore user-local Obsidian workspace state.
+.obsidian/workspace.json
