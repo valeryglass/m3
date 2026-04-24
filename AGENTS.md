@@ -8,7 +8,7 @@ Based on Andrej Karpathy's LLM Wiki pattern.
 ## Purpose
 
 
-This wiki is a structured, interlinked knowledge base for planning a product 'life support community'.
+This wiki is a structured, interlinked knowledge base for (...).
 Codex maintains the wiki. The human curates sources, asks questions, and guides the analysis.
 
 
