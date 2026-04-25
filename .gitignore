@@ -1,9 +1,9 @@
-# Ignore repository content directories while keeping the folders themselves.
+# Ignore immutable content directories while keeping the folders themselves.
 raw/**
-wiki/**
+sources/**
 
 !raw/
-!wiki/
+!sources/
 
 # Ignore user-local Obsidian workspace state.
 .obsidian/workspace.json
