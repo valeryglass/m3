@@ -1,13 +1,28 @@
 # Ignore immutable content directories while keeping the folders themselves.
 raw/**
 sources/**
+# Legacy local episode artifacts from the pre-app layout.
 episodes/*.json
+data/episodes/*.json
+data/state/*.json
+.env
 
 !raw/
 !sources/
+!data/
+!data/episodes/
+!data/state/
+!data/episodes/.gitkeep
+!data/state/.gitkeep
 
 # Ignore user-local Obsidian workspace state.
 .obsidian/workspace.json
 
 # Ignore local Codex environment marker.
 .codex
+
+# Ignore Python local build/test artifacts.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
