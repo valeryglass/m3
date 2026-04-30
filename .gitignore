@@ -7,3 +7,6 @@ sources/**
 
 # Ignore user-local Obsidian workspace state.
 .obsidian/workspace.json
+
+# Ignore local Codex environment marker.
+.codex
