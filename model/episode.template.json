@@ -1,0 +1,39 @@
+{
+  "id": "episode-YYYYMMDD-N",
+  "date": "YYYY-MM-DD",
+  "source": "",
+  "observed": {
+    "situation": {
+      "value": "",
+      "source_quote": ""
+    },
+    "automatic_thought": {
+      "value": "",
+      "source_quote": ""
+    },
+    "emotion": {
+      "value": "",
+      "source_quote": ""
+    },
+    "body": {
+      "value": "",
+      "source_quote": ""
+    },
+    "behavior": {
+      "value": "",
+      "source_quote": ""
+    },
+    "short_term_consequence": {
+      "value": "",
+      "source_quote": ""
+    },
+    "long_term_consequence": {
+      "value": "",
+      "source_quote": ""
+    }
+  },
+  "derived": {
+    "atomic_thoughts": [],
+    "cognitive_distortions": []
+  }
+}

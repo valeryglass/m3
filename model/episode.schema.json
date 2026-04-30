@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://m3.local/model/episode.schema.json",
+  "title": "CBT Episode",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "date", "source", "observed", "derived"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^episode-[0-9]{8}-[0-9]+$"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1
+    },
+    "observed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "situation",
+        "automatic_thought",
+        "emotion",
+        "body",
+        "behavior",
+        "short_term_consequence",
+        "long_term_consequence"
+      ],
+      "properties": {
+        "situation": {
+          "$ref": "#/$defs/observed_field"
+        },
+        "automatic_thought": {
+          "$ref": "#/$defs/observed_field"
+        },
+        "emotion": {
+          "$ref": "#/$defs/observed_field"
+        },
+        "body": {
+          "$ref": "#/$defs/observed_field"
+        },
+        "behavior": {
+          "$ref": "#/$defs/observed_field"
+        },
+        "short_term_consequence": {
+          "$ref": "#/$defs/observed_field"
+        },
+        "long_term_consequence": {
+          "$ref": "#/$defs/observed_field"
+        }
+      }
+    },
+    "derived": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["atomic_thoughts", "cognitive_distortions"],
+      "properties": {
+        "atomic_thoughts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/atomic_thought"
+          }
+        },
+        "cognitive_distortions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/cognitive_distortion"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "observed_field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "source_quote"],
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "source_quote": {
+          "type": "string"
+        }
+      }
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
+    "atomic_thought": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text", "source_field", "source_quote", "confidence"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^atomic-thought-[0-9]+$"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_field": {
+          "const": "observed.automatic_thought"
+        },
+        "source_quote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
+      }
+    },
+    "cognitive_distortion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "source_atomic_thought",
+        "source_field",
+        "source_quote",
+        "confidence"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_atomic_thought": {
+          "type": "string",
+          "pattern": "^atomic-thought-[0-9]+$"
+        },
+        "source_field": {
+          "const": "observed.automatic_thought"
+        },
+        "source_quote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
+      }
+    }
+  }
+}

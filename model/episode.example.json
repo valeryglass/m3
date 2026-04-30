@@ -1,0 +1,55 @@
+{
+  "id": "episode-20260430-1",
+  "date": "2026-04-30",
+  "source": "raw/example.txt",
+  "observed": {
+    "situation": {
+      "value": "Asked a question in a public setting.",
+      "source_quote": "I wanted to ask something in the group chat"
+    },
+    "automatic_thought": {
+      "value": "They will think I am stupid.",
+      "source_quote": "they'll probably think I'm stupid if I ask"
+    },
+    "emotion": {
+      "value": "Anxiety.",
+      "source_quote": "I felt anxious"
+    },
+    "body": {
+      "value": "Tension in chest.",
+      "source_quote": "my chest got tight"
+    },
+    "behavior": {
+      "value": "Did not ask the question.",
+      "source_quote": "so I closed it and didn't ask"
+    },
+    "short_term_consequence": {
+      "value": "Immediate relief.",
+      "source_quote": "I felt relieved for a moment"
+    },
+    "long_term_consequence": {
+      "value": "The question stayed unresolved.",
+      "source_quote": "but then I still didn't know the answer"
+    }
+  },
+  "derived": {
+    "atomic_thoughts": [
+      {
+        "id": "atomic-thought-1",
+        "text": "Others will judge me as stupid.",
+        "source_field": "observed.automatic_thought",
+        "source_quote": "they'll probably think I'm stupid if I ask",
+        "confidence": "medium"
+      }
+    ],
+    "cognitive_distortions": [
+      {
+        "type": "mind reading",
+        "source_atomic_thought": "atomic-thought-1",
+        "source_field": "observed.automatic_thought",
+        "source_quote": "they'll probably think I'm stupid if I ask",
+        "confidence": "medium"
+      }
+    ]
+  }
+}

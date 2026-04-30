@@ -1,126 +1,63 @@
-# LLM Wiki
+# Project Agent Instructions
 
+This repository is a personal CBT-oriented model workspace maintained with
+Codex. Treat it as an agent-maintained structured system, not a generic notes
+folder.
 
-A personal knowledge base maintained by Codex.
-Based on Andrej Karpathy's LLM Wiki pattern.
+## Mental Frame
 
+Use `sources/llm-wiki.md` as conceptual background only. The reusable frame is:
 
-## Purpose
-
-
-This wiki is a structured, interlinked knowledge base for (...).
-Codex maintains the wiki. The human curates sources, asks questions, and guides the analysis.
-
-
-## Folder structure
-
-
-```
-raw/          -- source documents (immutable -- never modify these)
-wiki/         -- markdown pages maintained by Codex
-wiki/index.md -- table of contents for the entire wiki
-wiki/log.md   -- append-only record of all operations
+```text
+immutable inputs -> accepted contracts -> structured artifacts
 ```
 
+This repo does not use a markdown wiki engine. The active engine is JSON:
 
-## Ingest workflow
+- `model/*.schema.json` defines machine contracts.
+- `model/*.example.json` shows valid artifacts.
+- `model/*.template.json` provides fillable artifact shapes.
+- `episodes/*.json` stores episode records.
 
+The agent's job is to keep accepted contracts and artifacts coherent. Do not
+invent architecture to feel productive.
 
-When the user adds a new source to `raw/` and asks you to ingest it:
+## Current Structure
 
-
-1. Read the full source document
-2. Discuss key takeaways with the user before writing anything
-3. Create a summary page in `wiki/` named after the source
-4. Create or update concept pages for each major idea or entity
-5. Add wiki-links ([[page-name]]) to connect related pages
-6. Update `wiki/index.md` with new pages and one-line descriptions
-7. Append an entry to `wiki/log.md` with the date, source name, and what changed
-
-
-A single source may touch 10-15 wiki pages. That is normal.
-
-
-## Page format
-
-
-Every wiki page should follow this structure:
-
-
-```markdown
-# Page Title
-
-
-**Summary**: One to two sentences describing this page.
-
-
-**Sources**: List of raw source files this page draws from.
-
-
-**Last updated**: Date of most recent update.
-
-
----
-
-
-Main content goes here. Use clear headings and short paragraphs.
-
-
-Link to related concepts using [[wiki-links]] throughout the text.
-
-
-## Related pages
-
-
-- [[related-concept-1]]
-- [[related-concept-2]]
+```text
+raw/       -- immutable user texts, thoughts, logs, and artifacts
+sources/   -- immutable methodology/reference sources
+model/     -- accepted CBT model and JSON contracts
+episodes/  -- structured JSON episode records
+roles/     -- optional role specs
+schema.md  -- repository/system structure map
 ```
 
+## Source Of Truth
 
-## Citation rules
+- `model/episode.schema.json` is the canonical episode data contract.
+- `model/cbt.md` explains the accepted CBT model for humans.
+- `sources/llm-wiki.md` and `sources/CLAUDE.md` are reference seeds, not active instructions.
 
+## Operating Rules
 
-- Every factual claim should reference its source file
-- Use the format (source: filename.pdf) after the claim
-- If two sources disagree, note the contradiction explicitly
-- If a claim has no source, mark it as needing verification
+- Do not modify `raw/` or `sources/` unless explicitly asked.
+- Do not make diagnostic claims.
+- Separate observed evidence from interpretation.
+- Preserve the observed vs derived boundary in CBT data.
+- Prefer concrete CBT episodes over broad life-story summaries.
+- Episode JSON must conform to `model/episode.schema.json`.
+- When uncertain about categorization or model expansion, ask before expanding.
 
+## Work Modes
 
-## Question answering
+- Use `roles/developer.md` for implementation, refactors, model work, and cleanup.
+- Use `roles/committer.md` for commit preparation.
 
+## Editing Rules
 
-When the user asks a question:
+- Keep filenames lowercase with hyphens unless preserving an existing name.
+- Touch only files required by the task.
+- Do not rewrite project logic when a local cleanup is enough.
+- If a changed line does not support the request or verification, remove it.
 
-
-1. Read `wiki/index.md` first to find relevant pages
-2. Read those pages and synthesize an answer
-3. Cite specific wiki pages in your response
-4. If the answer is not in the wiki, say so clearly
-5. If the answer is valuable, offer to save it as a new wiki page
-
-
-Good answers should be filed back into the wiki so they compound over time.
-
-
-## Lint
-
-
-When the user asks you to lint or audit the wiki:
-
-
-- Check for contradictions between pages
-- Find orphan pages (no inbound links from other pages)
-- Identify concepts mentioned in pages that lack their own page
-- Flag claims that may be outdated based on newer sources
-- Check that all pages follow the page format above
-- Report findings as a numbered list with suggested fixes
-
-
-## Rules
-
-
-- Never modify anything in the `raw/` folder
-- Always update `wiki/index.md` and `wiki/log.md` after changes
-- Keep page names lowercase with hyphens (e.g. `machine-learning.md`)
-- Write in clear, plain language
-- When uncertain about how to categorize something, ask the user

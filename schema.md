@@ -1,28 +1,27 @@
 # Project Schema
 
-This file is the top-level map for the repository structure. Detailed data models live in `schema/`.
+This file maps the current repository/system structure.
 
 ## Layers
 
 - `raw/`: immutable personal inputs and artifacts.
 - `sources/`: immutable methodology and reference material.
-- `profile/`: structured personal CBT data.
-- `schema/`: model definitions and schema evolution plans.
-- `roles/`: optional task roles for Codex.
-- `tools/`: future executable checks and automation.
+- `model/`: accepted CBT model and JSON contracts.
+- `episodes/`: structured JSON episode records.
+- `roles/`: optional task roles.
+- `schema.md`: repository/system structure map.
 
-## Main Data Model
+## Engine
 
-The current primary model is the CBT profile:
+The active engine is JSON contracts plus JSON artifacts.
 
-- episodes
-- automatic thoughts
-- beliefs
-- behavioral experiments
-- patterns
+- `model/episode.schema.json`: canonical episode data contract.
+- `model/episode.example.json`: valid example artifact.
+- `model/episode.template.json`: fillable artifact shape.
+- `episodes/*.json`: episode records.
 
-See `schema/profile_schema.md` and `schema/CBT_SCHEMA_PLAN.md`.
+## Boundaries
 
-## Design Boundary
-
-Markdown schema files describe structure and intent. Tooling in `tools/` should later enforce mechanical rules such as required fields, broken links, naming, and traceability.
+- `sources/` files are references, not active instructions unless explicitly promoted.
+- `raw/` files are user material and should not be modified unless explicitly requested.
+- `model/episode.schema.json` controls the shape of episode records.
