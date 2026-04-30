@@ -7,7 +7,7 @@ Role name: `loop_extractor`
 ## Purpose
 
 Guide the user through one concrete CBT episode and save exactly one
-schema-valid episode JSON artifact in `episodes/`.
+schema-valid episode JSON artifact in `data/episodes/`.
 
 This is the first dry-run composer loop. It does not change the CBT model,
 episode schema, raw inputs, or reference sources.
@@ -27,7 +27,7 @@ episode schema, raw inputs, or reference sources.
 Save the completed episode as:
 
 ```text
-episodes/episode-YYYYMMDD-N.json
+data/episodes/episode-YYYYMMDD-N.json
 ```
 
 Set the episode `id` to the same stem:
@@ -36,8 +36,9 @@ Set the episode `id` to the same stem:
 episode-YYYYMMDD-N
 ```
 
-Choose `N` by scanning existing `episodes/episode-YYYYMMDD-*.json` files for
-the episode date and taking the next integer.
+Choose `N` by scanning existing
+`data/episodes/episode-YYYYMMDD-*.json` files for the episode date and taking
+the next integer.
 
 Set `source` to an interactive chat source string, for example:
 
@@ -145,11 +146,11 @@ Before saving:
 
 1. Check that the episode date is known.
 2. Check that all observed fields have non-empty `value` and `source_quote`.
-3. Scan `episodes/` for the next filename number for that date.
+3. Scan `data/episodes/` for the next filename number for that date.
 4. Build JSON that conforms to `model/episode.schema.json`.
 5. Optionally show the completed JSON briefly for review after extraction is
    complete.
-6. Save exactly one file under `episodes/`.
+6. Save exactly one file under `data/episodes/`.
 
 After saving, report the file path and any derived arrays left empty because
 evidence was insufficient.

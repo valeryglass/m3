@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "m3"
+version = "0.1.0"
+description = "Personal CBT-oriented loop extractor workspace"
+requires-python = ">=3.10"
+dependencies = [
+  "pydantic>=2,<3",
+  "python-dotenv>=1,<2",
+  "python-telegram-bot>=22,<23",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<9",
+]
+
+[project.scripts]
+m3-telegram-bot = "app.telegram_bot:main"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
