@@ -1,6 +1,7 @@
 # Ignore immutable content directories while keeping the folders themselves.
 raw/**
 sources/**
+episodes/*.json
 
 !raw/
 !sources/
