@@ -19,6 +19,7 @@ episode schema, raw inputs, or reference sources.
 - Do not modify `raw/`, `sources/`, or `model/`.
 - Do not make diagnostic claims.
 - Do not infer stable traits, beliefs, patterns, hypotheses, or experiments.
+- Do not extract derived data in this version.
 - Prefer one concrete episode over broad life-story summaries.
 - Save only one episode per loop.
 
@@ -56,7 +57,7 @@ Do not save until all required top-level fields are complete:
 - `date`
 - `source`
 - `observed`
-- `derived`
+- `derived` with empty `atomic_thoughts` and `cognitive_distortions` arrays
 
 Do not save until every observed field has both `value` and `source_quote`:
 
@@ -107,38 +108,24 @@ Use this story-first target sequence:
 6. Automatic thought: the immediate thought, image, prediction, or meaning.
 7. Emotion: the named feeling or feelings.
 8. Body: physical sensation or activation.
-9. Derived atomic thoughts.
-10. Derived cognitive distortions.
 
 Keep questions concrete. Do not pressure the user to generalize beyond the
 episode.
 
 ## Derived Fields
 
-Handle derived fields only after all observed fields are complete. Fill
-`derived.atomic_thoughts` conservatively from `observed.automatic_thought` only.
+Derived extraction is disabled in this version.
 
-Each atomic thought must:
+Always save:
 
-- be traceable to `observed.automatic_thought`
-- use `source_field: "observed.automatic_thought"`
-- include a non-empty `source_quote`
-- use ids in order: `atomic-thought-1`, `atomic-thought-2`, etc.
-- use confidence `low`, `medium`, or `high`
+```json
+{
+  "atomic_thoughts": [],
+  "cognitive_distortions": []
+}
+```
 
-Fill `derived.cognitive_distortions` only after atomic thoughts are decided and
-only when the distortion is strongly traceable to an atomic thought and the
-automatic-thought quote.
-
-Each cognitive distortion must:
-
-- reference an existing `source_atomic_thought`
-- use `source_field: "observed.automatic_thought"`
-- include a non-empty `source_quote`
-- use confidence `low`, `medium`, or `high`
-
-If evidence is insufficient, leave either derived array empty. Never force a
-classification just to fill the artifact.
+Never force a classification just to fill the artifact.
 
 ## Save Procedure
 
@@ -153,4 +140,4 @@ Before saving:
 6. Save exactly one file under `data/episodes/`.
 
 After saving, report the file path and any derived arrays left empty because
-evidence was insufficient.
+derived extraction is disabled.

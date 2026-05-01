@@ -41,3 +41,28 @@ def test_empty_observed_reply_stays_on_current_target():
 
     assert "non-empty" in result.reply
     assert active_target(session) == "situation"
+
+
+def test_loop_completes_after_body_without_derived_targets():
+    session = new_session(chat_id=123)
+
+    for answer in (
+        "2026-04-30",
+        "Had a conversation.",
+        "Answered directly.",
+        "Felt relief.",
+        "It was okay later.",
+        "I can say this.",
+        "Shame.",
+    ):
+        result = apply_user_reply(session, answer)
+        assert not result.should_save
+
+    result = apply_user_reply(session, "Chest pressure.")
+
+    assert result.should_save
+    assert active_target(session) == "complete"
+    assert session.derived == {
+        "atomic_thoughts": [],
+        "cognitive_distortions": [],
+    }
