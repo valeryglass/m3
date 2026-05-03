@@ -22,6 +22,7 @@ def test_load_settings_uses_default_data_paths():
     assert str(settings.ux_event_log) == "data/ux-events/events.jsonl"
     assert settings.ux_idle_after_sec == 7200
     assert settings.initial_session_ttl_sec == 600
+    assert str(settings.tone_config) == "config/tone.yaml"
 
 
 def test_load_settings_allows_empty_chat_allowlist_for_open_mvp():
@@ -37,9 +38,11 @@ def test_load_settings_allows_ux_overrides():
             "M3_UX_EVENT_LOG": "/tmp/events.jsonl",
             "M3_UX_IDLE_AFTER_SEC": "60",
             "M3_INITIAL_SESSION_TTL_SEC": "30",
+            "M3_TONE_CONFIG": "/tmp/tone.yaml",
         }
     )
 
     assert str(settings.ux_event_log) == "/tmp/events.jsonl"
     assert settings.ux_idle_after_sec == 60
     assert settings.initial_session_ttl_sec == 30
+    assert str(settings.tone_config) == "/tmp/tone.yaml"

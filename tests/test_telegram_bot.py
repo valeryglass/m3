@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 import app.telegram_bot as telegram_bot
 from app.loop_extractor import LoopSession
 from app.storage import JsonStorage
+from app.tone_engine import ToneEngine
 from app.ux_events import UxEventLog, format_utc
 
 
@@ -62,3 +63,11 @@ def test_non_initial_stale_session_does_not_expire(tmp_path):
     assert expired is False
     assert storage.load_session(123) is not None
     assert ux_events.read() == []
+
+
+def test_expired_session_reply_comes_from_tone_engine():
+    tone = ToneEngine.default()
+
+    assert telegram_bot._expired_initial_session_text(tone) == (
+        "Прошлая сессия истекла до первого ответа. Отправь /start заново."
+    )

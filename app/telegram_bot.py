@@ -9,6 +9,7 @@ from app.loop_extractor import (
     status_text,
 )
 from app.storage import JsonStorage
+from app.tone_engine import load_tone_engine
 from app.ux_events import (
     UxEventLog,
     base_event,
@@ -23,6 +24,7 @@ def main() -> None:
     settings = load_settings()
     storage = JsonStorage(settings.episode_dir, settings.state_dir)
     ux_events = UxEventLog(settings.ux_event_log)
+    tone = load_tone_engine(settings.tone_config)
 
     try:
         from telegram import Update
@@ -39,7 +41,7 @@ def main() -> None:
         ) from exc
 
     async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(update, settings):
+        if not await _authorize(update, settings, tone):
             return
         chat_id = update.effective_chat.id
         now = utc_now()
@@ -47,9 +49,7 @@ def main() -> None:
         if _expire_initial_session_if_stale(
             storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
         ):
-            await update.message.reply_text(
-                "Previous session expired before first input. Send /start to begin again."
-            )
+            await update.message.reply_text(_expired_initial_session_text(tone))
             return
         if session is None:
             session = new_session(chat_id, session_id=new_session_id(str(chat_id), now))
@@ -73,10 +73,10 @@ def main() -> None:
             )
         _log_step_prompted(ux_events, session, str(chat_id), now=now)
         storage.save_session(session)
-        await update.message.reply_text(prompt_for_current_target(session))
+        await update.message.reply_text(prompt_for_current_target(session, tone))
 
     async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(update, settings):
+        if not await _authorize(update, settings, tone):
             return
         chat_id = update.effective_chat.id
         now = utc_now()
@@ -84,17 +84,15 @@ def main() -> None:
         if _expire_initial_session_if_stale(
             storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
         ):
-            await update.message.reply_text(
-                "Previous session expired before first input. Send /start to begin again."
-            )
+            await update.message.reply_text(_expired_initial_session_text(tone))
             return
         if session is None:
-            await update.message.reply_text("No active episode loop.")
+            await update.message.reply_text(tone.no_active_loop())
             return
-        await update.message.reply_text(status_text(session))
+        await update.message.reply_text(status_text(session, tone))
 
     async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(update, settings):
+        if not await _authorize(update, settings, tone):
             return
         chat_id = update.effective_chat.id
         now = utc_now()
@@ -102,9 +100,7 @@ def main() -> None:
         if _expire_initial_session_if_stale(
             storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
         ):
-            await update.message.reply_text(
-                "Previous session expired before first input. Send /start to begin again."
-            )
+            await update.message.reply_text(_expired_initial_session_text(tone))
             return
         if session is not None and session.session_id is not None:
             ux_events.append(
@@ -118,10 +114,10 @@ def main() -> None:
                 )
             )
         storage.delete_session(chat_id)
-        await update.message.reply_text("Episode loop canceled.")
+        await update.message.reply_text(tone.cancel())
 
     async def message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(update, settings):
+        if not await _authorize(update, settings, tone):
             return
         chat_id = update.effective_chat.id
         session = storage.load_session(chat_id)
@@ -129,9 +125,7 @@ def main() -> None:
         if _expire_initial_session_if_stale(
             storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
         ):
-            await update.message.reply_text(
-                "Previous session expired before first input. Send /start to begin again."
-            )
+            await update.message.reply_text(_expired_initial_session_text(tone))
             return
         if session is None:
             session = new_session(chat_id, session_id=new_session_id(str(chat_id), now))
@@ -157,7 +151,7 @@ def main() -> None:
             _log_step_prompted(ux_events, session, str(chat_id), now=now)
         target_before = active_target(session)
         target_index_before = session.target_index
-        result = apply_user_reply(session, update.message.text or "")
+        result = apply_user_reply(session, update.message.text or "", tone)
         now = utc_now()
         target_after = active_target(session)
         advanced = result.should_save or target_after != target_before
@@ -185,7 +179,7 @@ def main() -> None:
                 )
             )
             storage.delete_session(chat_id)
-            await update.message.reply_text(f"{result.reply}\nSaved: {path}")
+            await update.message.reply_text(tone.saved_episode(result.reply, path))
             return
         _log_step_prompted(ux_events, session, str(chat_id), now=now)
         storage.save_session(session)
@@ -199,7 +193,7 @@ def main() -> None:
     application.run_polling()
 
 
-async def _authorize(update, settings: Settings) -> bool:
+async def _authorize(update, settings: Settings, tone) -> bool:
     chat = update.effective_chat
     if chat is None:
         return False
@@ -208,7 +202,7 @@ async def _authorize(update, settings: Settings) -> bool:
         and chat.id not in settings.telegram_allowed_chat_ids
     ):
         if update.message is not None:
-            await update.message.reply_text("Unauthorized chat.")
+            await update.message.reply_text(tone.unauthorized())
         return False
     return True
 
@@ -233,6 +227,10 @@ def _duration_since_last_prompt(session, now) -> int:
     if session.last_prompted_at is None:
         return 0
     return max(0, int((now - parse_utc(session.last_prompted_at)).total_seconds()))
+
+
+def _expired_initial_session_text(tone) -> str:
+    return tone.expired_initial_session()
 
 
 def _expire_initial_session_if_stale(

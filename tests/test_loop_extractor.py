@@ -39,7 +39,7 @@ def test_empty_observed_reply_stays_on_current_target():
     session = LoopSession(chat_id=123, target_index=1)
     result = apply_user_reply(session, " ")
 
-    assert "non-empty" in result.reply
+    assert "непустой" in result.reply
     assert active_target(session) == "situation"
 
 

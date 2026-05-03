@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
+from app.tone_engine import ToneEngine
+
 
 OBSERVED_FIELDS = (
     "situation",
@@ -19,17 +21,6 @@ TARGETS = (
     "episode_date",
     *OBSERVED_FIELDS,
 )
-
-QUESTIONS = {
-    "episode_date": "Target: episode date.\n\nWhat date should this episode use? Send YYYY-MM-DD.",
-    "situation": "Target: situation.\n\nWhat happened in this episode?",
-    "behavior": "Target: behavior.\n\nWhat did you do or avoid doing?",
-    "short_term_consequence": "Target: short-term consequence.\n\nWhat happened immediately after that?",
-    "long_term_consequence": "Target: long-term consequence.\n\nWhat remained later, or what did it lead to?",
-    "automatic_thought": "Target: automatic thought.\n\nWhat thought, image, prediction, or meaning showed up in the moment?",
-    "emotion": "Target: emotion.\n\nWhat feeling was present?",
-    "body": "Target: body.\n\nWhat did you notice in the body?",
-}
 
 
 @dataclass
@@ -95,56 +86,58 @@ def active_target(session: LoopSession) -> str:
     return TARGETS[session.target_index]
 
 
-def prompt_for_current_target(session: LoopSession) -> str:
+def prompt_for_current_target(
+    session: LoopSession, tone: ToneEngine | None = None
+) -> str:
     target = active_target(session)
-    if target == "complete":
-        return "Episode extraction is complete."
-    return QUESTIONS[target]
+    return _tone(tone).target_prompt(target)
 
 
 def completed_observed_count(session: LoopSession) -> int:
     return sum(1 for field_name in OBSERVED_FIELDS if field_name in session.observed)
 
 
-def status_text(session: LoopSession) -> str:
-    return (
-        f"Active target: {active_target(session)}\n"
-        f"Observed fields: {completed_observed_count(session)}/{len(OBSERVED_FIELDS)}"
+def status_text(session: LoopSession, tone: ToneEngine | None = None) -> str:
+    return _tone(tone).status(
+        active_target(session), completed_observed_count(session), len(OBSERVED_FIELDS)
     )
 
 
-def apply_user_reply(session: LoopSession, text: str) -> LoopResult:
+def apply_user_reply(
+    session: LoopSession, text: str, tone: ToneEngine | None = None
+) -> LoopResult:
+    tone = _tone(tone)
     value = text.strip()
     if not value:
-        return LoopResult(
-            reply=f"I need a non-empty answer for this target.\n\n{prompt_for_current_target(session)}"
-        )
+        return LoopResult(reply=tone.empty_answer(active_target(session)))
 
     target = active_target(session)
     if target == "complete":
-        return LoopResult(reply="Episode extraction is already complete.")
+        return LoopResult(reply=tone.already_complete())
 
     if target == "episode_date":
-        return _apply_episode_date(session, value)
+        return _apply_episode_date(session, value, tone)
     if target in OBSERVED_FIELDS:
-        return _apply_observed_field(session, target, value)
+        return _apply_observed_field(session, target, value, tone)
 
     raise ValueError(f"Unknown target: {target}")
 
 
-def _apply_episode_date(session: LoopSession, value: str) -> LoopResult:
+def _apply_episode_date(
+    session: LoopSession, value: str, tone: ToneEngine
+) -> LoopResult:
     try:
         date.fromisoformat(value)
     except ValueError:
-        return LoopResult(reply="Use YYYY-MM-DD for the episode date.")
+        return LoopResult(reply=tone.invalid_date())
 
     session.episode_date = value
     session.target_index += 1
-    return LoopResult(reply=prompt_for_current_target(session))
+    return LoopResult(reply=prompt_for_current_target(session, tone))
 
 
 def _apply_observed_field(
-    session: LoopSession, target: str, value: str
+    session: LoopSession, target: str, value: str, tone: ToneEngine
 ) -> LoopResult:
     session.observed[target] = {
         "value": value,
@@ -152,5 +145,9 @@ def _apply_observed_field(
     }
     session.target_index += 1
     if active_target(session) == "complete":
-        return LoopResult(reply="Episode extraction is complete.", should_save=True)
-    return LoopResult(reply=prompt_for_current_target(session))
+        return LoopResult(reply=tone.complete(), should_save=True)
+    return LoopResult(reply=prompt_for_current_target(session, tone))
+
+
+def _tone(tone: ToneEngine | None) -> ToneEngine:
+    return tone if tone is not None else ToneEngine.default()
