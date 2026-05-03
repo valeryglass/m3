@@ -50,7 +50,6 @@ DEFAULT_TONE_CONFIG: dict[str, Any] = {
 
 
 DEFAULT_PROMPTS = {
-    "episode_date": "Дата эпизода? Формат YYYY-MM-DD.",
     "situation": "Что произошло конкретно? 1-2 предложения.",
     "behavior": "Что ты сделал или чего избежал?",
     "short_term_consequence": "Что случилось сразу после этого?",
@@ -87,9 +86,6 @@ class ToneEngine:
 
     def empty_answer(self, target: str) -> str:
         return f"Нужен непустой ответ.\n\n{self.target_prompt(target)}"
-
-    def invalid_date(self) -> str:
-        return "Нужна дата в формате YYYY-MM-DD."
 
     def complete(self) -> str:
         return "Готово. Эпизод собран."

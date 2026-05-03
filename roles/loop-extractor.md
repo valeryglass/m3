@@ -69,7 +69,8 @@ Do not save until every observed field has both `value` and `source_quote`:
 - `observed.short_term_consequence`
 - `observed.long_term_consequence`
 
-If the episode date is missing, ask for it explicitly before saving.
+Set the episode date from the session creation date. Do not ask the user for an
+episode date during the loop.
 
 ## Chat Workflow
 
@@ -100,14 +101,13 @@ the active target for the current turn.
 
 Use this story-first target sequence:
 
-1. Episode date.
-2. Situation: what happened, where, when, and with whom.
-3. Behavior: what the user did or avoided.
-4. Short-term consequence: immediate result or relief/cost.
-5. Long-term consequence: later result, unresolved cost, or repeated effect.
-6. Automatic thought: the immediate thought, image, prediction, or meaning.
-7. Emotion: the named feeling or feelings.
-8. Body: physical sensation or activation.
+1. Situation: what happened, where, when, and with whom.
+2. Behavior: what the user did or avoided.
+3. Short-term consequence: immediate result or relief/cost.
+4. Long-term consequence: later result, unresolved cost, or repeated effect.
+5. Automatic thought: the immediate thought, image, prediction, or meaning.
+6. Emotion: the named feeling or feelings.
+7. Body: physical sensation or activation.
 
 Keep questions concrete. Do not pressure the user to generalize beyond the
 episode.
@@ -131,7 +131,7 @@ Never force a classification just to fill the artifact.
 
 Before saving:
 
-1. Check that the episode date is known.
+1. Check that the episode date was set from the session creation date.
 2. Check that all observed fields have non-empty `value` and `source_quote`.
 3. Scan `data/episodes/` for the next filename number for that date.
 4. Build JSON that conforms to `model/episode.schema.json`.

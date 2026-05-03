@@ -52,7 +52,7 @@ def main() -> None:
             await update.message.reply_text(_expired_initial_session_text(tone))
             return
         if session is None:
-            session = new_session(chat_id, session_id=new_session_id(str(chat_id), now))
+            session = _new_session_for_now(chat_id, now)
             ux_events.append(
                 base_event(
                     "session_started",
@@ -63,6 +63,7 @@ def main() -> None:
             )
         elif session.session_id is None:
             session.session_id = new_session_id(str(chat_id), now)
+            _ensure_episode_date(session, now)
             ux_events.append(
                 base_event(
                     "session_started",
@@ -128,7 +129,7 @@ def main() -> None:
             await update.message.reply_text(_expired_initial_session_text(tone))
             return
         if session is None:
-            session = new_session(chat_id, session_id=new_session_id(str(chat_id), now))
+            session = _new_session_for_now(chat_id, now)
             ux_events.append(
                 base_event(
                     "session_started",
@@ -140,6 +141,7 @@ def main() -> None:
             _log_step_prompted(ux_events, session, str(chat_id), now=now)
         elif session.session_id is None:
             session.session_id = new_session_id(str(chat_id), now)
+            _ensure_episode_date(session, now)
             ux_events.append(
                 base_event(
                     "session_started",
@@ -207,6 +209,23 @@ async def _authorize(update, settings: Settings, tone) -> bool:
     return True
 
 
+def _new_session_for_now(chat_id: int, now):
+    return new_session(
+        chat_id,
+        session_id=new_session_id(str(chat_id), now),
+        episode_date=_episode_date_for_now(now),
+    )
+
+
+def _ensure_episode_date(session, now) -> None:
+    if session.episode_date is None:
+        session.episode_date = _episode_date_for_now(now)
+
+
+def _episode_date_for_now(now) -> str:
+    return now.astimezone().date().isoformat()
+
+
 def _log_step_prompted(
     ux_events: UxEventLog, session, user_id: str, *, now
 ) -> None:
@@ -264,7 +283,7 @@ def _expire_initial_session_if_stale(
 
 
 def _is_initial_session_stale(session, now, initial_session_ttl_sec: int) -> bool:
-    if session.target_index != 0 or session.episode_date is not None:
+    if session.target_index != 0 or session.observed:
         return False
     if session.last_prompted_at is None:
         return False

@@ -17,7 +17,7 @@ tone:
 
     assert tone.config["tone"]["name"] == "custom"
     assert tone.max_question_length == 80
-    assert tone.target_prompt("episode_date") == "Дата эпизода? Формат YYYY-MM-DD."
+    assert tone.target_prompt("situation") == "Что произошло конкретно? 1-2 предложения."
 
 
 def test_load_tone_engine_falls_back_when_missing():

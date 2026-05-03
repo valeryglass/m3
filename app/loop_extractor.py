@@ -17,10 +17,7 @@ OBSERVED_FIELDS = (
     "body",
 )
 
-TARGETS = (
-    "episode_date",
-    *OBSERVED_FIELDS,
-)
+TARGETS = OBSERVED_FIELDS
 
 
 @dataclass
@@ -76,8 +73,16 @@ class LoopResult:
     should_save: bool = False
 
 
-def new_session(chat_id: int, session_id: str | None = None) -> LoopSession:
-    return LoopSession(chat_id=chat_id, session_id=session_id)
+def new_session(
+    chat_id: int,
+    session_id: str | None = None,
+    episode_date: str | None = None,
+) -> LoopSession:
+    return LoopSession(
+        chat_id=chat_id,
+        session_id=session_id,
+        episode_date=episode_date or date.today().isoformat(),
+    )
 
 
 def active_target(session: LoopSession) -> str:
@@ -115,25 +120,10 @@ def apply_user_reply(
     if target == "complete":
         return LoopResult(reply=tone.already_complete())
 
-    if target == "episode_date":
-        return _apply_episode_date(session, value, tone)
     if target in OBSERVED_FIELDS:
         return _apply_observed_field(session, target, value, tone)
 
     raise ValueError(f"Unknown target: {target}")
-
-
-def _apply_episode_date(
-    session: LoopSession, value: str, tone: ToneEngine
-) -> LoopResult:
-    try:
-        date.fromisoformat(value)
-    except ValueError:
-        return LoopResult(reply=tone.invalid_date())
-
-    session.episode_date = value
-    session.target_index += 1
-    return LoopResult(reply=prompt_for_current_target(session, tone))
 
 
 def _apply_observed_field(

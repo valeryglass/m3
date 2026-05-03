@@ -7,25 +7,15 @@ from app.loop_extractor import (
 )
 
 
-def test_loop_starts_with_episode_date():
-    session = new_session(chat_id=123)
+def test_loop_starts_with_situation_and_creation_date():
+    session = new_session(chat_id=123, episode_date="2026-05-03")
 
-    assert active_target(session) == "episode_date"
-
-
-def test_invalid_date_stays_on_same_target():
-    session = new_session(chat_id=123)
-    result = apply_user_reply(session, "not-a-date")
-
-    assert "YYYY-MM-DD" in result.reply
-    assert active_target(session) == "episode_date"
+    assert session.episode_date == "2026-05-03"
+    assert active_target(session) == "situation"
 
 
 def test_story_first_target_progression():
-    session = new_session(chat_id=123)
-
-    apply_user_reply(session, "2026-04-30")
-    assert active_target(session) == "situation"
+    session = new_session(chat_id=123, episode_date="2026-04-30")
 
     apply_user_reply(session, "Had a conversation.")
     assert active_target(session) == "behavior"
@@ -36,7 +26,7 @@ def test_story_first_target_progression():
 
 
 def test_empty_observed_reply_stays_on_current_target():
-    session = LoopSession(chat_id=123, target_index=1)
+    session = LoopSession(chat_id=123, target_index=0, episode_date="2026-05-03")
     result = apply_user_reply(session, " ")
 
     assert "непустой" in result.reply
@@ -44,10 +34,9 @@ def test_empty_observed_reply_stays_on_current_target():
 
 
 def test_loop_completes_after_body_without_derived_targets():
-    session = new_session(chat_id=123)
+    session = new_session(chat_id=123, episode_date="2026-04-30")
 
     for answer in (
-        "2026-04-30",
         "Had a conversation.",
         "Answered directly.",
         "Felt relief.",

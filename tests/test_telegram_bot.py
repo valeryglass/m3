@@ -19,7 +19,7 @@ def test_stale_initial_session_expires_and_logs_reason(tmp_path):
         chat_id=123,
         session_id="session-123",
         target_index=0,
-        episode_date=None,
+        episode_date="2026-05-02",
         last_prompted_at=format_utc(now - timedelta(seconds=601)),
     )
     storage.save_session(session)
@@ -36,7 +36,7 @@ def test_stale_initial_session_expires_and_logs_reason(tmp_path):
             "created_at": "2026-05-02T12:00:00Z",
             "event_type": "session_cancelled",
             "session_id": "session-123",
-            "target": "episode_date",
+            "target": "situation",
             "target_index": 0,
             "user_id": "123",
         }
@@ -71,3 +71,21 @@ def test_expired_session_reply_comes_from_tone_engine():
     assert telegram_bot._expired_initial_session_text(tone) == (
         "Прошлая сессия истекла до первого ответа. Отправь /start заново."
     )
+
+
+def test_new_session_uses_creation_date():
+    now = datetime(2026, 5, 3, 9, 44, tzinfo=timezone.utc)
+
+    session = telegram_bot._new_session_for_now(123, now)
+
+    assert session.episode_date == telegram_bot._episode_date_for_now(now)
+    assert session.target_index == 0
+
+
+def test_ensure_episode_date_fills_legacy_session():
+    now = datetime(2026, 5, 3, 9, 44, tzinfo=timezone.utc)
+    session = LoopSession(chat_id=123, episode_date=None)
+
+    telegram_bot._ensure_episode_date(session, now)
+
+    assert session.episode_date == telegram_bot._episode_date_for_now(now)
