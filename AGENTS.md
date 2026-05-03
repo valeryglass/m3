@@ -18,6 +18,7 @@ This repo does not use a markdown wiki engine. The active engine is JSON:
 - `model/*.example.json` shows valid artifacts.
 - `model/*.template.json` provides fillable artifact shapes.
 - `data/episodes/*.json` stores private runtime episode records.
+- `data/ux-events/*.jsonl` stores private runtime UX event records.
 
 The agent's job is to keep accepted contracts and artifacts coherent. Do not
 invent architecture to feel productive.
@@ -49,6 +50,7 @@ schema.md  -- repository/system structure map
 - Prefer concrete CBT episodes over broad life-story summaries.
 - Episode JSON must conform to `model/episode.schema.json`.
 - Episode JSON artifacts belong under `data/episodes/` and are not committed.
+- UX event logs belong under `data/ux-events/` and are not committed.
 - When uncertain about categorization or model expansion, ask before expanding.
 
 ## Work Modes

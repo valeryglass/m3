@@ -17,6 +17,8 @@ class Settings:
     telegram_allowed_chat_ids: frozenset[int]
     episode_dir: Path
     state_dir: Path
+    ux_event_log: Path
+    ux_idle_after_sec: int
 
 
 def parse_allowed_chat_ids(value: str) -> frozenset[int]:
@@ -46,4 +48,6 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         telegram_allowed_chat_ids=allowed_chat_ids,
         episode_dir=Path(source.get("M3_EPISODE_DIR", "data/episodes")),
         state_dir=Path(source.get("M3_STATE_DIR", "data/state")),
+        ux_event_log=Path(source.get("M3_UX_EVENT_LOG", "data/ux-events/events.jsonl")),
+        ux_idle_after_sec=int(source.get("M3_UX_IDLE_AFTER_SEC", "7200")),
     )

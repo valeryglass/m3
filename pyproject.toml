@@ -20,6 +20,7 @@ dev = [
 
 [project.scripts]
 m3-telegram-bot = "app.telegram_bot:main"
+m3-ux-analytics = "app.ux_analytics:main"
 
 [tool.setuptools.packages.find]
 include = ["app*"]

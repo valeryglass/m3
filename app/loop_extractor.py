@@ -35,7 +35,9 @@ QUESTIONS = {
 @dataclass
 class LoopSession:
     chat_id: int
+    session_id: str | None = None
     target_index: int = 0
+    last_prompted_at: str | None = None
     episode_date: str | None = None
     observed: dict[str, dict[str, str]] = field(default_factory=dict)
     derived: dict[str, list[dict[str, str]]] = field(
@@ -50,7 +52,9 @@ class LoopSession:
     def from_dict(cls, data: dict[str, Any]) -> "LoopSession":
         return cls(
             chat_id=int(data["chat_id"]),
+            session_id=data.get("session_id"),
             target_index=int(data.get("target_index", 0)),
+            last_prompted_at=data.get("last_prompted_at"),
             episode_date=data.get("episode_date"),
             observed=dict(data.get("observed", {})),
             derived=dict(
@@ -65,7 +69,9 @@ class LoopSession:
     def to_dict(self) -> dict[str, Any]:
         return {
             "chat_id": self.chat_id,
+            "session_id": self.session_id,
             "target_index": self.target_index,
+            "last_prompted_at": self.last_prompted_at,
             "episode_date": self.episode_date,
             "observed": self.observed,
             "derived": self.derived,
@@ -79,8 +85,8 @@ class LoopResult:
     should_save: bool = False
 
 
-def new_session(chat_id: int) -> LoopSession:
-    return LoopSession(chat_id=chat_id)
+def new_session(chat_id: int, session_id: str | None = None) -> LoopSession:
+    return LoopSession(chat_id=chat_id, session_id=session_id)
 
 
 def active_target(session: LoopSession) -> str:
