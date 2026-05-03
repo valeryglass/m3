@@ -44,6 +44,13 @@ def main() -> None:
         chat_id = update.effective_chat.id
         now = utc_now()
         session = storage.load_session(chat_id)
+        if _expire_initial_session_if_stale(
+            storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
+        ):
+            await update.message.reply_text(
+                "Previous session expired before first input. Send /start to begin again."
+            )
+            return
         if session is None:
             session = new_session(chat_id, session_id=new_session_id(str(chat_id), now))
             ux_events.append(
@@ -72,7 +79,15 @@ def main() -> None:
         if not await _authorize(update, settings):
             return
         chat_id = update.effective_chat.id
+        now = utc_now()
         session = storage.load_session(chat_id)
+        if _expire_initial_session_if_stale(
+            storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
+        ):
+            await update.message.reply_text(
+                "Previous session expired before first input. Send /start to begin again."
+            )
+            return
         if session is None:
             await update.message.reply_text("No active episode loop.")
             return
@@ -84,6 +99,13 @@ def main() -> None:
         chat_id = update.effective_chat.id
         now = utc_now()
         session = storage.load_session(chat_id)
+        if _expire_initial_session_if_stale(
+            storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
+        ):
+            await update.message.reply_text(
+                "Previous session expired before first input. Send /start to begin again."
+            )
+            return
         if session is not None and session.session_id is not None:
             ux_events.append(
                 base_event(
@@ -103,8 +125,15 @@ def main() -> None:
             return
         chat_id = update.effective_chat.id
         session = storage.load_session(chat_id)
+        now = utc_now()
+        if _expire_initial_session_if_stale(
+            storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
+        ):
+            await update.message.reply_text(
+                "Previous session expired before first input. Send /start to begin again."
+            )
+            return
         if session is None:
-            now = utc_now()
             session = new_session(chat_id, session_id=new_session_id(str(chat_id), now))
             ux_events.append(
                 base_event(
@@ -116,7 +145,6 @@ def main() -> None:
             )
             _log_step_prompted(ux_events, session, str(chat_id), now=now)
         elif session.session_id is None:
-            now = utc_now()
             session.session_id = new_session_id(str(chat_id), now)
             ux_events.append(
                 base_event(
@@ -205,6 +233,45 @@ def _duration_since_last_prompt(session, now) -> int:
     if session.last_prompted_at is None:
         return 0
     return max(0, int((now - parse_utc(session.last_prompted_at)).total_seconds()))
+
+
+def _expire_initial_session_if_stale(
+    storage: JsonStorage,
+    ux_events: UxEventLog,
+    session,
+    chat_id: int,
+    now,
+    initial_session_ttl_sec: int,
+) -> bool:
+    if session is None or not _is_initial_session_stale(
+        session, now, initial_session_ttl_sec
+    ):
+        return False
+
+    if session.session_id is None:
+        session.session_id = new_session_id(str(chat_id), now)
+    ux_events.append(
+        base_event(
+            "session_cancelled",
+            session.session_id,
+            str(chat_id),
+            created_at=now,
+            target=active_target(session),
+            target_index=session.target_index,
+            cancel_reason="initial_session_expired",
+        )
+    )
+    storage.delete_session(chat_id)
+    return True
+
+
+def _is_initial_session_stale(session, now, initial_session_ttl_sec: int) -> bool:
+    if session.target_index != 0 or session.episode_date is not None:
+        return False
+    if session.last_prompted_at is None:
+        return False
+    age_sec = int((now - parse_utc(session.last_prompted_at)).total_seconds())
+    return age_sec >= initial_session_ttl_sec
 
 
 if __name__ == "__main__":

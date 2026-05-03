@@ -60,6 +60,7 @@ def base_event(
     duration_sec: int | None = None,
     advanced: bool | None = None,
     answer_chars: int | None = None,
+    cancel_reason: str | None = None,
 ) -> dict[str, Any]:
     event: dict[str, Any] = {
         "event_type": event_type,
@@ -73,6 +74,7 @@ def base_event(
         "duration_sec": duration_sec,
         "advanced": advanced,
         "answer_chars": answer_chars,
+        "cancel_reason": cancel_reason,
     }
     event.update({key: value for key, value in optional.items() if value is not None})
     return event

@@ -19,6 +19,7 @@ class Settings:
     state_dir: Path
     ux_event_log: Path
     ux_idle_after_sec: int
+    initial_session_ttl_sec: int
 
 
 def parse_allowed_chat_ids(value: str) -> frozenset[int]:
@@ -50,4 +51,5 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         state_dir=Path(source.get("M3_STATE_DIR", "data/state")),
         ux_event_log=Path(source.get("M3_UX_EVENT_LOG", "data/ux-events/events.jsonl")),
         ux_idle_after_sec=int(source.get("M3_UX_IDLE_AFTER_SEC", "7200")),
+        initial_session_ttl_sec=int(source.get("M3_INITIAL_SESSION_TTL_SEC", "600")),
     )
