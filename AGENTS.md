@@ -19,6 +19,7 @@ This repo does not use a markdown wiki engine. The active engine is JSON:
 - `model/*.template.json` provides fillable artifact shapes.
 - `data/episodes/*.json` stores private runtime episode records.
 - `data/ux-events/*.jsonl` stores private runtime UX event records.
+- `config/tone.yaml` configures user-facing loop tone.
 
 The agent's job is to keep accepted contracts and artifacts coherent. Do not
 invent architecture to feel productive.
@@ -30,6 +31,7 @@ raw/       -- immutable user texts, thoughts, logs, and artifacts
 sources/   -- immutable methodology/reference sources
 model/     -- accepted CBT model and JSON contracts
 data/      -- private runtime artifacts and loop state
+config/    -- runtime configuration files
 app/       -- Telegram loop extractor application
 roles/     -- optional role specs
 schema.md  -- repository/system structure map
@@ -51,6 +53,7 @@ schema.md  -- repository/system structure map
 - Episode JSON must conform to `model/episode.schema.json`.
 - Episode JSON artifacts belong under `data/episodes/` and are not committed.
 - UX event logs belong under `data/ux-events/` and are not committed.
+- Tone engine changes interface wording only; do not let tone rules modify CBT data.
 - When uncertain about categorization or model expansion, ask before expanding.
 
 ## Work Modes

@@ -12,6 +12,7 @@ The project has working layers:
 - `data/episodes/`: private structured JSON episode records.
 - `data/state/`: private in-progress Telegram loop state.
 - `data/ux-events/`: private step-level UX analytics event log.
+- `config/`: runtime configuration files.
 - `app/`: runnable Telegram loop extractor app.
 - `roles/`: optional Codex role specs for specific tasks.
 - `schema.md`: repository/system structure map.
@@ -37,6 +38,10 @@ python -m app.telegram_bot
 
 Runtime episode artifacts and session state are stored under `data/` and are
 ignored by git.
+
+The bot uses `config/tone.yaml` for user-facing loop tone, with fallback text in
+`app/tone_engine.py`. Tone changes interface wording only; CBT data and analytics
+event fields stay unchanged.
 
 ## UX Analytics
 
