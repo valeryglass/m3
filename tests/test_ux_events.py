@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from app.ux_events import UxEventLog, base_event, new_session_id
+from app.ux_events import UxEventLog, base_event, new_session_id, telegram_event
 
 
 def test_ux_event_log_appends_and_reads_jsonl(tmp_path):
@@ -28,3 +28,23 @@ def test_new_session_id_uses_user_and_timestamp():
     )
 
     assert session_id == "session-123-20260501T120000Z"
+
+
+def test_telegram_event_stores_safe_metadata_only():
+    event = telegram_event(
+        "unauthorized_attempt",
+        "456",
+        created_at=datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc),
+        chat_id=456,
+        message_kind="command",
+        command="/start",
+    )
+
+    assert event == {
+        "chat_id": 456,
+        "command": "/start",
+        "created_at": "2026-05-01T12:00:00Z",
+        "event_type": "unauthorized_attempt",
+        "message_kind": "command",
+        "user_id": "456",
+    }

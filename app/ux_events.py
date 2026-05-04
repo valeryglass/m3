@@ -78,3 +78,28 @@ def base_event(
     }
     event.update({key: value for key, value in optional.items() if value is not None})
     return event
+
+
+def telegram_event(
+    event_type: str,
+    user_id: str,
+    *,
+    created_at: datetime | None = None,
+    chat_id: int | None = None,
+    message_kind: str | None = None,
+    command: str | None = None,
+    answer_chars: int | None = None,
+) -> dict[str, Any]:
+    event: dict[str, Any] = {
+        "event_type": event_type,
+        "user_id": user_id,
+        "created_at": format_utc(created_at or utc_now()),
+    }
+    optional = {
+        "chat_id": chat_id,
+        "message_kind": message_kind,
+        "command": command,
+        "answer_chars": answer_chars,
+    }
+    event.update({key: value for key, value in optional.items() if value is not None})
+    return event

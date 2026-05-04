@@ -1,4 +1,6 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import app.telegram_bot as telegram_bot
 from app.loop_extractor import LoopSession
@@ -9,6 +11,43 @@ from app.ux_events import UxEventLog, format_utc
 
 def test_telegram_bot_module_imports_without_contacting_telegram():
     assert callable(telegram_bot.main)
+
+
+def test_authorize_logs_unauthorized_attempt_without_session(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("/start")
+    update = SimpleNamespace(
+        effective_chat=SimpleNamespace(id=456),
+        effective_user=SimpleNamespace(id=456),
+        message=message,
+    )
+    settings = SimpleNamespace(telegram_allowed_chat_ids=frozenset({123}))
+
+    authorized = _run(telegram_bot._authorize(update, settings, ToneEngine.default(), ux_events))
+
+    assert authorized is False
+    assert message.replies == ["Нет доступа."]
+    assert storage.load_session(456) is None
+    events = ux_events.read()
+    assert len(events) == 2
+    assert events[0]["created_at"] == events[1]["created_at"]
+    assert events[0] == {
+        "chat_id": 456,
+        "command": "/start",
+        "created_at": events[0]["created_at"],
+        "event_type": "update_received",
+        "message_kind": "command",
+        "user_id": "456",
+    }
+    assert events[1] == {
+        "chat_id": 456,
+        "command": "/start",
+        "created_at": events[1]["created_at"],
+        "event_type": "unauthorized_attempt",
+        "message_kind": "command",
+        "user_id": "456",
+    }
 
 
 def test_stale_initial_session_expires_and_logs_reason(tmp_path):
@@ -141,3 +180,16 @@ def test_restart_cancel_event_uses_current_target():
     assert event["event_type"] == "session_cancelled"
     assert event["cancel_reason"] == "restart"
     assert event["target"] == "behavior"
+
+
+class _FakeMessage:
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self.replies = []
+
+    async def reply_text(self, text: str) -> None:
+        self.replies.append(text)
+
+
+def _run(coro):
+    return asyncio.run(coro)

@@ -29,6 +29,10 @@ def summarize_events(
     sessions_cancelled = [
         e for e in events if e.get("event_type") == "session_cancelled"
     ]
+    updates_received = [e for e in events if e.get("event_type") == "update_received"]
+    unauthorized_attempts = [
+        e for e in events if e.get("event_type") == "unauthorized_attempt"
+    ]
     step_prompted = [e for e in events if e.get("event_type") == "step_prompted"]
     step_answered = [e for e in events if e.get("event_type") == "step_answered"]
 
@@ -58,6 +62,17 @@ def summarize_events(
         "sessions_started": started_count,
         "sessions_completed": completed_count,
         "sessions_cancelled": cancelled_count,
+        "updates_received": len(updates_received),
+        "unauthorized_attempts": len(unauthorized_attempts),
+        "unauthorized_users": len(
+            {e["user_id"] for e in unauthorized_attempts if "user_id" in e}
+        ),
+        "updates_by_message_kind": dict(
+            Counter(e["message_kind"] for e in updates_received if "message_kind" in e)
+        ),
+        "unauthorized_by_user": dict(
+            Counter(e["user_id"] for e in unauthorized_attempts if "user_id" in e)
+        ),
         "completion_rate": completion_rate,
         "avg_session_duration_sec": _avg(finished_durations),
         "steps_prompted_by_target": dict(

@@ -16,6 +16,7 @@ from app.ux_events import (
     format_utc,
     new_session_id,
     parse_utc,
+    telegram_event,
     utc_now,
 )
 
@@ -41,7 +42,7 @@ def main() -> None:
         ) from exc
 
     async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(update, settings, tone):
+        if not await _authorize(update, settings, tone, ux_events):
             return
         chat_id = update.effective_chat.id
         now = utc_now()
@@ -59,7 +60,7 @@ def main() -> None:
         await update.message.reply_text(prompt_for_current_target(session, tone))
 
     async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(update, settings, tone):
+        if not await _authorize(update, settings, tone, ux_events):
             return
         chat_id = update.effective_chat.id
         now = utc_now()
@@ -75,7 +76,7 @@ def main() -> None:
         await update.message.reply_text(status_text(session, tone))
 
     async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(update, settings, tone):
+        if not await _authorize(update, settings, tone, ux_events):
             return
         chat_id = update.effective_chat.id
         now = utc_now()
@@ -97,7 +98,7 @@ def main() -> None:
         await update.message.reply_text(tone.cancel())
 
     async def message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(update, settings, tone):
+        if not await _authorize(update, settings, tone, ux_events):
             return
         chat_id = update.effective_chat.id
         session = storage.load_session(chat_id)
@@ -168,18 +169,67 @@ def main() -> None:
     application.run_polling()
 
 
-async def _authorize(update, settings: Settings, tone) -> bool:
+async def _authorize(
+    update,
+    settings: Settings,
+    tone,
+    ux_events: UxEventLog,
+) -> bool:
     chat = update.effective_chat
     if chat is None:
         return False
+    now = utc_now()
+    user_id = _telegram_update_user_id(update)
+    metadata = _telegram_update_metadata(update)
+    ux_events.append(
+        telegram_event(
+            "update_received",
+            user_id,
+            created_at=now,
+            **metadata,
+        )
+    )
     if (
         settings.telegram_allowed_chat_ids
         and chat.id not in settings.telegram_allowed_chat_ids
     ):
+        ux_events.append(
+            telegram_event(
+                "unauthorized_attempt",
+                user_id,
+                created_at=now,
+                **metadata,
+            )
+        )
         if update.message is not None:
             await update.message.reply_text(tone.unauthorized())
         return False
     return True
+
+
+def _telegram_update_user_id(update) -> str:
+    user = update.effective_user
+    if user is not None:
+        return str(user.id)
+    return str(update.effective_chat.id)
+
+
+def _telegram_update_metadata(update) -> dict:
+    chat = update.effective_chat
+    user = update.effective_user
+    message = update.message
+    text = (getattr(message, "text", None) or "").strip() if message else ""
+    command = text.split(maxsplit=1)[0] if text.startswith("/") else None
+    message_kind = "command" if command else "text" if text else None
+
+    metadata = {
+        "chat_id": chat.id if chat is not None else None,
+        "message_kind": message_kind,
+        "command": command,
+    }
+    if message_kind == "text":
+        metadata["answer_chars"] = len(text)
+    return {key: value for key, value in metadata.items() if value is not None}
 
 
 def _new_session_for_now(chat_id: int, now):

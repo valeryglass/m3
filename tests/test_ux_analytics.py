@@ -1,11 +1,27 @@
 from datetime import datetime, timezone
 
 from app.ux_analytics import summarize_events
-from app.ux_events import base_event
+from app.ux_events import base_event, telegram_event
 
 
 def test_summarize_events_counts_completion_retries_and_lengths():
     events = [
+        telegram_event(
+            "update_received",
+            "456",
+            created_at=_dt(11, 58),
+            chat_id=456,
+            message_kind="command",
+            command="/start",
+        ),
+        telegram_event(
+            "unauthorized_attempt",
+            "456",
+            created_at=_dt(11, 58),
+            chat_id=456,
+            message_kind="command",
+            command="/start",
+        ),
         base_event(
             "session_started",
             "session-1",
@@ -63,6 +79,11 @@ def test_summarize_events_counts_completion_retries_and_lengths():
     assert summary["sessions_started"] == 1
     assert summary["sessions_completed"] == 1
     assert summary["completion_rate"] == 1.0
+    assert summary["updates_received"] == 1
+    assert summary["unauthorized_attempts"] == 1
+    assert summary["unauthorized_users"] == 1
+    assert summary["updates_by_message_kind"] == {"command": 1}
+    assert summary["unauthorized_by_user"] == {"456": 1}
     assert summary["avg_session_duration_sec"] == 600.0
     assert summary["retry_count_by_target"] == {"episode_date": 1}
     assert summary["answer_chars_avg_by_target"] == {"episode_date": 6.5}
