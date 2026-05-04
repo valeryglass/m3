@@ -38,13 +38,14 @@ class LoopSession:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "LoopSession":
+        observed = dict(data.get("observed", {}))
         return cls(
             chat_id=int(data["chat_id"]),
             session_id=data.get("session_id"),
-            target_index=int(data.get("target_index", 0)),
+            target_index=_target_index_for_observed(observed),
             last_prompted_at=data.get("last_prompted_at"),
             episode_date=data.get("episode_date"),
-            observed=dict(data.get("observed", {})),
+            observed=observed,
             derived=dict(
                 data.get(
                     "derived",
@@ -141,3 +142,10 @@ def _apply_observed_field(
 
 def _tone(tone: ToneEngine | None) -> ToneEngine:
     return tone if tone is not None else ToneEngine.default()
+
+
+def _target_index_for_observed(observed: dict[str, dict[str, str]]) -> int:
+    for index, field_name in enumerate(OBSERVED_FIELDS):
+        if field_name not in observed:
+            return index
+    return len(OBSERVED_FIELDS)
