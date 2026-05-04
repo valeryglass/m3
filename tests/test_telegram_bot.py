@@ -82,6 +82,36 @@ def test_new_session_uses_creation_date():
     assert session.target_index == 0
 
 
+def test_start_new_session_prompts_without_observed_answer(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    now = datetime(2026, 5, 3, 9, 44, tzinfo=timezone.utc)
+
+    session = telegram_bot._start_new_session(storage, ux_events, 123, now)
+    loaded = storage.load_session(123)
+
+    assert loaded is not None
+    assert session.target_index == 0
+    assert loaded.target_index == 0
+    assert loaded.observed == {}
+    assert ux_events.read() == [
+        {
+            "created_at": "2026-05-03T09:44:00Z",
+            "event_type": "session_started",
+            "session_id": session.session_id,
+            "user_id": "123",
+        },
+        {
+            "created_at": "2026-05-03T09:44:00Z",
+            "event_type": "step_prompted",
+            "session_id": session.session_id,
+            "target": "situation",
+            "target_index": 0,
+            "user_id": "123",
+        },
+    ]
+
+
 def test_ensure_episode_date_fills_legacy_session():
     now = datetime(2026, 5, 3, 9, 44, tzinfo=timezone.utc)
     session = LoopSession(chat_id=123, episode_date=None)
@@ -89,3 +119,25 @@ def test_ensure_episode_date_fills_legacy_session():
     telegram_bot._ensure_episode_date(session, now)
 
     assert session.episode_date == telegram_bot._episode_date_for_now(now)
+
+
+def test_restart_cancel_event_uses_current_target():
+    now = datetime(2026, 5, 3, 9, 44, tzinfo=timezone.utc)
+    session = LoopSession(
+        chat_id=123,
+        session_id="session-123",
+        target_index=1,
+        episode_date="2026-05-03",
+        observed={"situation": {"value": "s", "source_quote": "s"}},
+    )
+
+    event = telegram_bot._session_cancelled_event(
+        session,
+        "123",
+        now=now,
+        cancel_reason="restart",
+    )
+
+    assert event["event_type"] == "session_cancelled"
+    assert event["cancel_reason"] == "restart"
+    assert event["target"] == "behavior"

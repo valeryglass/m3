@@ -46,34 +46,16 @@ def main() -> None:
         chat_id = update.effective_chat.id
         now = utc_now()
         session = storage.load_session(chat_id)
-        if _expire_initial_session_if_stale(
-            storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
-        ):
-            await update.message.reply_text(_expired_initial_session_text(tone))
-            return
-        if session is None:
-            session = _new_session_for_now(chat_id, now)
+        if session is not None and session.session_id is not None:
             ux_events.append(
-                base_event(
-                    "session_started",
-                    session.session_id,
+                _session_cancelled_event(
+                    session,
                     str(chat_id),
-                    created_at=now,
+                    now=now,
+                    cancel_reason="restart",
                 )
             )
-        elif session.session_id is None:
-            session.session_id = new_session_id(str(chat_id), now)
-            _ensure_episode_date(session, now)
-            ux_events.append(
-                base_event(
-                    "session_started",
-                    session.session_id,
-                    str(chat_id),
-                    created_at=now,
-                )
-            )
-        _log_step_prompted(ux_events, session, str(chat_id), now=now)
-        storage.save_session(session)
+        session = _start_new_session(storage, ux_events, chat_id, now)
         await update.message.reply_text(prompt_for_current_target(session, tone))
 
     async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -105,13 +87,10 @@ def main() -> None:
             return
         if session is not None and session.session_id is not None:
             ux_events.append(
-                base_event(
-                    "session_cancelled",
-                    session.session_id,
+                _session_cancelled_event(
+                    session,
                     str(chat_id),
-                    created_at=now,
-                    target=active_target(session),
-                    target_index=session.target_index,
+                    now=now,
                 )
             )
         storage.delete_session(chat_id)
@@ -129,28 +108,22 @@ def main() -> None:
             await update.message.reply_text(_expired_initial_session_text(tone))
             return
         if session is None:
-            session = _new_session_for_now(chat_id, now)
-            ux_events.append(
-                base_event(
-                    "session_started",
-                    session.session_id,
-                    str(chat_id),
-                    created_at=now,
-                )
-            )
-            _log_step_prompted(ux_events, session, str(chat_id), now=now)
-        elif session.session_id is None:
-            session.session_id = new_session_id(str(chat_id), now)
+            session = _start_new_session(storage, ux_events, chat_id, now)
+            await update.message.reply_text(prompt_for_current_target(session, tone))
+            return
+        else:
             _ensure_episode_date(session, now)
-            ux_events.append(
-                base_event(
-                    "session_started",
-                    session.session_id,
-                    str(chat_id),
-                    created_at=now,
+            if session.session_id is None:
+                session.session_id = new_session_id(str(chat_id), now)
+                ux_events.append(
+                    base_event(
+                        "session_started",
+                        session.session_id,
+                        str(chat_id),
+                        created_at=now,
+                    )
                 )
-            )
-            _log_step_prompted(ux_events, session, str(chat_id), now=now)
+                _log_step_prompted(ux_events, session, str(chat_id), now=now)
         target_before = active_target(session)
         target_index_before = session.target_index
         result = apply_user_reply(session, update.message.text or "", tone)
@@ -217,6 +190,26 @@ def _new_session_for_now(chat_id: int, now):
     )
 
 
+def _start_new_session(
+    storage: JsonStorage,
+    ux_events: UxEventLog,
+    chat_id: int,
+    now,
+):
+    session = _new_session_for_now(chat_id, now)
+    ux_events.append(
+        base_event(
+            "session_started",
+            session.session_id,
+            str(chat_id),
+            created_at=now,
+        )
+    )
+    _log_step_prompted(ux_events, session, str(chat_id), now=now)
+    storage.save_session(session)
+    return session
+
+
 def _ensure_episode_date(session, now) -> None:
     if session.episode_date is None:
         session.episode_date = _episode_date_for_now(now)
@@ -224,6 +217,24 @@ def _ensure_episode_date(session, now) -> None:
 
 def _episode_date_for_now(now) -> str:
     return now.astimezone().date().isoformat()
+
+
+def _session_cancelled_event(
+    session,
+    user_id: str,
+    *,
+    now,
+    cancel_reason: str | None = None,
+) -> dict:
+    return base_event(
+        "session_cancelled",
+        session.session_id,
+        user_id,
+        created_at=now,
+        target=active_target(session),
+        target_index=session.target_index,
+        cancel_reason=cancel_reason,
+    )
 
 
 def _log_step_prompted(
