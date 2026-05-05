@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from app.messages import SESSION_MESSAGES, TARGET_PROMPTS
+
 try:
     import yaml
 except ImportError:  # pragma: no cover - dependency guard
@@ -49,17 +51,6 @@ DEFAULT_TONE_CONFIG: dict[str, Any] = {
 }
 
 
-DEFAULT_PROMPTS = {
-    "situation": "Что произошло конкретно? 1-2 предложения.",
-    "behavior": "Что ты сделал или чего избежал?",
-    "short_term_consequence": "Что случилось сразу после этого?",
-    "long_term_consequence": "Что осталось потом или к чему это привело?",
-    "automatic_thought": "Какая мысль, картинка или смысл мелькнули в моменте?",
-    "emotion": "Какая эмоция была?",
-    "body": "Что было в теле?",
-}
-
-
 @dataclass(frozen=True)
 class ToneEngine:
     config: dict[str, Any]
@@ -67,7 +58,7 @@ class ToneEngine:
 
     @classmethod
     def default(cls) -> "ToneEngine":
-        return cls(config=deepcopy(DEFAULT_TONE_CONFIG), prompts=dict(DEFAULT_PROMPTS))
+        return cls(config=deepcopy(DEFAULT_TONE_CONFIG), prompts=dict(TARGET_PROMPTS))
 
     @property
     def max_question_length(self) -> int:
@@ -85,31 +76,35 @@ class ToneEngine:
         return self.prompts[target]
 
     def empty_answer(self, target: str) -> str:
-        return f"Нужен непустой ответ.\n\n{self.target_prompt(target)}"
+        return f"{SESSION_MESSAGES['empty_answer']}\n\n{self.target_prompt(target)}"
 
     def complete(self) -> str:
-        return "Готово. Эпизод собран."
+        return SESSION_MESSAGES["complete"]
 
     def already_complete(self) -> str:
-        return "Эпизод уже собран."
+        return SESSION_MESSAGES["already_complete"]
 
     def status(self, target: str, completed_count: int, total_count: int) -> str:
-        return f"Текущий шаг: {target}\nЗаполнено: {completed_count}/{total_count}"
+        return SESSION_MESSAGES["status"].format(
+            target=target,
+            completed_count=completed_count,
+            total_count=total_count,
+        )
 
     def no_active_loop(self) -> str:
-        return "Активной сессии нет."
+        return SESSION_MESSAGES["no_active_loop"]
 
     def cancel(self) -> str:
-        return "Сессия отменена."
+        return SESSION_MESSAGES["cancel"]
 
     def unauthorized(self) -> str:
-        return "Нет доступа."
+        return SESSION_MESSAGES["unauthorized"]
 
     def expired_initial_session(self) -> str:
-        return "Прошлая сессия истекла до первого ответа. Отправь /start заново."
+        return SESSION_MESSAGES["expired_initial_session"]
 
     def saved_episode(self, reply: str, path: Path) -> str:
-        return f"{reply}\nСохранено: {path}"
+        return SESSION_MESSAGES["saved_episode"].format(reply=reply, path=path)
 
 
 def load_tone_engine(path: Path | str) -> ToneEngine:
@@ -124,7 +119,7 @@ def load_tone_engine(path: Path | str) -> ToneEngine:
         return ToneEngine.default()
     return ToneEngine(
         config=_deep_merge(DEFAULT_TONE_CONFIG, data),
-        prompts=dict(DEFAULT_PROMPTS),
+        prompts=dict(TARGET_PROMPTS),
     )
 
 
