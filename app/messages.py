@@ -12,8 +12,20 @@ TARGET_PROMPTS = {
 }
 
 
+BOT_PROFILE = {
+    "short_description": "Собирает один CBT-эпизод короткими вопросами.",
+    "description": (
+        "Бот помогает зафиксировать один конкретный эпизод: что произошло, "
+        "что ты сделал, что было потом, какая мысль мелькнула, эмоция и тело. "
+        "Начни с /start."
+    ),
+}
+
+
 SESSION_MESSAGES = {
     "empty_answer": "Нужен непустой ответ.",
+    "start_session": "Соберём один конкретный эпизод.\n\n{prompt}",
+    "next_prompt_bridge": "Записал. {completed_count}/{total_count}\n\n{prompt}",
     "complete": "Готово. Эпизод собран.",
     "already_complete": "Эпизод уже собран.",
     "status": "Текущий шаг: {target}\nЗаполнено: {completed_count}/{total_count}",

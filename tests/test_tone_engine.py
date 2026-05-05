@@ -1,5 +1,5 @@
 from app.loop_extractor import OBSERVED_FIELDS
-from app.messages import COMMAND_DESCRIPTIONS, SESSION_MESSAGES, TARGET_PROMPTS
+from app.messages import BOT_PROFILE, COMMAND_DESCRIPTIONS, SESSION_MESSAGES, TARGET_PROMPTS
 from app.tone_engine import ToneEngine, load_tone_engine
 
 
@@ -42,9 +42,20 @@ def test_message_catalog_covers_every_observed_target():
 
 def test_session_messages_render_unchanged():
     tone = ToneEngine.default()
+    situation_prompt = "Что произошло конкретно? 1-2 предложения."
 
     assert tone.empty_answer("situation") == (
-        "Нужен непустой ответ.\n\nЧто произошло конкретно? 1-2 предложения."
+        f"Нужен непустой ответ.\n\n{situation_prompt}"
+    )
+    assert tone.start_session(situation_prompt) == (
+        "Соберём один конкретный эпизод.\n\n"
+        "Что произошло конкретно? 1-2 предложения."
+    )
+    assert tone.next_prompt_bridge(
+        1, 7, "Что ты сделал или чего избежал?"
+    ) == (
+        "Записал. 1/7\n\n"
+        "Что ты сделал или чего избежал?"
     )
     assert tone.complete() == "Готово. Эпизод собран."
     assert tone.already_complete() == "Эпизод уже собран."
@@ -67,6 +78,8 @@ def test_session_messages_render_unchanged():
     assert tone.saved_episode("Готово. Эпизод собран.") == "Готово. Эпизод собран."
     assert set(SESSION_MESSAGES) == {
         "empty_answer",
+        "start_session",
+        "next_prompt_bridge",
         "complete",
         "already_complete",
         "status",
@@ -77,6 +90,27 @@ def test_session_messages_render_unchanged():
         "unauthorized",
         "expired_initial_session",
         "saved_episode",
+    }
+
+
+def test_bot_profile_messages_render_unchanged():
+    tone = ToneEngine.default()
+
+    assert tone.bot_short_description() == (
+        "Собирает один CBT-эпизод короткими вопросами."
+    )
+    assert tone.bot_description() == (
+        "Бот помогает зафиксировать один конкретный эпизод: что произошло, "
+        "что ты сделал, что было потом, какая мысль мелькнула, эмоция и тело. "
+        "Начни с /start."
+    )
+    assert BOT_PROFILE == {
+        "short_description": "Собирает один CBT-эпизод короткими вопросами.",
+        "description": (
+            "Бот помогает зафиксировать один конкретный эпизод: что произошло, "
+            "что ты сделал, что было потом, какая мысль мелькнула, эмоция и тело. "
+            "Начни с /start."
+        ),
     }
 
 

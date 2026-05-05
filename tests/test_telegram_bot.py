@@ -24,6 +24,19 @@ def test_visible_command_menu_excludes_hidden_status():
     )
 
 
+def test_bot_profile_uses_tone_engine_copy():
+    tone = ToneEngine.default()
+
+    assert telegram_bot._bot_profile(tone) == {
+        "short_description": "Собирает один CBT-эпизод короткими вопросами.",
+        "description": (
+            "Бот помогает зафиксировать один конкретный эпизод: что произошло, "
+            "что ты сделал, что было потом, какая мысль мелькнула, эмоция и тело. "
+            "Начни с /start."
+        ),
+    }
+
+
 def test_send_help_replies_without_creating_session(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     message = _FakeMessage("/help")
@@ -115,6 +128,67 @@ def test_cancel_without_session_reports_no_active_session(tmp_path):
     assert storage.load_session(123) is None
     assert ux_events.read() == []
     assert message.replies == ["Активной сессии нет."]
+
+
+def test_accepted_answer_replies_with_bridge_and_next_question(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session = LoopSession(
+        chat_id=123,
+        session_id="session-123",
+        target_index=0,
+        episode_date="2026-05-03",
+    )
+    storage.save_session(session)
+    message = _FakeMessage("situation")
+
+    _run(
+        telegram_bot._handle_message_after_authorized(
+            _fake_update(123, message),
+            storage,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = storage.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == 1
+    assert message.replies == [
+        "Записал. 1/7\n\nЧто ты сделал или чего избежал?",
+    ]
+
+
+def test_empty_answer_retries_without_bridge(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session = LoopSession(
+        chat_id=123,
+        session_id="session-123",
+        target_index=0,
+        episode_date="2026-05-03",
+    )
+    storage.save_session(session)
+    message = _FakeMessage(" ")
+
+    _run(
+        telegram_bot._handle_message_after_authorized(
+            _fake_update(123, message),
+            storage,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = storage.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == 0
+    assert message.replies == [
+        "Нужен непустой ответ.\n\nЧто произошло конкретно? 1-2 предложения.",
+    ]
+    assert "Записал." not in message.replies[0]
 
 
 def test_completion_reply_has_no_episode_path_and_requires_restart_after(tmp_path):

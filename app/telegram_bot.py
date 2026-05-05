@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from app.config import Settings, load_settings
 from app.loop_extractor import (
+    OBSERVED_FIELDS,
     active_target,
     apply_user_reply,
+    completed_observed_count,
     new_session,
     prompt_for_current_target,
     status_text,
@@ -56,7 +58,9 @@ def main() -> None:
                 )
             )
         session = _start_new_session(storage, ux_events, chat_id, now)
-        await update.message.reply_text(prompt_for_current_target(session, tone))
+        await update.message.reply_text(
+            tone.start_session(prompt_for_current_target(session, tone))
+        )
 
     async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(update, settings, tone, ux_events):
@@ -90,12 +94,17 @@ def main() -> None:
         await _handle_message_after_authorized(update, storage, ux_events, settings, tone)
 
     async def post_init(application) -> None:
+        profile = _bot_profile(tone)
         await application.bot.set_my_commands(
             [
                 BotCommand(command=command["command"], description=command["description"])
                 for command in _visible_command_menu(tone)
             ]
         )
+        await application.bot.set_my_short_description(
+            short_description=profile["short_description"]
+        )
+        await application.bot.set_my_description(description=profile["description"])
 
     application = (
         Application.builder()
@@ -123,6 +132,13 @@ def _visible_command_menu(tone) -> tuple[dict[str, str], ...]:
         }
         for command in VISIBLE_COMMANDS
     )
+
+
+def _bot_profile(tone) -> dict[str, str]:
+    return {
+        "short_description": tone.bot_short_description(),
+        "description": tone.bot_description(),
+    }
 
 
 async def _send_help(update, tone) -> None:
@@ -226,7 +242,14 @@ async def _handle_message_after_authorized(
         return
     _log_step_prompted(ux_events, session, str(chat_id), now=now)
     storage.save_session(session)
-    await update.message.reply_text(result.reply)
+    reply = result.reply
+    if advanced:
+        reply = tone.next_prompt_bridge(
+            completed_observed_count(session),
+            len(OBSERVED_FIELDS),
+            result.reply,
+        )
+    await update.message.reply_text(reply)
 
 
 async def _authorize(

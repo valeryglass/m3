@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from app.messages import COMMAND_DESCRIPTIONS, SESSION_MESSAGES, TARGET_PROMPTS
+from app.messages import BOT_PROFILE, COMMAND_DESCRIPTIONS, SESSION_MESSAGES, TARGET_PROMPTS
 
 try:
     import yaml
@@ -74,6 +74,24 @@ class ToneEngine:
         if target == "complete":
             return self.complete()
         return self.prompts[target]
+
+    def bot_short_description(self) -> str:
+        return BOT_PROFILE["short_description"]
+
+    def bot_description(self) -> str:
+        return BOT_PROFILE["description"]
+
+    def start_session(self, prompt: str) -> str:
+        return SESSION_MESSAGES["start_session"].format(prompt=prompt)
+
+    def next_prompt_bridge(
+        self, completed_count: int, total_count: int, prompt: str
+    ) -> str:
+        return SESSION_MESSAGES["next_prompt_bridge"].format(
+            completed_count=completed_count,
+            total_count=total_count,
+            prompt=prompt,
+        )
 
     def empty_answer(self, target: str) -> str:
         return f"{SESSION_MESSAGES['empty_answer']}\n\n{self.target_prompt(target)}"
