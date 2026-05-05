@@ -17,6 +17,12 @@ SESSION_MESSAGES = {
     "complete": "Готово. Эпизод собран.",
     "already_complete": "Эпизод уже собран.",
     "status": "Текущий шаг: {target}\nЗаполнено: {completed_count}/{total_count}",
+    "help": (
+        "Команды:\n"
+        "/start — начать новый эпизод\n"
+        "/cancel — отменить сессию\n"
+        "/help — показать команды"
+    ),
     "no_active_loop": "Активной сессии нет.",
     "cancel": "Сессия отменена.",
     "unauthorized": "Нет доступа.",
@@ -24,4 +30,11 @@ SESSION_MESSAGES = {
         "Прошлая сессия истекла до первого ответа. Отправь /start заново."
     ),
     "saved_episode": "{reply}\nСохранено: {path}",
+}
+
+
+COMMAND_DESCRIPTIONS = {
+    "start": "Начать новый эпизод",
+    "cancel": "Отменить сессию",
+    "help": "Показать команды",
 }

@@ -13,6 +13,37 @@ def test_telegram_bot_module_imports_without_contacting_telegram():
     assert callable(telegram_bot.main)
 
 
+def test_visible_command_menu_excludes_hidden_status():
+    tone = ToneEngine.default()
+
+    assert telegram_bot.REGISTERED_COMMANDS == ("start", "status", "cancel", "help")
+    assert telegram_bot._visible_command_menu(tone) == (
+        {"command": "start", "description": "Начать новый эпизод"},
+        {"command": "cancel", "description": "Отменить сессию"},
+        {"command": "help", "description": "Показать команды"},
+    )
+
+
+def test_send_help_replies_without_creating_session(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    message = _FakeMessage("/help")
+    update = SimpleNamespace(
+        effective_chat=SimpleNamespace(id=123),
+        effective_user=SimpleNamespace(id=123),
+        message=message,
+    )
+
+    _run(telegram_bot._send_help(update, ToneEngine.default()))
+
+    assert storage.load_session(123) is None
+    assert message.replies == [
+        "Команды:\n"
+        "/start — начать новый эпизод\n"
+        "/cancel — отменить сессию\n"
+        "/help — показать команды"
+    ]
+
+
 def test_authorize_logs_unauthorized_attempt_without_session(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")

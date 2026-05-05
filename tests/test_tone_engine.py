@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from app.loop_extractor import OBSERVED_FIELDS
-from app.messages import SESSION_MESSAGES, TARGET_PROMPTS
+from app.messages import COMMAND_DESCRIPTIONS, SESSION_MESSAGES, TARGET_PROMPTS
 from app.tone_engine import ToneEngine, load_tone_engine
 
 
@@ -51,6 +51,12 @@ def test_session_messages_render_unchanged():
     assert tone.complete() == "Готово. Эпизод собран."
     assert tone.already_complete() == "Эпизод уже собран."
     assert tone.status("situation", 1, 7) == "Текущий шаг: situation\nЗаполнено: 1/7"
+    assert tone.help() == (
+        "Команды:\n"
+        "/start — начать новый эпизод\n"
+        "/cancel — отменить сессию\n"
+        "/help — показать команды"
+    )
     assert tone.no_active_loop() == "Активной сессии нет."
     assert tone.cancel() == "Сессия отменена."
     assert tone.unauthorized() == "Нет доступа."
@@ -65,11 +71,25 @@ def test_session_messages_render_unchanged():
         "complete",
         "already_complete",
         "status",
+        "help",
         "no_active_loop",
         "cancel",
         "unauthorized",
         "expired_initial_session",
         "saved_episode",
+    }
+
+
+def test_command_descriptions_render_unchanged():
+    tone = ToneEngine.default()
+
+    assert tone.command_description("start") == "Начать новый эпизод"
+    assert tone.command_description("cancel") == "Отменить сессию"
+    assert tone.command_description("help") == "Показать команды"
+    assert COMMAND_DESCRIPTIONS == {
+        "start": "Начать новый эпизод",
+        "cancel": "Отменить сессию",
+        "help": "Показать команды",
     }
 
 

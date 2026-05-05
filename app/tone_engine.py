@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from app.messages import SESSION_MESSAGES, TARGET_PROMPTS
+from app.messages import COMMAND_DESCRIPTIONS, SESSION_MESSAGES, TARGET_PROMPTS
 
 try:
     import yaml
@@ -90,6 +90,12 @@ class ToneEngine:
             completed_count=completed_count,
             total_count=total_count,
         )
+
+    def help(self) -> str:
+        return SESSION_MESSAGES["help"]
+
+    def command_description(self, command: str) -> str:
+        return COMMAND_DESCRIPTIONS[command]
 
     def no_active_loop(self) -> str:
         return SESSION_MESSAGES["no_active_loop"]

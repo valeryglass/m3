@@ -28,7 +28,7 @@ def main() -> None:
     tone = load_tone_engine(settings.tone_config)
 
     try:
-        from telegram import Update
+        from telegram import BotCommand, Update
         from telegram.ext import (
             Application,
             CommandHandler,
@@ -40,7 +40,6 @@ def main() -> None:
         raise RuntimeError(
             "Install project dependencies before running the Telegram bot."
         ) from exc
-
     async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(update, settings, tone, ux_events):
             return
@@ -74,6 +73,11 @@ def main() -> None:
             await update.message.reply_text(tone.no_active_loop())
             return
         await update.message.reply_text(status_text(session, tone))
+
+    async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _authorize(update, settings, tone, ux_events):
+            return
+        await _send_help(update, tone)
 
     async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(update, settings, tone, ux_events):
@@ -161,12 +165,45 @@ def main() -> None:
         storage.save_session(session)
         await update.message.reply_text(result.reply)
 
-    application = Application.builder().token(settings.telegram_bot_token).build()
+    async def post_init(application) -> None:
+        await application.bot.set_my_commands(
+            [
+                BotCommand(command=command["command"], description=command["description"])
+                for command in _visible_command_menu(tone)
+            ]
+        )
+
+    application = (
+        Application.builder()
+        .token(settings.telegram_bot_token)
+        .post_init(post_init)
+        .build()
+    )
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("cancel", cancel))
+    application.add_handler(CommandHandler("help", help_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
     application.run_polling()
+
+
+REGISTERED_COMMANDS = ("start", "status", "cancel", "help")
+VISIBLE_COMMANDS = ("start", "cancel", "help")
+
+
+def _visible_command_menu(tone) -> tuple[dict[str, str], ...]:
+    return tuple(
+        {
+            "command": command,
+            "description": tone.command_description(command),
+        }
+        for command in VISIBLE_COMMANDS
+    )
+
+
+async def _send_help(update, tone) -> None:
+    if update.message is not None:
+        await update.message.reply_text(tone.help())
 
 
 async def _authorize(
