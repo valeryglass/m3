@@ -18,7 +18,6 @@ episode schema, raw inputs, or reference sources.
 - Preserve the observed vs derived boundary.
 - Do not modify `raw/`, `sources/`, or `model/`.
 - Do not make diagnostic claims.
-- Do not infer stable traits, beliefs, patterns, hypotheses, or experiments.
 - Do not extract derived data in this version.
 - Prefer one concrete episode over broad life-story summaries.
 - Save only one episode per loop.

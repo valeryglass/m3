@@ -39,15 +39,3 @@ cognitive_distortion
   -> automatic_thought_observed
   -> source
 ```
-
-## Deferred
-
-Do not add these as MVP entities:
-
-- beliefs
-- patterns
-- stable traits
-- hypotheses
-- experiments
-
-These require multiple linked episodes before promotion.
