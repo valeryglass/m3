@@ -24,12 +24,13 @@ SESSION_MESSAGES = {
         "/help — показать команды"
     ),
     "no_active_loop": "Активной сессии нет.",
+    "no_active_loop_start": "Активной сессии нет. Отправь /start, чтобы начать.",
     "cancel": "Сессия отменена.",
     "unauthorized": "Нет доступа.",
     "expired_initial_session": (
         "Прошлая сессия истекла до первого ответа. Отправь /start заново."
     ),
-    "saved_episode": "{reply}\nСохранено: {path}",
+    "saved_episode": "{reply}",
 }
 
 

@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from app.loop_extractor import OBSERVED_FIELDS
 from app.messages import COMMAND_DESCRIPTIONS, SESSION_MESSAGES, TARGET_PROMPTS
 from app.tone_engine import ToneEngine, load_tone_engine
@@ -58,14 +56,15 @@ def test_session_messages_render_unchanged():
         "/help — показать команды"
     )
     assert tone.no_active_loop() == "Активной сессии нет."
+    assert tone.no_active_loop_start() == (
+        "Активной сессии нет. Отправь /start, чтобы начать."
+    )
     assert tone.cancel() == "Сессия отменена."
     assert tone.unauthorized() == "Нет доступа."
     assert tone.expired_initial_session() == (
         "Прошлая сессия истекла до первого ответа. Отправь /start заново."
     )
-    assert tone.saved_episode("Готово. Эпизод собран.", Path("data/episodes/e.json")) == (
-        "Готово. Эпизод собран.\nСохранено: data/episodes/e.json"
-    )
+    assert tone.saved_episode("Готово. Эпизод собран.") == "Готово. Эпизод собран."
     assert set(SESSION_MESSAGES) == {
         "empty_answer",
         "complete",
@@ -73,6 +72,7 @@ def test_session_messages_render_unchanged():
         "status",
         "help",
         "no_active_loop",
+        "no_active_loop_start",
         "cancel",
         "unauthorized",
         "expired_initial_session",

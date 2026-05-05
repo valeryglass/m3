@@ -82,88 +82,12 @@ def main() -> None:
     async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(update, settings, tone, ux_events):
             return
-        chat_id = update.effective_chat.id
-        now = utc_now()
-        session = storage.load_session(chat_id)
-        if _expire_initial_session_if_stale(
-            storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
-        ):
-            await update.message.reply_text(_expired_initial_session_text(tone))
-            return
-        if session is not None and session.session_id is not None:
-            ux_events.append(
-                _session_cancelled_event(
-                    session,
-                    str(chat_id),
-                    now=now,
-                )
-            )
-        storage.delete_session(chat_id)
-        await update.message.reply_text(tone.cancel())
+        await _handle_cancel_after_authorized(update, storage, ux_events, settings, tone)
 
     async def message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(update, settings, tone, ux_events):
             return
-        chat_id = update.effective_chat.id
-        session = storage.load_session(chat_id)
-        now = utc_now()
-        if _expire_initial_session_if_stale(
-            storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
-        ):
-            await update.message.reply_text(_expired_initial_session_text(tone))
-            return
-        if session is None:
-            session = _start_new_session(storage, ux_events, chat_id, now)
-            await update.message.reply_text(prompt_for_current_target(session, tone))
-            return
-        else:
-            _ensure_episode_date(session, now)
-            if session.session_id is None:
-                session.session_id = new_session_id(str(chat_id), now)
-                ux_events.append(
-                    base_event(
-                        "session_started",
-                        session.session_id,
-                        str(chat_id),
-                        created_at=now,
-                    )
-                )
-                _log_step_prompted(ux_events, session, str(chat_id), now=now)
-        target_before = active_target(session)
-        target_index_before = session.target_index
-        result = apply_user_reply(session, update.message.text or "", tone)
-        now = utc_now()
-        target_after = active_target(session)
-        advanced = result.should_save or target_after != target_before
-        ux_events.append(
-            base_event(
-                "step_answered",
-                session.session_id,
-                str(chat_id),
-                created_at=now,
-                target=target_before,
-                target_index=target_index_before,
-                duration_sec=_duration_since_last_prompt(session, now),
-                advanced=advanced,
-                answer_chars=len(update.message.text or ""),
-            )
-        )
-        if result.should_save:
-            path = storage.save_episode(session)
-            ux_events.append(
-                base_event(
-                    "session_completed",
-                    session.session_id,
-                    str(chat_id),
-                    created_at=now,
-                )
-            )
-            storage.delete_session(chat_id)
-            await update.message.reply_text(tone.saved_episode(result.reply, path))
-            return
-        _log_step_prompted(ux_events, session, str(chat_id), now=now)
-        storage.save_session(session)
-        await update.message.reply_text(result.reply)
+        await _handle_message_after_authorized(update, storage, ux_events, settings, tone)
 
     async def post_init(application) -> None:
         await application.bot.set_my_commands(
@@ -204,6 +128,105 @@ def _visible_command_menu(tone) -> tuple[dict[str, str], ...]:
 async def _send_help(update, tone) -> None:
     if update.message is not None:
         await update.message.reply_text(tone.help())
+
+
+async def _handle_cancel_after_authorized(
+    update,
+    storage: JsonStorage,
+    ux_events: UxEventLog,
+    settings: Settings,
+    tone,
+) -> None:
+    chat_id = update.effective_chat.id
+    now = utc_now()
+    session = storage.load_session(chat_id)
+    if _expire_initial_session_if_stale(
+        storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
+    ):
+        await update.message.reply_text(_expired_initial_session_text(tone))
+        return
+    if session is None:
+        await update.message.reply_text(tone.no_active_loop())
+        return
+    if session.session_id is not None:
+        ux_events.append(
+            _session_cancelled_event(
+                session,
+                str(chat_id),
+                now=now,
+            )
+        )
+    storage.delete_session(chat_id)
+    await update.message.reply_text(tone.cancel())
+
+
+async def _handle_message_after_authorized(
+    update,
+    storage: JsonStorage,
+    ux_events: UxEventLog,
+    settings: Settings,
+    tone,
+) -> None:
+    chat_id = update.effective_chat.id
+    session = storage.load_session(chat_id)
+    now = utc_now()
+    if _expire_initial_session_if_stale(
+        storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
+    ):
+        await update.message.reply_text(_expired_initial_session_text(tone))
+        return
+    if session is None:
+        await update.message.reply_text(tone.no_active_loop_start())
+        return
+
+    _ensure_episode_date(session, now)
+    if session.session_id is None:
+        session.session_id = new_session_id(str(chat_id), now)
+        ux_events.append(
+            base_event(
+                "session_started",
+                session.session_id,
+                str(chat_id),
+                created_at=now,
+            )
+        )
+        _log_step_prompted(ux_events, session, str(chat_id), now=now)
+
+    target_before = active_target(session)
+    target_index_before = session.target_index
+    result = apply_user_reply(session, update.message.text or "", tone)
+    now = utc_now()
+    target_after = active_target(session)
+    advanced = result.should_save or target_after != target_before
+    ux_events.append(
+        base_event(
+            "step_answered",
+            session.session_id,
+            str(chat_id),
+            created_at=now,
+            target=target_before,
+            target_index=target_index_before,
+            duration_sec=_duration_since_last_prompt(session, now),
+            advanced=advanced,
+            answer_chars=len(update.message.text or ""),
+        )
+    )
+    if result.should_save:
+        storage.save_episode(session)
+        ux_events.append(
+            base_event(
+                "session_completed",
+                session.session_id,
+                str(chat_id),
+                created_at=now,
+            )
+        )
+        storage.delete_session(chat_id)
+        await update.message.reply_text(tone.saved_episode(result.reply))
+        return
+    _log_step_prompted(ux_events, session, str(chat_id), now=now)
+    storage.save_session(session)
+    await update.message.reply_text(result.reply)
 
 
 async def _authorize(

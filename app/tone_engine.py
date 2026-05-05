@@ -100,6 +100,9 @@ class ToneEngine:
     def no_active_loop(self) -> str:
         return SESSION_MESSAGES["no_active_loop"]
 
+    def no_active_loop_start(self) -> str:
+        return SESSION_MESSAGES["no_active_loop_start"]
+
     def cancel(self) -> str:
         return SESSION_MESSAGES["cancel"]
 
@@ -109,8 +112,8 @@ class ToneEngine:
     def expired_initial_session(self) -> str:
         return SESSION_MESSAGES["expired_initial_session"]
 
-    def saved_episode(self, reply: str, path: Path) -> str:
-        return SESSION_MESSAGES["saved_episode"].format(reply=reply, path=path)
+    def saved_episode(self, reply: str) -> str:
+        return SESSION_MESSAGES["saved_episode"].format(reply=reply)
 
 
 def load_tone_engine(path: Path | str) -> ToneEngine:

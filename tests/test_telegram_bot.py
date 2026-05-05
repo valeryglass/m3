@@ -81,6 +81,92 @@ def test_authorize_logs_unauthorized_attempt_without_session(tmp_path):
     }
 
 
+def test_plain_text_without_session_requires_start(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("hi")
+    update = _fake_update(123, message)
+
+    _run(
+        telegram_bot._handle_message_after_authorized(
+            update, storage, ux_events, _settings(), ToneEngine.default()
+        )
+    )
+
+    assert storage.load_session(123) is None
+    assert ux_events.read() == []
+    assert message.replies == [
+        "Активной сессии нет. Отправь /start, чтобы начать.",
+    ]
+
+
+def test_cancel_without_session_reports_no_active_session(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("/cancel")
+    update = _fake_update(123, message)
+
+    _run(
+        telegram_bot._handle_cancel_after_authorized(
+            update, storage, ux_events, _settings(), ToneEngine.default()
+        )
+    )
+
+    assert storage.load_session(123) is None
+    assert ux_events.read() == []
+    assert message.replies == ["Активной сессии нет."]
+
+
+def test_completion_reply_has_no_episode_path_and_requires_restart_after(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session = LoopSession(
+        chat_id=123,
+        session_id="session-123",
+        target_index=6,
+        episode_date="2026-05-03",
+        observed={
+            "situation": {"value": "s", "source_quote": "s"},
+            "behavior": {"value": "b", "source_quote": "b"},
+            "short_term_consequence": {"value": "st", "source_quote": "st"},
+            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+            "automatic_thought": {"value": "at", "source_quote": "at"},
+            "emotion": {"value": "e", "source_quote": "e"},
+        },
+    )
+    storage.save_session(session)
+    message = _FakeMessage("body")
+    update = _fake_update(123, message)
+
+    _run(
+        telegram_bot._handle_message_after_authorized(
+            update, storage, ux_events, _settings(), ToneEngine.default()
+        )
+    )
+
+    assert storage.load_session(123) is None
+    assert [path.name for path in (tmp_path / "episodes").glob("*.json")] == [
+        "episode-20260503-1.json"
+    ]
+    assert message.replies == ["Готово. Эпизод собран."]
+    assert "data/episodes" not in message.replies[0]
+    assert ux_events.read()[-1]["event_type"] == "session_completed"
+
+    followup = _FakeMessage("next")
+    _run(
+        telegram_bot._handle_message_after_authorized(
+            _fake_update(123, followup),
+            storage,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+        )
+    )
+
+    assert storage.load_session(123) is None
+    assert followup.replies == ["Активной сессии нет. Отправь /start, чтобы начать."]
+
+
 def test_stale_initial_session_expires_and_logs_reason(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
@@ -224,3 +310,15 @@ class _FakeMessage:
 
 def _run(coro):
     return asyncio.run(coro)
+
+
+def _fake_update(chat_id: int, message: _FakeMessage):
+    return SimpleNamespace(
+        effective_chat=SimpleNamespace(id=chat_id),
+        effective_user=SimpleNamespace(id=chat_id),
+        message=message,
+    )
+
+
+def _settings():
+    return SimpleNamespace(initial_session_ttl_sec=600)
