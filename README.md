@@ -11,6 +11,7 @@ The project has working layers:
 - `model/`: accepted CBT model and JSON contracts.
 - `data/episodes/`: private structured JSON episode records.
 - `data/state/`: private in-progress Telegram loop state.
+- `data/userlist/`: private alpha waitlist and approval records.
 - `data/ux-events/`: private step-level UX analytics event log.
 - `config/`: runtime configuration files.
 - `app/`: runnable Telegram loop extractor app.
@@ -36,8 +37,8 @@ cp .env.example .env
 python -m app.telegram_bot
 ```
 
-Runtime episode artifacts and session state are stored under `data/` and are
-ignored by git.
+Runtime episode artifacts, session state, and alpha userlist records are stored
+under `data/` and are ignored by git.
 
 The bot uses `config/tone.yaml` for user-facing loop tone, with fallback text in
 `app/tone_engine.py`. Tone changes interface wording only; CBT data and analytics

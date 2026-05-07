@@ -157,6 +157,24 @@ class ToneEngine:
     def unauthorized(self) -> str:
         return SESSION_MESSAGES["unauthorized"]
 
+    def waitlisted(self) -> str:
+        return SESSION_MESSAGES["waitlisted"]
+
+    def admin_waitlist_notice(self, chat_id: int, user_id: str) -> str:
+        return SESSION_MESSAGES["admin_waitlist_notice"].format(
+            chat_id=chat_id,
+            user_id=user_id,
+        )
+
+    def admin_approved(self, chat_id: int) -> str:
+        return SESSION_MESSAGES["admin_approved"].format(chat_id=chat_id)
+
+    def admin_paused(self, chat_id: int) -> str:
+        return SESSION_MESSAGES["admin_paused"].format(chat_id=chat_id)
+
+    def admin_bad_command(self, command: str) -> str:
+        return SESSION_MESSAGES["admin_bad_command"].format(command=command)
+
     def expired_initial_session(self) -> str:
         return SESSION_MESSAGES["expired_initial_session"]
 

@@ -6,6 +6,7 @@ import app.telegram_bot as telegram_bot
 from app.loop_extractor import LoopSession, prompt_for_current_target
 from app.storage import JsonStorage
 from app.tone_engine import ToneEngine
+from app.userlist import APPROVED, PAUSED, WAITLISTED, JsonUserList
 from app.ux_events import UxEventLog, format_utc
 
 
@@ -16,7 +17,14 @@ def test_telegram_bot_module_imports_without_contacting_telegram():
 def test_visible_command_menu_excludes_hidden_status():
     tone = ToneEngine.default()
 
-    assert telegram_bot.REGISTERED_COMMANDS == ("start", "status", "cancel", "help")
+    assert telegram_bot.REGISTERED_COMMANDS == (
+        "start",
+        "status",
+        "cancel",
+        "help",
+        "approve",
+        "pause",
+    )
     assert telegram_bot._visible_command_menu(tone) == (
         {"command": "start", "description": "Начать новый эпизод"},
         {"command": "cancel", "description": "Отменить сессию"},
@@ -33,7 +41,7 @@ def test_bot_profile_uses_tone_engine_copy():
             "МИШа — машина извлечения шаблонов\n\n"
             "Помогает собрать один конкретный эпизод: факт, действие, последствия, "
             "мысль, эмоцию и тело\n\n"
-            "Доступ по приглашению: @mesto3"
+            "Начни с /start"
         ),
     }
 
@@ -75,7 +83,7 @@ def test_send_help_replies_without_creating_session(tmp_path):
         "/start — начать один эпизод\n"
         "/cancel — отменить сессию\n"
         "/help — показать команды\n\n"
-        "Доступ по приглашению: @mesto3"
+        "Связь: @mesto3"
     ]
     assert message.reply_options == [{"parse_mode": "HTML"}]
 
@@ -89,13 +97,36 @@ def test_authorize_logs_unauthorized_attempt_without_session(tmp_path):
         effective_user=SimpleNamespace(id=456),
         message=message,
     )
-    settings = SimpleNamespace(telegram_allowed_chat_ids=frozenset({123}))
+    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
+    bot = _FakeBot()
 
-    authorized = _run(telegram_bot._authorize(update, settings, ToneEngine.default(), ux_events))
+    authorized = _run(
+        telegram_bot._authorize(
+            update, settings, ToneEngine.default(), ux_events, userlist, bot
+        )
+    )
 
     assert authorized is False
-    assert message.replies == ["Нет доступа"]
+    assert message.replies == [
+        "Спасибо за интерес. Мы добавили тебя в waitlist. "
+        "Напишем, когда доступ будет одобрен"
+    ]
     assert storage.load_session(456) is None
+    assert userlist.load()["456"]["status"] == WAITLISTED
+    assert bot.messages == [
+        {
+            "chat_id": 123,
+            "text": (
+                "Новый пользователь в waitlist\n"
+                "chat_id: 456\n"
+                "user_id: 456\n\n"
+                "/approve 456\n"
+                "/pause 456"
+            ),
+            "parse_mode": "HTML",
+        }
+    ]
     events = ux_events.read()
     assert len(events) == 2
     assert events[0]["created_at"] == events[1]["created_at"]
@@ -115,6 +146,197 @@ def test_authorize_logs_unauthorized_attempt_without_session(tmp_path):
         "message_kind": "command",
         "user_id": "456",
     }
+
+
+def test_authorize_repeated_waitlist_attempt_does_not_notify_admin(tmp_path):
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
+    userlist.upsert_waitlisted(
+        456, "456", now=datetime(2026, 5, 7, 10, 0, tzinfo=timezone.utc)
+    )
+    bot = _FakeBot()
+    message = _FakeMessage("/start")
+
+    authorized = _run(
+        telegram_bot._authorize(
+            _fake_update(456, message),
+            settings,
+            ToneEngine.default(),
+            ux_events,
+            userlist,
+            bot,
+        )
+    )
+
+    assert authorized is False
+    assert bot.messages == []
+    assert userlist.load()["456"]["status"] == WAITLISTED
+
+
+def test_authorize_paused_user_gets_waitlist_copy(tmp_path):
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
+    userlist.pause(
+        456,
+        decided_by="123",
+        now=datetime(2026, 5, 7, 10, 0, tzinfo=timezone.utc),
+    )
+    message = _FakeMessage("/start")
+
+    authorized = _run(
+        telegram_bot._authorize(
+            _fake_update(456, message),
+            settings,
+            ToneEngine.default(),
+            ux_events,
+            userlist,
+            _FakeBot(),
+        )
+    )
+
+    assert authorized is False
+    assert userlist.load()["456"]["status"] == PAUSED
+    assert message.replies == [
+        "Спасибо за интерес. Мы добавили тебя в waitlist. "
+        "Напишем, когда доступ будет одобрен"
+    ]
+
+
+def test_authorize_approved_user_passes(tmp_path):
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
+    userlist.approve(
+        456,
+        decided_by="123",
+        now=datetime(2026, 5, 7, 10, 0, tzinfo=timezone.utc),
+    )
+    message = _FakeMessage("/start")
+
+    authorized = _run(
+        telegram_bot._authorize(
+            _fake_update(456, message),
+            settings,
+            ToneEngine.default(),
+            ux_events,
+            userlist,
+            _FakeBot(),
+        )
+    )
+
+    assert authorized is True
+    assert message.replies == []
+    assert userlist.load()["456"]["status"] == APPROVED
+
+
+def test_authorize_open_mvp_does_not_use_waitlist(tmp_path):
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    settings = _settings(allowed_chat_ids=frozenset(), admin_chat_id=None)
+    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
+
+    authorized = _run(
+        telegram_bot._authorize(
+            _fake_update(456, _FakeMessage("/start")),
+            settings,
+            ToneEngine.default(),
+            ux_events,
+            userlist,
+            _FakeBot(),
+        )
+    )
+
+    assert authorized is True
+    assert userlist.load() == {}
+
+
+def test_admin_approve_updates_userlist_without_user_notification(tmp_path):
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
+    message = _FakeMessage("/approve 456")
+
+    _run(
+        telegram_bot._handle_admin_decision(
+            _fake_update(123, message),
+            ["456"],
+            settings,
+            ToneEngine.default(),
+            ux_events,
+            userlist,
+            "approve",
+        )
+    )
+
+    assert userlist.load()["456"]["status"] == APPROVED
+    assert message.replies == ["Доступ одобрен для 456"]
+
+
+def test_admin_pause_updates_userlist_without_user_notification(tmp_path):
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
+    message = _FakeMessage("/pause 456")
+
+    _run(
+        telegram_bot._handle_admin_decision(
+            _fake_update(123, message),
+            ["456"],
+            settings,
+            ToneEngine.default(),
+            ux_events,
+            userlist,
+            "pause",
+        )
+    )
+
+    assert userlist.load()["456"]["status"] == PAUSED
+    assert message.replies == ["Заявка поставлена на паузу для 456"]
+
+
+def test_non_admin_decision_command_is_rejected(tmp_path):
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
+    message = _FakeMessage("/approve 456")
+
+    _run(
+        telegram_bot._handle_admin_decision(
+            _fake_update(456, message),
+            ["456"],
+            settings,
+            ToneEngine.default(),
+            ux_events,
+            userlist,
+            "approve",
+        )
+    )
+
+    assert userlist.load() == {}
+    assert message.replies == ["Нет доступа"]
+
+
+def test_admin_decision_requires_chat_id(tmp_path):
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
+    message = _FakeMessage("/approve")
+
+    _run(
+        telegram_bot._handle_admin_decision(
+            _fake_update(123, message),
+            [],
+            settings,
+            ToneEngine.default(),
+            ux_events,
+            userlist,
+            "approve",
+        )
+    )
+
+    assert userlist.load() == {}
+    assert message.replies == ["Используй /approve &lt;chat_id&gt;"]
 
 
 def test_plain_text_without_session_requires_start(tmp_path):
@@ -411,6 +633,20 @@ class _FakeMessage:
         self.reply_options.append(kwargs)
 
 
+class _FakeBot:
+    def __init__(self) -> None:
+        self.messages = []
+
+    async def send_message(self, chat_id: int, text: str, **kwargs) -> None:
+        self.messages.append(
+            {
+                "chat_id": chat_id,
+                "text": text,
+                **kwargs,
+            }
+        )
+
+
 def _run(coro):
     return asyncio.run(coro)
 
@@ -423,5 +659,12 @@ def _fake_update(chat_id: int, message: _FakeMessage):
     )
 
 
-def _settings():
-    return SimpleNamespace(initial_session_ttl_sec=600)
+def _settings(
+    allowed_chat_ids=frozenset({123}),
+    admin_chat_id=123,
+):
+    return SimpleNamespace(
+        initial_session_ttl_sec=600,
+        telegram_allowed_chat_ids=allowed_chat_ids,
+        telegram_admin_chat_id=admin_chat_id,
+    )

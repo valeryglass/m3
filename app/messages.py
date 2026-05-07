@@ -135,7 +135,7 @@ BOT_PROFILE = {
         "МИШа — машина извлечения шаблонов\n\n"
         "Помогает собрать один конкретный эпизод: факт, действие, последствия, "
         "мысль, эмоцию и тело\n\n"
-        "Доступ по приглашению: @mesto3"
+        "Начни с /start"
     ),
 }
 
@@ -168,7 +168,7 @@ SESSION_MESSAGES = {
         "/start — начать один эпизод\n"
         "/cancel — отменить сессию\n"
         "/help — показать команды\n\n"
-        "Доступ по приглашению: @mesto3"
+        "Связь: @mesto3"
     ),
     "no_active_loop": "Активной сессии нет",
     "no_active_loop_start": (
@@ -176,6 +176,20 @@ SESSION_MESSAGES = {
     ),
     "cancel": "Сессия отменена",
     "unauthorized": "Нет доступа",
+    "waitlisted": (
+        "Спасибо за интерес. Мы добавили тебя в waitlist. "
+        "Напишем, когда доступ будет одобрен"
+    ),
+    "admin_waitlist_notice": (
+        "Новый пользователь в waitlist\n"
+        "chat_id: {chat_id}\n"
+        "user_id: {user_id}\n\n"
+        "/approve {chat_id}\n"
+        "/pause {chat_id}"
+    ),
+    "admin_approved": "Доступ одобрен для {chat_id}",
+    "admin_paused": "Заявка поставлена на паузу для {chat_id}",
+    "admin_bad_command": "Используй {command} &lt;chat_id&gt;",
     "expired_initial_session": (
         "Прошлая сессия истекла до первого ответа. Отправь /start заново"
     ),

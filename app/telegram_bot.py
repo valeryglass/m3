@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.config import Settings, load_settings
+from app.config import Settings, admin_chat_id_for_settings, load_settings
 from app.loop_extractor import (
     OBSERVED_FIELDS,
     active_target,
@@ -12,6 +12,7 @@ from app.loop_extractor import (
 )
 from app.storage import JsonStorage
 from app.tone_engine import load_tone_engine
+from app.userlist import JsonUserList
 from app.ux_events import (
     UxEventLog,
     base_event,
@@ -26,6 +27,7 @@ from app.ux_events import (
 def main() -> None:
     settings = load_settings()
     storage = JsonStorage(settings.episode_dir, settings.state_dir)
+    userlist = JsonUserList(settings.userlist_path)
     ux_events = UxEventLog(settings.ux_event_log)
     tone = load_tone_engine(settings.tone_config)
 
@@ -43,7 +45,9 @@ def main() -> None:
             "Install project dependencies before running the Telegram bot."
         ) from exc
     async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(update, settings, tone, ux_events):
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
             return
         chat_id = update.effective_chat.id
         now = utc_now()
@@ -64,7 +68,9 @@ def main() -> None:
         )
 
     async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(update, settings, tone, ux_events):
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
             return
         chat_id = update.effective_chat.id
         now = utc_now()
@@ -80,19 +86,35 @@ def main() -> None:
         await _reply_text(update, status_text(session, tone))
 
     async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(update, settings, tone, ux_events):
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
             return
         await _send_help(update, tone)
 
     async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(update, settings, tone, ux_events):
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
             return
         await _handle_cancel_after_authorized(update, storage, ux_events, settings, tone)
 
     async def message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(update, settings, tone, ux_events):
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
             return
         await _handle_message_after_authorized(update, storage, ux_events, settings, tone)
+
+    async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        await _handle_admin_decision(
+            update, context.args, settings, tone, ux_events, userlist, "approve"
+        )
+
+    async def pause(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        await _handle_admin_decision(
+            update, context.args, settings, tone, ux_events, userlist, "pause"
+        )
 
     async def post_init(application) -> None:
         profile = _bot_profile(tone)
@@ -117,11 +139,13 @@ def main() -> None:
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("cancel", cancel))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("approve", approve))
+    application.add_handler(CommandHandler("pause", pause))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
     application.run_polling()
 
 
-REGISTERED_COMMANDS = ("start", "status", "cancel", "help")
+REGISTERED_COMMANDS = ("start", "status", "cancel", "help", "approve", "pause")
 VISIBLE_COMMANDS = ("start", "cancel", "help")
 
 
@@ -258,6 +282,8 @@ async def _authorize(
     settings: Settings,
     tone,
     ux_events: UxEventLog,
+    userlist: JsonUserList,
+    bot=None,
 ) -> bool:
     chat = update.effective_chat
     if chat is None:
@@ -273,10 +299,48 @@ async def _authorize(
             **metadata,
         )
     )
-    if (
-        settings.telegram_allowed_chat_ids
-        and chat.id not in settings.telegram_allowed_chat_ids
-    ):
+    if not settings.telegram_allowed_chat_ids:
+        return True
+    if chat.id in settings.telegram_allowed_chat_ids or userlist.is_approved(chat.id):
+        return True
+
+    ux_events.append(
+        telegram_event(
+            "unauthorized_attempt",
+            user_id,
+            created_at=now,
+            **metadata,
+        )
+    )
+    result = userlist.upsert_waitlisted(chat.id, user_id, now=now)
+    if result.created:
+        await _notify_admin_waitlist(bot, settings, tone, result.record)
+    if update.message is not None:
+        await _reply_text(update, tone.waitlisted())
+    return False
+
+
+async def _authorize_admin(
+    update,
+    settings: Settings,
+    tone,
+    ux_events: UxEventLog,
+) -> bool:
+    chat = update.effective_chat
+    if chat is None:
+        return False
+    now = utc_now()
+    user_id = _telegram_update_user_id(update)
+    metadata = _telegram_update_metadata(update)
+    ux_events.append(
+        telegram_event(
+            "update_received",
+            user_id,
+            created_at=now,
+            **metadata,
+        )
+    )
+    if chat.id != admin_chat_id_for_settings(settings):
         ux_events.append(
             telegram_event(
                 "unauthorized_attempt",
@@ -289,6 +353,51 @@ async def _authorize(
             await _reply_text(update, tone.unauthorized())
         return False
     return True
+
+
+async def _handle_admin_decision(
+    update,
+    args,
+    settings: Settings,
+    tone,
+    ux_events: UxEventLog,
+    userlist: JsonUserList,
+    decision: str,
+) -> None:
+    if not await _authorize_admin(update, settings, tone, ux_events):
+        return
+    command = f"/{decision}"
+    if len(args) != 1:
+        await _reply_text(update, tone.admin_bad_command(command))
+        return
+    try:
+        target_chat_id = int(args[0])
+    except ValueError:
+        await _reply_text(update, tone.admin_bad_command(command))
+        return
+
+    decided_by = _telegram_update_user_id(update)
+    now = utc_now()
+    if decision == "approve":
+        userlist.approve(target_chat_id, decided_by=decided_by, now=now)
+        await _reply_text(update, tone.admin_approved(target_chat_id))
+        return
+    if decision == "pause":
+        userlist.pause(target_chat_id, decided_by=decided_by, now=now)
+        await _reply_text(update, tone.admin_paused(target_chat_id))
+        return
+    raise ValueError(f"Unknown admin decision: {decision}")
+
+
+async def _notify_admin_waitlist(bot, settings: Settings, tone, record: dict) -> None:
+    admin_chat_id = admin_chat_id_for_settings(settings)
+    if bot is None or admin_chat_id is None:
+        return
+    await bot.send_message(
+        chat_id=admin_chat_id,
+        text=tone.admin_waitlist_notice(record["chat_id"], str(record["user_id"])),
+        parse_mode="HTML",
+    )
 
 
 async def _reply_text(update, text: str) -> None:

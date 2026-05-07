@@ -5,6 +5,7 @@ sources/**
 episodes/*.json
 data/episodes/*.json
 data/state/*.json
+data/userlist/*.json
 data/ux-events/*.jsonl
 .env
 
@@ -13,9 +14,11 @@ data/ux-events/*.jsonl
 !data/
 !data/episodes/
 !data/state/
+!data/userlist/
 !data/ux-events/
 !data/episodes/.gitkeep
 !data/state/.gitkeep
+!data/userlist/.gitkeep
 !data/ux-events/.gitkeep
 
 # Ignore user-local Obsidian workspace state.

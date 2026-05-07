@@ -122,7 +122,7 @@ def test_session_messages_render_unchanged():
         "/start — начать один эпизод\n"
         "/cancel — отменить сессию\n"
         "/help — показать команды\n\n"
-        "Доступ по приглашению: @mesto3"
+        "Связь: @mesto3"
     )
     assert tone.no_active_loop() == "Активной сессии нет"
     assert tone.no_active_loop_start() == (
@@ -130,6 +130,20 @@ def test_session_messages_render_unchanged():
     )
     assert tone.cancel() == "Сессия отменена"
     assert tone.unauthorized() == "Нет доступа"
+    assert tone.waitlisted() == (
+        "Спасибо за интерес. Мы добавили тебя в waitlist. "
+        "Напишем, когда доступ будет одобрен"
+    )
+    assert tone.admin_waitlist_notice(456, "456") == (
+        "Новый пользователь в waitlist\n"
+        "chat_id: 456\n"
+        "user_id: 456\n\n"
+        "/approve 456\n"
+        "/pause 456"
+    )
+    assert tone.admin_approved(456) == "Доступ одобрен для 456"
+    assert tone.admin_paused(456) == "Заявка поставлена на паузу для 456"
+    assert tone.admin_bad_command("/approve") == "Используй /approve &lt;chat_id&gt;"
     assert tone.expired_initial_session() == (
         "Прошлая сессия истекла до первого ответа. Отправь /start заново"
     )
@@ -147,6 +161,11 @@ def test_session_messages_render_unchanged():
         "no_active_loop_start",
         "cancel",
         "unauthorized",
+        "waitlisted",
+        "admin_waitlist_notice",
+        "admin_approved",
+        "admin_paused",
+        "admin_bad_command",
         "expired_initial_session",
         "saved_episode",
     }
@@ -162,7 +181,7 @@ def test_bot_profile_messages_render_unchanged():
         "МИШа — машина извлечения шаблонов\n\n"
         "Помогает собрать один конкретный эпизод: факт, действие, последствия, "
         "мысль, эмоцию и тело\n\n"
-        "Доступ по приглашению: @mesto3"
+        "Начни с /start"
     )
     assert BOT_PROFILE == {
         "short_description": "МИШа собирает один CBT/ACT-эпизод короткими вопросами",
@@ -170,7 +189,7 @@ def test_bot_profile_messages_render_unchanged():
             "МИШа — машина извлечения шаблонов\n\n"
             "Помогает собрать один конкретный эпизод: факт, действие, последствия, "
             "мысль, эмоцию и тело\n\n"
-            "Доступ по приглашению: @mesto3"
+            "Начни с /start"
         ),
     }
 
