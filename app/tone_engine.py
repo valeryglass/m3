@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
+from html import escape
 from pathlib import Path
 from typing import Any
 
-from app.messages import BOT_PROFILE, COMMAND_DESCRIPTIONS, SESSION_MESSAGES, TARGET_PROMPTS
+from app.messages import (
+    BOT_PROFILE,
+    COMMAND_DESCRIPTIONS,
+    FIELD_GUIDES,
+    SESSION_MESSAGES,
+    TARGET_PROMPTS,
+)
 
 try:
     import yaml
@@ -73,7 +80,24 @@ class ToneEngine:
     def target_prompt(self, target: str) -> str:
         if target == "complete":
             return self.complete()
-        return self.prompts[target]
+        return self.field_card(target)
+
+    def field_guide(self, target: str) -> dict[str, Any]:
+        return FIELD_GUIDES[target]
+
+    def field_card(self, target: str) -> str:
+        guide = self.field_guide(target)
+        examples = "\n".join(
+            f"• <i>{escape(example)}</i>" for example in guide["examples"]
+        )
+        tips = "\n".join(f"• <i>{escape(tip)}</i>" for tip in guide["tips"])
+        return SESSION_MESSAGES["field_card"].format(
+            description=guide["description"],
+            formula=guide["formula"],
+            example=examples,
+            tips=tips,
+            question=guide["question"],
+        )
 
     def bot_short_description(self) -> str:
         return BOT_PROFILE["short_description"]

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import app.telegram_bot as telegram_bot
-from app.loop_extractor import LoopSession
+from app.loop_extractor import LoopSession, prompt_for_current_target
 from app.storage import JsonStorage
 from app.tone_engine import ToneEngine
 from app.ux_events import UxEventLog, format_utc
@@ -37,6 +37,20 @@ def test_bot_profile_uses_tone_engine_copy():
     }
 
 
+def test_start_session_reply_uses_rich_first_card():
+    tone = ToneEngine.default()
+    session = LoopSession(
+        chat_id=123,
+        session_id="session-123",
+        target_index=0,
+        episode_date="2026-05-03",
+    )
+
+    assert tone.start_session(prompt_for_current_target(session, tone)) == (
+        f"Соберём один конкретный эпизод.\n\n{tone.target_prompt('situation')}"
+    )
+
+
 def test_send_help_replies_without_creating_session(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     message = _FakeMessage("/help")
@@ -55,6 +69,7 @@ def test_send_help_replies_without_creating_session(tmp_path):
         "/cancel — отменить сессию\n"
         "/help — показать команды"
     ]
+    assert message.reply_options == [{"parse_mode": "HTML"}]
 
 
 def test_authorize_logs_unauthorized_attempt_without_session(tmp_path):
@@ -156,8 +171,9 @@ def test_accepted_answer_replies_with_bridge_and_next_question(tmp_path):
     assert loaded is not None
     assert loaded.target_index == 1
     assert message.replies == [
-        "Записал. 1/7\n\nЧто ты сделал или чего избежал?",
+        f"Записал. 1/7\n\n{ToneEngine.default().target_prompt('behavior')}",
     ]
+    assert message.reply_options == [{"parse_mode": "HTML"}]
 
 
 def test_empty_answer_retries_without_bridge(tmp_path):
@@ -186,7 +202,7 @@ def test_empty_answer_retries_without_bridge(tmp_path):
     assert loaded is not None
     assert loaded.target_index == 0
     assert message.replies == [
-        "Нужен непустой ответ.\n\nЧто произошло конкретно? 1-2 предложения.",
+        f"Нужен непустой ответ.\n\n{ToneEngine.default().target_prompt('situation')}",
     ]
     assert "Записал." not in message.replies[0]
 
@@ -377,9 +393,11 @@ class _FakeMessage:
     def __init__(self, text: str) -> None:
         self.text = text
         self.replies = []
+        self.reply_options = []
 
-    async def reply_text(self, text: str) -> None:
+    async def reply_text(self, text: str, **kwargs) -> None:
         self.replies.append(text)
+        self.reply_options.append(kwargs)
 
 
 def _run(coro):

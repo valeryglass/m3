@@ -58,8 +58,9 @@ def main() -> None:
                 )
             )
         session = _start_new_session(storage, ux_events, chat_id, now)
-        await update.message.reply_text(
-            tone.start_session(prompt_for_current_target(session, tone))
+        await _reply_text(
+            update,
+            tone.start_session(prompt_for_current_target(session, tone)),
         )
 
     async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -71,12 +72,12 @@ def main() -> None:
         if _expire_initial_session_if_stale(
             storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
         ):
-            await update.message.reply_text(_expired_initial_session_text(tone))
+            await _reply_text(update, _expired_initial_session_text(tone))
             return
         if session is None:
-            await update.message.reply_text(tone.no_active_loop())
+            await _reply_text(update, tone.no_active_loop())
             return
-        await update.message.reply_text(status_text(session, tone))
+        await _reply_text(update, status_text(session, tone))
 
     async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(update, settings, tone, ux_events):
@@ -143,7 +144,7 @@ def _bot_profile(tone) -> dict[str, str]:
 
 async def _send_help(update, tone) -> None:
     if update.message is not None:
-        await update.message.reply_text(tone.help())
+        await _reply_text(update, tone.help())
 
 
 async def _handle_cancel_after_authorized(
@@ -159,10 +160,10 @@ async def _handle_cancel_after_authorized(
     if _expire_initial_session_if_stale(
         storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
     ):
-        await update.message.reply_text(_expired_initial_session_text(tone))
+        await _reply_text(update, _expired_initial_session_text(tone))
         return
     if session is None:
-        await update.message.reply_text(tone.no_active_loop())
+        await _reply_text(update, tone.no_active_loop())
         return
     if session.session_id is not None:
         ux_events.append(
@@ -173,7 +174,7 @@ async def _handle_cancel_after_authorized(
             )
         )
     storage.delete_session(chat_id)
-    await update.message.reply_text(tone.cancel())
+    await _reply_text(update, tone.cancel())
 
 
 async def _handle_message_after_authorized(
@@ -189,10 +190,10 @@ async def _handle_message_after_authorized(
     if _expire_initial_session_if_stale(
         storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
     ):
-        await update.message.reply_text(_expired_initial_session_text(tone))
+        await _reply_text(update, _expired_initial_session_text(tone))
         return
     if session is None:
-        await update.message.reply_text(tone.no_active_loop_start())
+        await _reply_text(update, tone.no_active_loop_start())
         return
 
     _ensure_episode_date(session, now)
@@ -238,7 +239,7 @@ async def _handle_message_after_authorized(
             )
         )
         storage.delete_session(chat_id)
-        await update.message.reply_text(tone.saved_episode(result.reply))
+        await _reply_text(update, tone.saved_episode(result.reply))
         return
     _log_step_prompted(ux_events, session, str(chat_id), now=now)
     storage.save_session(session)
@@ -249,7 +250,7 @@ async def _handle_message_after_authorized(
             len(OBSERVED_FIELDS),
             result.reply,
         )
-    await update.message.reply_text(reply)
+    await _reply_text(update, reply)
 
 
 async def _authorize(
@@ -285,9 +286,14 @@ async def _authorize(
             )
         )
         if update.message is not None:
-            await update.message.reply_text(tone.unauthorized())
+            await _reply_text(update, tone.unauthorized())
         return False
     return True
+
+
+async def _reply_text(update, text: str) -> None:
+    if update.message is not None:
+        await update.message.reply_text(text, parse_mode="HTML")
 
 
 def _telegram_update_user_id(update) -> str:
