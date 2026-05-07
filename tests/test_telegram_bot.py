@@ -28,11 +28,12 @@ def test_bot_profile_uses_tone_engine_copy():
     tone = ToneEngine.default()
 
     assert telegram_bot._bot_profile(tone) == {
-        "short_description": "Собирает один CBT-эпизод короткими вопросами.",
+        "short_description": "МИШа собирает один CBT/ACT-эпизод короткими вопросами",
         "description": (
-            "Бот помогает зафиксировать один конкретный эпизод: что произошло, "
-            "что ты сделал, что было потом, какая мысль мелькнула, эмоция и тело. "
-            "Начни с /start."
+            "МИШа — машина извлечения шаблонов\n\n"
+            "Помогает собрать один конкретный эпизод: факт, действие, последствия, "
+            "мысль, эмоцию и тело\n\n"
+            "Доступ по приглашению: @mesto3"
         ),
     }
 
@@ -65,10 +66,16 @@ def test_send_help_replies_without_creating_session(tmp_path):
 
     assert storage.load_session(123) is None
     assert message.replies == [
+        "МИШа\n"
+        "машина извлечения шаблонов\n"
+        "(аналитическая)\n\n"
+        "Бот не ставит диагнозы и не даёт советов\n"
+        "Он помогает аккуратно зафиксировать один эпизод по CBT/ACT-фрейму\n\n"
         "Команды:\n"
-        "/start — начать новый эпизод\n"
+        "/start — начать один эпизод\n"
         "/cancel — отменить сессию\n"
-        "/help — показать команды"
+        "/help — показать команды\n\n"
+        "Доступ по приглашению: @mesto3"
     ]
     assert message.reply_options == [{"parse_mode": "HTML"}]
 
