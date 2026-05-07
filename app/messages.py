@@ -5,7 +5,7 @@ FIELD_GUIDES = {
     "situation": {
         "field": "situation",
         "source_field": "situation.event_description",
-        "description": "Что произошло фактически. Без анализа и выводов.",
+        "description": "Что произошло фактически. Без анализа и выводов",
         "formula": "[кто] → [действие] → [контекст]",
         "examples": (
             "коллега раскритиковал мой текст в чате",
@@ -17,12 +17,12 @@ FIELD_GUIDES = {
             "один конкретный момент",
             "кто → что сделал",
         ),
-        "question": "Что произошло конкретно? 1-2 предложения.",
+        "question": "Что произошло конкретно? 1-2 предложения",
     },
     "behavior": {
         "field": "behavior",
         "source_field": "behavior.action",
-        "description": "Совершённое действие.",
+        "description": "Совершённое действие",
         "formula": "[субъект] → [действие]",
         "examples": (
             "закрыл телеграм",
@@ -39,7 +39,7 @@ FIELD_GUIDES = {
     "short_term_consequence": {
         "field": "short_term_consequence",
         "source_field": "immediate_result",
-        "description": "Мгновенный эффект поведения.",
+        "description": "Мгновенный эффект поведения",
         "formula": "[действие] → [мгновенный эффект]",
         "examples": (
             "тревога снизилась",
@@ -56,7 +56,7 @@ FIELD_GUIDES = {
     "long_term_consequence": {
         "field": "long_term_consequence",
         "source_field": "consequence",
-        "description": "Отложенное последствие поведения.",
+        "description": "Отложенное последствие поведения",
         "formula": "[действие] → [отложенный эффект]",
         "examples": (
             "задача осталась нерешённой",
@@ -73,7 +73,7 @@ FIELD_GUIDES = {
     "automatic_thought": {
         "field": "automatic_thought",
         "source_field": "automatic_thought.text",
-        "description": "Быстрая автоматическая мысль.",
+        "description": "Быстрая автоматическая мысль",
         "formula": "[субъект] + [оценка/прогноз]",
         "examples": (
             "я всё испортил",
@@ -90,7 +90,7 @@ FIELD_GUIDES = {
     "emotion": {
         "field": "emotion",
         "source_field": "emotion.label",
-        "description": "Испытываемая эмоция.",
+        "description": "Испытываемая эмоция",
         "formula": "[название эмоции]",
         "examples": (
             "тревога",
@@ -107,7 +107,7 @@ FIELD_GUIDES = {
     "body": {
         "field": "body",
         "source_field": "body_sensation.sensation",
-        "description": "Телесное ощущение.",
+        "description": "Телесное ощущение",
         "formula": "[ощущение] + [зона тела]",
         "examples": (
             "напряжение в груди",
@@ -147,13 +147,15 @@ SESSION_MESSAGES = {
         "💡 Подсказки\n{tips}\n\n"
         "{question}"
     ),
-    "empty_answer": "Нужен непустой ответ.",
-    "start_session": "Соберём один конкретный эпизод.\n\n{prompt}",
+    "empty_answer": "Нужен непустой ответ",
+    "start_session": (
+        "Соберём один конкретный эпизод. Идём коротко, по фактам\n\n{prompt}"
+    ),
     "next_prompt_bridge": (
         "💾 {progress_bar} {completed_count}/{total_count}\n\n{prompt}"
     ),
-    "complete": "Готово. Эпизод собран.",
-    "already_complete": "Эпизод уже собран.",
+    "complete": "Готово. Эпизод собран",
+    "already_complete": "Эпизод уже собран",
     "status": "Текущий шаг: {target}\nЗаполнено: {completed_count}/{total_count}",
     "help": (
         "Команды:\n"
@@ -161,12 +163,14 @@ SESSION_MESSAGES = {
         "/cancel — отменить сессию\n"
         "/help — показать команды"
     ),
-    "no_active_loop": "Активной сессии нет.",
-    "no_active_loop_start": "Активной сессии нет. Отправь /start, чтобы начать.",
-    "cancel": "Сессия отменена.",
-    "unauthorized": "Нет доступа.",
+    "no_active_loop": "Активной сессии нет",
+    "no_active_loop_start": (
+        "Сейчас активной сессии нет. Отправь /start, чтобы начать новый эпизод"
+    ),
+    "cancel": "Сессия отменена",
+    "unauthorized": "Нет доступа",
     "expired_initial_session": (
-        "Прошлая сессия истекла до первого ответа. Отправь /start заново."
+        "Прошлая сессия истекла до первого ответа. Отправь /start заново"
     ),
     "saved_episode": "{reply}",
 }

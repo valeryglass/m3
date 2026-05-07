@@ -47,7 +47,8 @@ def test_start_session_reply_uses_rich_first_card():
     )
 
     assert tone.start_session(prompt_for_current_target(session, tone)) == (
-        f"Соберём один конкретный эпизод.\n\n{tone.target_prompt('situation')}"
+        "Соберём один конкретный эпизод. Идём коротко, по фактам\n\n"
+        f"{tone.target_prompt('situation')}"
     )
 
 
@@ -86,7 +87,7 @@ def test_authorize_logs_unauthorized_attempt_without_session(tmp_path):
     authorized = _run(telegram_bot._authorize(update, settings, ToneEngine.default(), ux_events))
 
     assert authorized is False
-    assert message.replies == ["Нет доступа."]
+    assert message.replies == ["Нет доступа"]
     assert storage.load_session(456) is None
     events = ux_events.read()
     assert len(events) == 2
@@ -124,7 +125,7 @@ def test_plain_text_without_session_requires_start(tmp_path):
     assert storage.load_session(123) is None
     assert ux_events.read() == []
     assert message.replies == [
-        "Активной сессии нет. Отправь /start, чтобы начать.",
+        "Сейчас активной сессии нет. Отправь /start, чтобы начать новый эпизод",
     ]
 
 
@@ -142,7 +143,7 @@ def test_cancel_without_session_reports_no_active_session(tmp_path):
 
     assert storage.load_session(123) is None
     assert ux_events.read() == []
-    assert message.replies == ["Активной сессии нет."]
+    assert message.replies == ["Активной сессии нет"]
 
 
 def test_accepted_answer_replies_with_bridge_and_next_question(tmp_path):
@@ -203,7 +204,7 @@ def test_empty_answer_retries_without_bridge(tmp_path):
     assert loaded is not None
     assert loaded.target_index == 0
     assert message.replies == [
-        f"Нужен непустой ответ.\n\n{ToneEngine.default().target_prompt('situation')}",
+        f"Нужен непустой ответ\n\n{ToneEngine.default().target_prompt('situation')}",
     ]
     assert "💾" not in message.replies[0]
 
@@ -239,7 +240,7 @@ def test_completion_reply_has_no_episode_path_and_requires_restart_after(tmp_pat
     assert [path.name for path in (tmp_path / "episodes").glob("*.json")] == [
         "episode-20260503-1.json"
     ]
-    assert message.replies == ["Готово. Эпизод собран."]
+    assert message.replies == ["Готово. Эпизод собран"]
     assert "data/episodes" not in message.replies[0]
     assert ux_events.read()[-1]["event_type"] == "session_completed"
 
@@ -255,7 +256,9 @@ def test_completion_reply_has_no_episode_path_and_requires_restart_after(tmp_pat
     )
 
     assert storage.load_session(123) is None
-    assert followup.replies == ["Активной сессии нет. Отправь /start, чтобы начать."]
+    assert followup.replies == [
+        "Сейчас активной сессии нет. Отправь /start, чтобы начать новый эпизод"
+    ]
 
 
 def test_stale_initial_session_expires_and_logs_reason(tmp_path):
@@ -316,7 +319,7 @@ def test_expired_session_reply_comes_from_tone_engine():
     tone = ToneEngine.default()
 
     assert telegram_bot._expired_initial_session_text(tone) == (
-        "Прошлая сессия истекла до первого ответа. Отправь /start заново."
+        "Прошлая сессия истекла до первого ответа. Отправь /start заново"
     )
 
 

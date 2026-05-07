@@ -25,7 +25,7 @@ tone:
 
     assert tone.config["tone"]["name"] == "custom"
     assert tone.max_question_length == 80
-    assert tone.prompts["situation"] == "Что произошло конкретно? 1-2 предложения."
+    assert tone.prompts["situation"] == "Что произошло конкретно? 1-2 предложения"
 
 
 def test_load_tone_engine_falls_back_when_missing():
@@ -37,7 +37,7 @@ def test_load_tone_engine_falls_back_when_missing():
 def test_default_target_prompts_are_russian_and_short():
     tone = ToneEngine.default()
 
-    assert tone.prompts["situation"] == "Что произошло конкретно? 1-2 предложения."
+    assert tone.prompts["situation"] == "Что произошло конкретно? 1-2 предложения"
     for prompt in tone.prompts.values():
         assert len(prompt) <= tone.max_question_length
 
@@ -55,7 +55,7 @@ def test_field_guide_card_renders_source_copy():
     )
     assert tone.target_prompt("situation") == (
         "📝 Описание\n"
-        "Что произошло фактически. Без анализа и выводов.\n\n"
+        "Что произошло фактически. Без анализа и выводов\n\n"
         "🧬 Формула\n"
         "[кто] → [действие] → [контекст]\n\n"
         "🎯 Пример\n"
@@ -66,7 +66,7 @@ def test_field_guide_card_renders_source_copy():
         "• <i>камера, не интерпретация</i>\n"
         "• <i>один конкретный момент</i>\n"
         "• <i>кто → что сделал</i>\n\n"
-        "Что произошло конкретно? 1-2 предложения."
+        "Что произошло конкретно? 1-2 предложения"
     )
 
 
@@ -100,16 +100,17 @@ def test_session_messages_render_unchanged():
     behavior_card = tone.target_prompt("behavior")
 
     assert tone.empty_answer("situation") == (
-        f"Нужен непустой ответ.\n\n{situation_card}"
+        f"Нужен непустой ответ\n\n{situation_card}"
     )
     assert tone.start_session(situation_card) == (
-        f"Соберём один конкретный эпизод.\n\n{situation_card}"
+        f"Соберём один конкретный эпизод. Идём коротко, по фактам\n\n"
+        f"{situation_card}"
     )
     assert tone.next_prompt_bridge(1, 7, behavior_card) == (
         f"💾 ■□□□□□□ 1/7\n\n{behavior_card}"
     )
-    assert tone.complete() == "Готово. Эпизод собран."
-    assert tone.already_complete() == "Эпизод уже собран."
+    assert tone.complete() == "Готово. Эпизод собран"
+    assert tone.already_complete() == "Эпизод уже собран"
     assert tone.status("situation", 1, 7) == "Текущий шаг: situation\nЗаполнено: 1/7"
     assert tone.help() == (
         "Команды:\n"
@@ -117,16 +118,16 @@ def test_session_messages_render_unchanged():
         "/cancel — отменить сессию\n"
         "/help — показать команды"
     )
-    assert tone.no_active_loop() == "Активной сессии нет."
+    assert tone.no_active_loop() == "Активной сессии нет"
     assert tone.no_active_loop_start() == (
-        "Активной сессии нет. Отправь /start, чтобы начать."
+        "Сейчас активной сессии нет. Отправь /start, чтобы начать новый эпизод"
     )
-    assert tone.cancel() == "Сессия отменена."
-    assert tone.unauthorized() == "Нет доступа."
+    assert tone.cancel() == "Сессия отменена"
+    assert tone.unauthorized() == "Нет доступа"
     assert tone.expired_initial_session() == (
-        "Прошлая сессия истекла до первого ответа. Отправь /start заново."
+        "Прошлая сессия истекла до первого ответа. Отправь /start заново"
     )
-    assert tone.saved_episode("Готово. Эпизод собран.") == "Готово. Эпизод собран."
+    assert tone.saved_episode("Готово. Эпизод собран") == "Готово. Эпизод собран"
     assert set(SESSION_MESSAGES) == {
         "field_card",
         "empty_answer",
