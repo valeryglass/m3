@@ -106,7 +106,7 @@ def test_session_messages_render_unchanged():
         f"Соберём один конкретный эпизод.\n\n{situation_card}"
     )
     assert tone.next_prompt_bridge(1, 7, behavior_card) == (
-        f"Записал. 1/7\n\n{behavior_card}"
+        f"💾 ■□□□□□□ 1/7\n\n{behavior_card}"
     )
     assert tone.complete() == "Готово. Эпизод собран."
     assert tone.already_complete() == "Эпизод уже собран."
@@ -164,6 +164,17 @@ def test_bot_profile_messages_render_unchanged():
             "Начни с /start."
         ),
     }
+
+
+def test_progress_bar_renders_fixed_rail():
+    tone = ToneEngine.default()
+
+    assert tone.progress_bar(0, 7) == "□□□□□□□"
+    assert tone.progress_bar(1, 7) == "■□□□□□□"
+    assert tone.progress_bar(6, 7) == "■■■■■■□"
+    assert tone.progress_bar(7, 7) == "■■■■■■■"
+    assert tone.progress_bar(9, 7) == "■■■■■■■"
+    assert tone.progress_bar(-1, 7) == "□□□□□□□"
 
 
 def test_command_descriptions_render_unchanged():

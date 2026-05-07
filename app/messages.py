@@ -149,7 +149,9 @@ SESSION_MESSAGES = {
     ),
     "empty_answer": "Нужен непустой ответ.",
     "start_session": "Соберём один конкретный эпизод.\n\n{prompt}",
-    "next_prompt_bridge": "Записал. {completed_count}/{total_count}\n\n{prompt}",
+    "next_prompt_bridge": (
+        "💾 {progress_bar} {completed_count}/{total_count}\n\n{prompt}"
+    ),
     "complete": "Готово. Эпизод собран.",
     "already_complete": "Эпизод уже собран.",
     "status": "Текущий шаг: {target}\nЗаполнено: {completed_count}/{total_count}",

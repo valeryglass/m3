@@ -171,7 +171,8 @@ def test_accepted_answer_replies_with_bridge_and_next_question(tmp_path):
     assert loaded is not None
     assert loaded.target_index == 1
     assert message.replies == [
-        f"Записал. 1/7\n\n{ToneEngine.default().target_prompt('behavior')}",
+        f"💾 ■□□□□□□ 1/7\n\n"
+        f"{ToneEngine.default().target_prompt('behavior')}",
     ]
     assert message.reply_options == [{"parse_mode": "HTML"}]
 
@@ -204,7 +205,7 @@ def test_empty_answer_retries_without_bridge(tmp_path):
     assert message.replies == [
         f"Нужен непустой ответ.\n\n{ToneEngine.default().target_prompt('situation')}",
     ]
-    assert "Записал." not in message.replies[0]
+    assert "💾" not in message.replies[0]
 
 
 def test_completion_reply_has_no_episode_path_and_requires_restart_after(tmp_path):

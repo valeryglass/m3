@@ -112,10 +112,16 @@ class ToneEngine:
         self, completed_count: int, total_count: int, prompt: str
     ) -> str:
         return SESSION_MESSAGES["next_prompt_bridge"].format(
+            progress_bar=self.progress_bar(completed_count, total_count),
             completed_count=completed_count,
             total_count=total_count,
             prompt=prompt,
         )
+
+    def progress_bar(self, completed_count: int, total_count: int) -> str:
+        completed = max(0, min(completed_count, total_count))
+        remaining = max(0, total_count - completed)
+        return f"{'■' * completed}{'□' * remaining}"
 
     def empty_answer(self, target: str) -> str:
         return f"{SESSION_MESSAGES['empty_answer']}\n\n{self.target_prompt(target)}"
