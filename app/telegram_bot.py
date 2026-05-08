@@ -132,6 +132,9 @@ def main() -> None:
     application = (
         Application.builder()
         .token(settings.telegram_bot_token)
+        .connect_timeout(30)
+        .read_timeout(30)
+        .write_timeout(30)
         .post_init(post_init)
         .build()
     )
@@ -142,7 +145,7 @@ def main() -> None:
     application.add_handler(CommandHandler("approve", approve))
     application.add_handler(CommandHandler("pause", pause))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
-    application.run_polling()
+    application.run_polling(bootstrap_retries=-1)
 
 
 REGISTERED_COMMANDS = ("start", "status", "cancel", "help", "approve", "pause")
