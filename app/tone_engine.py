@@ -87,15 +87,10 @@ class ToneEngine:
 
     def field_card(self, target: str) -> str:
         guide = self.field_guide(target)
-        examples = "\n".join(
-            f"• <i>{escape(example)}</i>" for example in guide["examples"]
-        )
-        tips = "\n".join(f"• <i>{escape(tip)}</i>" for tip in guide["tips"])
+        examples = "\n".join(f"• {escape(example)}" for example in guide["examples"])
         return SESSION_MESSAGES["field_card"].format(
-            description=guide["description"],
-            formula=guide["formula"],
+            name=escape(guide["label"].capitalize()),
             example=examples,
-            tips=tips,
             question=guide["question"],
         )
 
@@ -106,7 +101,13 @@ class ToneEngine:
         return BOT_PROFILE["description"]
 
     def start_session(self, prompt: str) -> str:
-        return SESSION_MESSAGES["start_session"].format(prompt=prompt)
+        total_count = len(TARGET_PROMPTS)
+        return SESSION_MESSAGES["start_session"].format(
+            progress_bar=self.progress_bar(0, total_count),
+            completed_count=0,
+            total_count=total_count,
+            prompt=prompt,
+        )
 
     def next_prompt_bridge(
         self, completed_count: int, total_count: int, prompt: str

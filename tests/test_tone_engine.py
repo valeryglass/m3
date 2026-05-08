@@ -54,18 +54,11 @@ def test_field_guide_card_renders_source_copy():
         "situation.event_description"
     )
     assert tone.target_prompt("situation") == (
-        "📝 Описание\n"
-        "Что произошло фактически. Без анализа и выводов\n\n"
-        "🧬 Формула\n"
-        "[кто] → [действие] → [контекст]\n\n"
+        "Ситуация\n\n"
         "🎯 Пример\n"
-        "• <i>коллега раскритиковал мой текст в чате</i>\n"
-        "• <i>партнёр не ответил на сообщение вечером</i>\n"
-        "• <i>я увидел дедлайн в календаре утром</i>\n\n"
-        "💡 Подсказки\n"
-        "• <i>камера, не интерпретация</i>\n"
-        "• <i>один конкретный момент</i>\n"
-        "• <i>кто → что сделал</i>\n\n"
+        "• коллега раскритиковал мой текст в чате\n"
+        "• партнёр не ответил на сообщение вечером\n"
+        "• я увидел дедлайн в календаре утром\n\n"
         "Что произошло конкретно? 1-2 предложения"
     )
 
@@ -79,19 +72,21 @@ def test_every_field_card_has_required_sections():
         assert "🧠 CBT / ACT loop" not in card
         assert "🧩 Поле" not in card
         assert f"\n{target}\n" not in card
-        assert "📝 Описание" in card
-        assert "🧬 Формула" in card
         assert "🎯 Пример" in card
-        assert "💡 Подсказки" in card
+        assert "📝 Описание" not in card
+        assert "🧬 Формула" not in card
+        assert "💡 Подсказки" not in card
         assert len(guide["examples"]) == 3
         assert len(guide["tips"]) == 3
-        assert guide["description"] in card
-        assert guide["formula"] in card
+        assert guide["label"]
+        assert guide["label"].capitalize() in card
+        assert guide["description"] not in card
+        assert guide["formula"] not in card
         assert guide["question"] in card
         for example in guide["examples"]:
-            assert f"• <i>{example}</i>" in card
+            assert f"• {example}" in card
         for tip in guide["tips"]:
-            assert f"• <i>{tip}</i>" in card
+            assert tip not in card
 
 
 def test_session_messages_render_unchanged():
@@ -103,7 +98,8 @@ def test_session_messages_render_unchanged():
         f"Нужен непустой ответ\n\n{situation_card}"
     )
     assert tone.start_session(situation_card) == (
-        f"Соберём один конкретный эпизод. Идём коротко, по фактам\n\n"
+        "Соберём один конкретный эпизод. Идём коротко, не спеша, по фактам\n\n"
+        "💾 □□□□□□□ 0/7\n\n"
         f"{situation_card}"
     )
     assert tone.next_prompt_bridge(1, 7, behavior_card) == (

@@ -4,6 +4,7 @@ from __future__ import annotations
 FIELD_GUIDES = {
     "situation": {
         "field": "situation",
+        "label": "ситуация",
         "source_field": "situation.event_description",
         "description": "Что произошло фактически. Без анализа и выводов",
         "formula": "[кто] → [действие] → [контекст]",
@@ -21,6 +22,7 @@ FIELD_GUIDES = {
     },
     "behavior": {
         "field": "behavior",
+        "label": "действие",
         "source_field": "behavior.action",
         "description": "Совершённое действие",
         "formula": "[субъект] → [действие]",
@@ -38,6 +40,7 @@ FIELD_GUIDES = {
     },
     "short_term_consequence": {
         "field": "short_term_consequence",
+        "label": "сразу после",
         "source_field": "immediate_result",
         "description": "Мгновенный эффект поведения",
         "formula": "[действие] → [мгновенный эффект]",
@@ -55,6 +58,7 @@ FIELD_GUIDES = {
     },
     "long_term_consequence": {
         "field": "long_term_consequence",
+        "label": "потом",
         "source_field": "consequence",
         "description": "Отложенное последствие поведения",
         "formula": "[действие] → [отложенный эффект]",
@@ -72,6 +76,7 @@ FIELD_GUIDES = {
     },
     "automatic_thought": {
         "field": "automatic_thought",
+        "label": "мысль",
         "source_field": "automatic_thought.text",
         "description": "Быстрая автоматическая мысль",
         "formula": "[субъект] + [оценка/прогноз]",
@@ -89,6 +94,7 @@ FIELD_GUIDES = {
     },
     "emotion": {
         "field": "emotion",
+        "label": "эмоция",
         "source_field": "emotion.label",
         "description": "Испытываемая эмоция",
         "formula": "[название эмоции]",
@@ -106,6 +112,7 @@ FIELD_GUIDES = {
     },
     "body": {
         "field": "body",
+        "label": "тело",
         "source_field": "body_sensation.sensation",
         "description": "Телесное ощущение",
         "formula": "[ощущение] + [зона тела]",
@@ -142,15 +149,15 @@ BOT_PROFILE = {
 
 SESSION_MESSAGES = {
     "field_card": (
-        "📝 Описание\n{description}\n\n"
-        "🧬 Формула\n{formula}\n\n"
+        "{name}\n\n"
         "🎯 Пример\n{example}\n\n"
-        "💡 Подсказки\n{tips}\n\n"
         "{question}"
     ),
     "empty_answer": "Нужен непустой ответ",
     "start_session": (
-        "Соберём один конкретный эпизод. Идём коротко, по фактам\n\n{prompt}"
+        "Соберём один конкретный эпизод. Идём коротко, не спеша, по фактам\n\n"
+        "💾 {progress_bar} {completed_count}/{total_count}\n\n"
+        "{prompt}"
     ),
     "next_prompt_bridge": (
         "💾 {progress_bar} {completed_count}/{total_count}\n\n{prompt}"

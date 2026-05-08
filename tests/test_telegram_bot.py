@@ -56,7 +56,8 @@ def test_start_session_reply_uses_rich_first_card():
     )
 
     assert tone.start_session(prompt_for_current_target(session, tone)) == (
-        "Соберём один конкретный эпизод. Идём коротко, по фактам\n\n"
+        "Соберём один конкретный эпизод. Идём коротко, не спеша, по фактам\n\n"
+        "💾 □□□□□□□ 0/7\n\n"
         f"{tone.target_prompt('situation')}"
     )
 
