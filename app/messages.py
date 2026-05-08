@@ -150,19 +150,19 @@ BOT_PROFILE = {
 SESSION_MESSAGES = {
     "field_card": (
         "{name}\n\n"
-        "🎯 Пример\n{example}\n\n"
+        "<blockquote>{example}</blockquote>\n\n"
         "{question}"
     ),
     "empty_answer": "Нужен непустой ответ",
     "start_session": (
         "Соберём один конкретный эпизод. Идём коротко, не спеша, по фактам\n\n"
-        "💾 {progress_bar} {completed_count}/{total_count}\n\n"
+        "{progress_bar} {completed_count}/{total_count}\n\n"
         "{prompt}"
     ),
     "next_prompt_bridge": (
-        "💾 {progress_bar} {completed_count}/{total_count}\n\n{prompt}"
+        "{progress_bar} {completed_count}/{total_count}\n\n{prompt}"
     ),
-    "review_screen": "💯 {progress_bar} {completed_count}/{total_count}\n\n{overview}\n\nСохраняем?",
+    "review_screen": "{progress_bar} {completed_count}/{total_count} 💯\n\n{overview}\n\nСохраняем?",
     "complete": "Готово. Эпизод собран",
     "already_complete": "Эпизод уже собран",
     "status": "Текущий шаг: {target}\nЗаполнено: {completed_count}/{total_count}",
@@ -186,7 +186,7 @@ SESSION_MESSAGES = {
     "unauthorized": "Нет доступа",
     "waitlisted": (
         "Спасибо за интерес. Мы добавили тебя в waitlist. "
-        "Напишем, когда доступ будет одобрен"
+        "Напишем, как только доступ откроется"
     ),
     "admin_waitlist_notice": (
         "Новый пользователь в waitlist\n"
@@ -201,7 +201,7 @@ SESSION_MESSAGES = {
     "expired_initial_session": (
         "Прошлая сессия истекла до первого ответа. Отправь /start заново"
     ),
-    "saved_episode": "{reply}\nВсего эпизодов: {episode_count}",
+    "saved_episode": "{reply}\n\nВсего эпизодов: {episode_count}",
 }
 
 

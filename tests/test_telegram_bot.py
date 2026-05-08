@@ -57,7 +57,7 @@ def test_start_session_reply_uses_rich_first_card():
 
     assert tone.start_session(prompt_for_current_target(session, tone)) == (
         "Соберём один конкретный эпизод. Идём коротко, не спеша, по фактам\n\n"
-        "💾 □□□□□□□ 0/7\n\n"
+        "□□□□□□□ 0/7\n\n"
         f"{tone.target_prompt('situation')}"
     )
 
@@ -111,7 +111,7 @@ def test_authorize_logs_unauthorized_attempt_without_session(tmp_path):
     assert authorized is False
     assert message.replies == [
         "Спасибо за интерес. Мы добавили тебя в waitlist. "
-        "Напишем, когда доступ будет одобрен"
+        "Напишем, как только доступ откроется"
     ]
     assert storage.load_session(456) is None
     assert userlist.load()["456"]["status"] == WAITLISTED
@@ -201,7 +201,7 @@ def test_authorize_paused_user_gets_waitlist_copy(tmp_path):
     assert userlist.load()["456"]["status"] == PAUSED
     assert message.replies == [
         "Спасибо за интерес. Мы добавили тебя в waitlist. "
-        "Напишем, когда доступ будет одобрен"
+        "Напишем, как только доступ откроется"
     ]
 
 
@@ -402,7 +402,7 @@ def test_accepted_answer_replies_with_bridge_and_next_question(tmp_path):
     assert loaded is not None
     assert loaded.target_index == 1
     assert message.replies == [
-        f"💾 ■□□□□□□ 1/7\n\n"
+        f"■□□□□□□ 1/7\n\n"
         f"{ToneEngine.default().target_prompt('behavior')}",
     ]
     assert message.reply_options == [{"parse_mode": "HTML"}]
@@ -436,7 +436,7 @@ def test_empty_answer_retries_without_bridge(tmp_path):
     assert message.replies == [
         f"Нужен непустой ответ\n\n{ToneEngine.default().target_prompt('situation')}",
     ]
-    assert "💾" not in message.replies[0]
+    assert "■" not in message.replies[0]
 
 
 def test_final_answer_opens_save_review_without_saving(tmp_path):
@@ -472,7 +472,7 @@ def test_final_answer_opens_save_review_without_saving(tmp_path):
     assert loaded.target_index == 7
     assert [path.name for path in (tmp_path / "episodes").glob("*.json")] == []
     assert message.replies == [
-        "💯 ■■■■■■■ 7/7\n\n"
+        "■■■■■■■ 7/7 💯\n\n"
         "ситуация: s\n"
         "действие: b\n"
         "сразу после: st\n"
@@ -523,7 +523,7 @@ def test_save_callback_writes_episode_and_replies_completion(tmp_path):
     assert [path.name for path in (tmp_path / "episodes").glob("*.json")] == [
         "episode-20260503-1.json"
     ]
-    assert callback.message.replies == ["Готово. Эпизод собран\nВсего эпизодов: 1"]
+    assert callback.message.replies == ["Готово. Эпизод собран\n\nВсего эпизодов: 1"]
     assert callback.message.reply_options == [{"parse_mode": "HTML"}]
     assert ux_events.read()[-1]["event_type"] == "session_completed"
 

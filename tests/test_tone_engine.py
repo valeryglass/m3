@@ -55,10 +55,11 @@ def test_field_guide_card_renders_source_copy():
     )
     assert tone.target_prompt("situation") == (
         "Ситуация\n\n"
-        "🎯 Пример\n"
+        "<blockquote>"
         "• коллега раскритиковал мой текст в чате\n"
         "• партнёр не ответил на сообщение вечером\n"
-        "• я увидел дедлайн в календаре утром\n\n"
+        "• я увидел дедлайн в календаре утром"
+        "</blockquote>\n\n"
         "Что произошло конкретно? 1-2 предложения"
     )
 
@@ -72,7 +73,9 @@ def test_every_field_card_has_required_sections():
         assert "🧠 CBT / ACT loop" not in card
         assert "🧩 Поле" not in card
         assert f"\n{target}\n" not in card
-        assert "🎯 Пример" in card
+        assert "🎯 Пример" not in card
+        assert "<blockquote>" in card
+        assert "</blockquote>" in card
         assert "📝 Описание" not in card
         assert "🧬 Формула" not in card
         assert "💡 Подсказки" not in card
@@ -99,11 +102,11 @@ def test_session_messages_render_unchanged():
     )
     assert tone.start_session(situation_card) == (
         "Соберём один конкретный эпизод. Идём коротко, не спеша, по фактам\n\n"
-        "💾 □□□□□□□ 0/7\n\n"
+        "□□□□□□□ 0/7\n\n"
         f"{situation_card}"
     )
     assert tone.next_prompt_bridge(1, 7, behavior_card) == (
-        f"💾 ■□□□□□□ 1/7\n\n{behavior_card}"
+        f"■□□□□□□ 1/7\n\n{behavior_card}"
     )
     assert tone.review_screen(
         {
@@ -116,7 +119,7 @@ def test_session_messages_render_unchanged():
             "body": {"value": "body"},
         }
     ) == (
-        "💯 ■■■■■■■ 7/7\n\n"
+        "■■■■■■■ 7/7 💯\n\n"
         "ситуация: s\n"
         "действие: b\n"
         "сразу после: st\n"
@@ -149,7 +152,7 @@ def test_session_messages_render_unchanged():
     assert tone.unauthorized() == "Нет доступа"
     assert tone.waitlisted() == (
         "Спасибо за интерес. Мы добавили тебя в waitlist. "
-        "Напишем, когда доступ будет одобрен"
+        "Напишем, как только доступ откроется"
     )
     assert tone.admin_waitlist_notice(456, "456") == (
         "Новый пользователь в waitlist\n"
@@ -165,7 +168,7 @@ def test_session_messages_render_unchanged():
         "Прошлая сессия истекла до первого ответа. Отправь /start заново"
     )
     assert tone.saved_episode("Готово. Эпизод собран", 3) == (
-        "Готово. Эпизод собран\nВсего эпизодов: 3"
+        "Готово. Эпизод собран\n\nВсего эпизодов: 3"
     )
     assert set(SESSION_MESSAGES) == {
         "field_card",
