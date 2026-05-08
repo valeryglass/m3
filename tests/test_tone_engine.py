@@ -25,7 +25,7 @@ tone:
 
     assert tone.config["tone"]["name"] == "custom"
     assert tone.max_question_length == 80
-    assert tone.prompts["situation"] == "Что произошло конкретно? 1-2 предложения"
+    assert tone.prompts["situation"] == "Опиши ситуацию несколькими предложениями"
 
 
 def test_load_tone_engine_falls_back_when_missing():
@@ -37,7 +37,7 @@ def test_load_tone_engine_falls_back_when_missing():
 def test_default_target_prompts_are_russian_and_short():
     tone = ToneEngine.default()
 
-    assert tone.prompts["situation"] == "Что произошло конкретно? 1-2 предложения"
+    assert tone.prompts["situation"] == "Опиши ситуацию несколькими предложениями"
     for prompt in tone.prompts.values():
         assert len(prompt) <= tone.max_question_length
 
@@ -60,7 +60,7 @@ def test_field_guide_card_renders_source_copy():
         "• партнёр не ответил на сообщение вечером\n"
         "• я увидел дедлайн в календаре утром"
         "</blockquote>\n\n"
-        "Что произошло конкретно? 1-2 предложения"
+        "Опиши ситуацию несколькими предложениями"
     )
 
 
@@ -79,7 +79,8 @@ def test_every_field_card_has_required_sections():
         assert "📝 Описание" not in card
         assert "🧬 Формула" not in card
         assert "💡 Подсказки" not in card
-        assert len(guide["examples"]) == 3
+        if target != "emotion":
+            assert len(guide["examples"]) == 3
         assert len(guide["tips"]) == 3
         assert guide["label"]
         assert guide["label"].capitalize() in card
@@ -90,6 +91,25 @@ def test_every_field_card_has_required_sections():
             assert f"• {example}" in card
         for tip in guide["tips"]:
             assert tip not in card
+
+
+def test_emotion_card_uses_base_buckets_in_reverse_order():
+    tone = ToneEngine.default()
+
+    assert tone.target_prompt("emotion") == (
+        "Эмоция\n\n"
+        "<blockquote>"
+        "• нейтральное/смешанное\n"
+        "• любовь/тепло\n"
+        "• радость\n"
+        "• отвращение\n"
+        "• стыд\n"
+        "• грусть\n"
+        "• злость\n"
+        "• страх"
+        "</blockquote>\n\n"
+        "Какая эмоция была? Если несколько, напиши через запятую"
+    )
 
 
 def test_session_messages_render_unchanged():
