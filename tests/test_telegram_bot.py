@@ -523,7 +523,7 @@ def test_save_callback_writes_episode_and_replies_completion(tmp_path):
     assert [path.name for path in (tmp_path / "episodes").glob("*.json")] == [
         "episode-20260503-1.json"
     ]
-    assert callback.message.replies == ["Готово. Эпизод собран"]
+    assert callback.message.replies == ["Готово. Эпизод собран\nВсего эпизодов: 1"]
     assert callback.message.reply_options == [{"parse_mode": "HTML"}]
     assert ux_events.read()[-1]["event_type"] == "session_completed"
 

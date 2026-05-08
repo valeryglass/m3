@@ -164,7 +164,9 @@ def test_session_messages_render_unchanged():
     assert tone.expired_initial_session() == (
         "Прошлая сессия истекла до первого ответа. Отправь /start заново"
     )
-    assert tone.saved_episode("Готово. Эпизод собран") == "Готово. Эпизод собран"
+    assert tone.saved_episode("Готово. Эпизод собран", 3) == (
+        "Готово. Эпизод собран\nВсего эпизодов: 3"
+    )
     assert set(SESSION_MESSAGES) == {
         "field_card",
         "empty_answer",

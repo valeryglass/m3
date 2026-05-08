@@ -192,8 +192,11 @@ class ToneEngine:
     def expired_initial_session(self) -> str:
         return SESSION_MESSAGES["expired_initial_session"]
 
-    def saved_episode(self, reply: str) -> str:
-        return SESSION_MESSAGES["saved_episode"].format(reply=reply)
+    def saved_episode(self, reply: str, episode_count: int) -> str:
+        return SESSION_MESSAGES["saved_episode"].format(
+            reply=reply,
+            episode_count=episode_count,
+        )
 
 
 def load_tone_engine(path: Path | str) -> ToneEngine:

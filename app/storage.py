@@ -54,6 +54,18 @@ class JsonStorage:
         session.saved_episode_path = str(path)
         return path
 
+    def episode_count_for_chat(self, chat_id: int) -> int:
+        source = f"telegram-chat:{chat_id}"
+        count = 0
+        for path in self.episode_dir.glob("episode-*.json"):
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if data.get("source") == source:
+                count += 1
+        return count
+
     def next_episode_id(self, episode_date: str) -> str:
         compact_date = episode_date.replace("-", "")
         max_n = 0

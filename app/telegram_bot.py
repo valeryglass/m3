@@ -310,6 +310,7 @@ async def _handle_episode_callback_after_authorized(
     data = getattr(query, "data", "") if query is not None else ""
     if data == "episode:save":
         storage.save_episode(session)
+        episode_count = storage.episode_count_for_chat(chat_id)
         ux_events.append(
             base_event(
                 "session_completed",
@@ -319,7 +320,7 @@ async def _handle_episode_callback_after_authorized(
             )
         )
         storage.delete_session(chat_id)
-        await _reply_to_callback(query, tone.saved_episode(tone.complete()))
+        await _reply_to_callback(query, tone.saved_episode(tone.complete(), episode_count))
         return
     if data == "episode:cancel":
         ux_events.append(

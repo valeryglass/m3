@@ -201,7 +201,7 @@ SESSION_MESSAGES = {
     "expired_initial_session": (
         "Прошлая сессия истекла до первого ответа. Отправь /start заново"
     ),
-    "saved_episode": "{reply}",
+    "saved_episode": "{reply}\nВсего эпизодов: {episode_count}",
 }
 
 
