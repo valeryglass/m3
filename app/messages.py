@@ -20,6 +20,60 @@ FIELD_GUIDES = {
         ),
         "question": "Опиши ситуацию несколькими предложениями",
     },
+    "trigger": {
+        "field": "trigger",
+        "label": "триггер",
+        "source_field": "trigger.description",
+        "description": "Что стало пусковым стимулом",
+        "formula": "[стимул] → [активация реакции]",
+        "examples": (
+            "резкий комментарий в чате",
+            "уведомление от банка",
+            "воспоминание о конфликте",
+        ),
+        "tips": (
+            "что именно зацепило",
+            "может быть мысль или тело",
+            "минимальный стимул",
+        ),
+        "question": "Что именно зацепило или запустило реакцию?",
+    },
+    "actors": {
+        "field": "actors",
+        "label": "участники",
+        "source_field": "actors",
+        "description": "Кто был вовлечён в эпизод",
+        "formula": "[кто участвовал]",
+        "examples": (
+            "я и коллега",
+            "партнёр",
+            "начальник и команда",
+        ),
+        "tips": (
+            "можно роли без имён",
+            "кто влиял на момент",
+            "короткий список",
+        ),
+        "question": "Кто был вовлечён в ситуацию?",
+    },
+    "speech": {
+        "field": "speech",
+        "label": "речь",
+        "source_field": "speech",
+        "description": "Точные слова или сообщения",
+        "formula": "[кто] → [что сказал/написал]",
+        "examples": (
+            "коллега: «это не подходит»",
+            "я написал: «ок»",
+            "сообщений не было",
+        ),
+        "tips": (
+            "дословно если помнишь",
+            "можно одним фрагментом",
+            "если речи не было — так и напиши",
+        ),
+        "question": "Какие слова или сообщения там были?",
+    },
     "behavior": {
         "field": "behavior",
         "label": "действие",
@@ -136,8 +190,33 @@ FIELD_GUIDES = {
 }
 
 
+BASIC_TARGETS = (
+    "situation",
+    "behavior",
+    "short_term_consequence",
+    "long_term_consequence",
+    "automatic_thought",
+    "emotion",
+    "body",
+)
+
+
+FULL_TARGETS = (
+    "situation",
+    "trigger",
+    "actors",
+    "speech",
+    "behavior",
+    "short_term_consequence",
+    "long_term_consequence",
+    "automatic_thought",
+    "emotion",
+    "body",
+)
+
+
 TARGET_PROMPTS = {
-    target: guide["question"] for target, guide in FIELD_GUIDES.items()
+    target: FIELD_GUIDES[target]["question"] for target in BASIC_TARGETS
 }
 
 

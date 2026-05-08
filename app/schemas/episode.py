@@ -40,6 +40,9 @@ class Observed(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     situation: ObservedField
+    trigger: ObservedField | None = None
+    actors: ObservedField | None = None
+    speech: ObservedField | None = None
     automatic_thought: ObservedField
     emotion: ObservedField
     body: ObservedField

@@ -4,18 +4,15 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
+from app.messages import BASIC_TARGETS, FULL_TARGETS
 from app.tone_engine import ToneEngine
 
 
-OBSERVED_FIELDS = (
-    "situation",
-    "behavior",
-    "short_term_consequence",
-    "long_term_consequence",
-    "automatic_thought",
-    "emotion",
-    "body",
-)
+FLOW_BASIC = "basic"
+FLOW_FULL = "full"
+
+OBSERVED_FIELDS = BASIC_TARGETS
+FULL_OBSERVED_FIELDS = FULL_TARGETS
 
 TARGETS = OBSERVED_FIELDS
 
@@ -23,6 +20,7 @@ TARGETS = OBSERVED_FIELDS
 @dataclass
 class LoopSession:
     chat_id: int
+    flow_mode: str = FLOW_BASIC
     session_id: str | None = None
     target_index: int = 0
     last_prompted_at: str | None = None
@@ -40,10 +38,12 @@ class LoopSession:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "LoopSession":
         observed = dict(data.get("observed", {}))
+        flow_mode = _normalize_flow_mode(data.get("flow_mode"))
         return cls(
             chat_id=int(data["chat_id"]),
+            flow_mode=flow_mode,
             session_id=data.get("session_id"),
-            target_index=_target_index_for_observed(observed),
+            target_index=_target_index_for_observed(observed, flow_mode),
             last_prompted_at=data.get("last_prompted_at"),
             episode_date=data.get("episode_date"),
             observed=observed,
@@ -62,6 +62,7 @@ class LoopSession:
     def to_dict(self) -> dict[str, Any]:
         return {
             "chat_id": self.chat_id,
+            "flow_mode": self.flow_mode,
             "session_id": self.session_id,
             "target_index": self.target_index,
             "last_prompted_at": self.last_prompted_at,
@@ -83,18 +84,27 @@ def new_session(
     chat_id: int,
     session_id: str | None = None,
     episode_date: str | None = None,
+    flow_mode: str = FLOW_BASIC,
 ) -> LoopSession:
     return LoopSession(
         chat_id=chat_id,
+        flow_mode=_normalize_flow_mode(flow_mode),
         session_id=session_id,
         episode_date=episode_date or date.today().isoformat(),
     )
 
 
 def active_target(session: LoopSession) -> str:
-    if session.target_index >= len(TARGETS):
+    targets = target_fields(session)
+    if session.target_index >= len(targets):
         return "complete"
-    return TARGETS[session.target_index]
+    return targets[session.target_index]
+
+
+def target_fields(session: LoopSession) -> tuple[str, ...]:
+    if session.flow_mode == FLOW_FULL:
+        return FULL_OBSERVED_FIELDS
+    return OBSERVED_FIELDS
 
 
 def prompt_for_current_target(
@@ -105,12 +115,12 @@ def prompt_for_current_target(
 
 
 def completed_observed_count(session: LoopSession) -> int:
-    return sum(1 for field_name in OBSERVED_FIELDS if field_name in session.observed)
+    return sum(1 for field_name in target_fields(session) if field_name in session.observed)
 
 
 def status_text(session: LoopSession, tone: ToneEngine | None = None) -> str:
     return _tone(tone).status(
-        active_target(session), completed_observed_count(session), len(OBSERVED_FIELDS)
+        active_target(session), completed_observed_count(session), len(target_fields(session))
     )
 
 
@@ -126,7 +136,7 @@ def apply_user_reply(
     if target == "complete":
         return LoopResult(reply=tone.already_complete())
 
-    if target in OBSERVED_FIELDS:
+    if target in target_fields(session):
         return _apply_observed_field(session, target, value, tone)
 
     raise ValueError(f"Unknown target: {target}")
@@ -149,8 +159,17 @@ def _tone(tone: ToneEngine | None) -> ToneEngine:
     return tone if tone is not None else ToneEngine.default()
 
 
-def _target_index_for_observed(observed: dict[str, dict[str, str]]) -> int:
-    for index, field_name in enumerate(OBSERVED_FIELDS):
+def _target_index_for_observed(
+    observed: dict[str, dict[str, str]], flow_mode: str = FLOW_BASIC
+) -> int:
+    fields = FULL_OBSERVED_FIELDS if flow_mode == FLOW_FULL else OBSERVED_FIELDS
+    for index, field_name in enumerate(fields):
         if field_name not in observed:
             return index
-    return len(OBSERVED_FIELDS)
+    return len(fields)
+
+
+def _normalize_flow_mode(flow_mode: Any) -> str:
+    if flow_mode == FLOW_FULL:
+        return FLOW_FULL
+    return FLOW_BASIC

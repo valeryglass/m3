@@ -1,4 +1,5 @@
 from app.loop_extractor import LoopSession
+from app.loop_extractor import FLOW_FULL
 from app.storage import JsonStorage
 
 
@@ -44,3 +45,31 @@ def test_episode_count_for_chat_counts_only_matching_source(tmp_path):
     )
 
     assert storage.episode_count_for_chat(123) == 2
+
+
+def test_save_episode_persists_full_observed_fields(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    session = LoopSession(
+        chat_id=123,
+        flow_mode=FLOW_FULL,
+        episode_date="2026-04-30",
+        observed={
+            "situation": {"value": "s", "source_quote": "s"},
+            "trigger": {"value": "tr", "source_quote": "tr"},
+            "actors": {"value": "ac", "source_quote": "ac"},
+            "speech": {"value": "sp", "source_quote": "sp"},
+            "behavior": {"value": "b", "source_quote": "b"},
+            "short_term_consequence": {"value": "st", "source_quote": "st"},
+            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+            "automatic_thought": {"value": "at", "source_quote": "at"},
+            "emotion": {"value": "e", "source_quote": "e"},
+            "body": {"value": "body", "source_quote": "body"},
+        },
+    )
+
+    path = storage.save_episode(session)
+
+    text = path.read_text(encoding="utf-8")
+    assert '"trigger"' in text
+    assert '"actors"' in text
+    assert '"speech"' in text

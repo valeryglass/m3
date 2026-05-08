@@ -48,7 +48,7 @@ class JsonStorage:
         )
         path = self.episode_dir / f"{episode_id}.json"
         path.write_text(
-            episode.model_dump_json(indent=2) + "\n",
+            episode.model_dump_json(indent=2, exclude_none=True) + "\n",
             encoding="utf-8",
         )
         session.saved_episode_path = str(path)

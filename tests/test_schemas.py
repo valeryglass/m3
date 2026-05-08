@@ -47,3 +47,32 @@ def test_episode_schema_accepts_valid_episode():
     )
 
     assert episode.id == "episode-20260430-1"
+
+
+def test_episode_schema_accepts_optional_full_observed_fields():
+    episode = Episode.model_validate(
+        {
+            "id": "episode-20260430-1",
+            "date": "2026-04-30",
+            "source": "telegram-chat:123",
+            "observed": {
+                "situation": {"value": "s", "source_quote": "s"},
+                "trigger": {"value": "tr", "source_quote": "tr"},
+                "actors": {"value": "ac", "source_quote": "ac"},
+                "speech": {"value": "sp", "source_quote": "sp"},
+                "automatic_thought": {"value": "at", "source_quote": "at"},
+                "emotion": {"value": "e", "source_quote": "e"},
+                "body": {"value": "body", "source_quote": "body"},
+                "behavior": {"value": "b", "source_quote": "b"},
+                "short_term_consequence": {"value": "st", "source_quote": "st"},
+                "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+            },
+            "derived": {
+                "atomic_thoughts": [],
+                "cognitive_distortions": [],
+            },
+        }
+    )
+
+    assert episode.observed.trigger is not None
+    assert episode.observed.trigger.value == "tr"

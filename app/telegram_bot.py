@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from app.config import Settings, admin_chat_id_for_settings, load_settings
 from app.loop_extractor import (
-    OBSERVED_FIELDS,
+    FLOW_FULL,
     active_target,
     apply_user_reply,
     completed_observed_count,
     new_session,
     prompt_for_current_target,
     status_text,
+    target_fields,
 )
 from app.storage import JsonStorage
 from app.tone_engine import load_tone_engine
@@ -50,22 +51,13 @@ def main() -> None:
             update, settings, tone, ux_events, userlist, context.bot
         ):
             return
-        chat_id = update.effective_chat.id
-        now = utc_now()
-        session = storage.load_session(chat_id)
-        if session is not None and session.session_id is not None:
-            ux_events.append(
-                _session_cancelled_event(
-                    session,
-                    str(chat_id),
-                    now=now,
-                    cancel_reason="restart",
-                )
-            )
-        session = _start_new_session(storage, ux_events, chat_id, now)
-        await _reply_text(
-            update,
-            tone.start_session(prompt_for_current_target(session, tone)),
+        await _handle_start_after_authorized(update, storage, ux_events, tone)
+
+    async def start_full(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _authorize_admin(update, settings, tone, ux_events):
+            return
+        await _handle_start_after_authorized(
+            update, storage, ux_events, tone, flow_mode=FLOW_FULL
         )
 
     async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -149,6 +141,7 @@ def main() -> None:
         .build()
     )
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("start_full", start_full))
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("cancel", cancel))
     application.add_handler(CommandHandler("help", help_command))
@@ -159,7 +152,15 @@ def main() -> None:
     application.run_polling(bootstrap_retries=-1)
 
 
-REGISTERED_COMMANDS = ("start", "status", "cancel", "help", "approve", "pause")
+REGISTERED_COMMANDS = (
+    "start",
+    "status",
+    "cancel",
+    "help",
+    "approve",
+    "pause",
+    "start_full",
+)
 VISIBLE_COMMANDS = ("start", "cancel", "help")
 
 
@@ -183,6 +184,36 @@ def _bot_profile(tone) -> dict[str, str]:
 async def _send_help(update, tone) -> None:
     if update.message is not None:
         await _reply_text(update, tone.help())
+
+
+async def _handle_start_after_authorized(
+    update,
+    storage: JsonStorage,
+    ux_events: UxEventLog,
+    tone,
+    *,
+    flow_mode: str = "basic",
+) -> None:
+    chat_id = update.effective_chat.id
+    now = utc_now()
+    session = storage.load_session(chat_id)
+    if session is not None and session.session_id is not None:
+        ux_events.append(
+            _session_cancelled_event(
+                session,
+                str(chat_id),
+                now=now,
+                cancel_reason="restart",
+            )
+        )
+    session = _start_new_session(storage, ux_events, chat_id, now, flow_mode=flow_mode)
+    await _reply_text(
+        update,
+        tone.start_session(
+            prompt_for_current_target(session, tone),
+            total_count=len(target_fields(session)),
+        ),
+    )
 
 
 async def _handle_cancel_after_authorized(
@@ -235,7 +266,9 @@ async def _handle_message_after_authorized(
         return
     if session.awaiting_save_confirmation:
         await _reply_text(
-            update, tone.review_screen(session.observed), reply_markup=_review_reply_markup()
+            update,
+            tone.review_screen(session.observed, target_fields(session)),
+            reply_markup=_review_reply_markup(),
         )
         return
 
@@ -275,7 +308,9 @@ async def _handle_message_after_authorized(
         session.awaiting_save_confirmation = True
         storage.save_session(session)
         await _reply_text(
-            update, tone.review_screen(session.observed), reply_markup=_review_reply_markup()
+            update,
+            tone.review_screen(session.observed, target_fields(session)),
+            reply_markup=_review_reply_markup(),
         )
         return
     _log_step_prompted(ux_events, session, str(chat_id), now=now)
@@ -284,7 +319,7 @@ async def _handle_message_after_authorized(
     if advanced:
         reply = tone.next_prompt_bridge(
             completed_observed_count(session),
-            len(OBSERVED_FIELDS),
+            len(target_fields(session)),
             result.reply,
         )
     await _reply_text(update, reply)
@@ -335,7 +370,9 @@ async def _handle_episode_callback_after_authorized(
         await _reply_to_callback(query, tone.cancel())
         return
     if query is not None:
-        await _reply_to_callback(query, tone.review_screen(session.observed))
+        await _reply_to_callback(
+            query, tone.review_screen(session.observed, target_fields(session))
+        )
 
 
 async def _reply_to_callback(query, text: str) -> None:
@@ -519,11 +556,12 @@ def _telegram_update_metadata(update) -> dict:
     return {key: value for key, value in metadata.items() if value is not None}
 
 
-def _new_session_for_now(chat_id: int, now):
+def _new_session_for_now(chat_id: int, now, flow_mode: str = "basic"):
     return new_session(
         chat_id,
         session_id=new_session_id(str(chat_id), now),
         episode_date=_episode_date_for_now(now),
+        flow_mode=flow_mode,
     )
 
 
@@ -532,8 +570,9 @@ def _start_new_session(
     ux_events: UxEventLog,
     chat_id: int,
     now,
+    flow_mode: str = "basic",
 ):
-    session = _new_session_for_now(chat_id, now)
+    session = _new_session_for_now(chat_id, now, flow_mode=flow_mode)
     ux_events.append(
         base_event(
             "session_started",

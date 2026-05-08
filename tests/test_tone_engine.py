@@ -1,8 +1,10 @@
 from app.loop_extractor import OBSERVED_FIELDS
 from app.messages import (
+    BASIC_TARGETS,
     BOT_PROFILE,
     COMMAND_DESCRIPTIONS,
     FIELD_GUIDES,
+    FULL_TARGETS,
     SESSION_MESSAGES,
     TARGET_PROMPTS,
 )
@@ -44,7 +46,8 @@ def test_default_target_prompts_are_russian_and_short():
 
 def test_message_catalog_covers_every_observed_target():
     assert set(TARGET_PROMPTS) == set(OBSERVED_FIELDS)
-    assert set(FIELD_GUIDES) == set(OBSERVED_FIELDS)
+    assert set(FIELD_GUIDES) == set(FULL_TARGETS)
+    assert BASIC_TARGETS == OBSERVED_FIELDS
 
 
 def test_field_guide_card_renders_source_copy():
@@ -61,6 +64,38 @@ def test_field_guide_card_renders_source_copy():
         "• я увидел дедлайн в календаре утром"
         "</blockquote>\n\n"
         "Опиши ситуацию несколькими предложениями"
+    )
+
+
+def test_full_mode_field_cards_render_source_copy():
+    tone = ToneEngine.default()
+
+    assert tone.target_prompt("trigger") == (
+        "Триггер\n\n"
+        "<blockquote>"
+        "• резкий комментарий в чате\n"
+        "• уведомление от банка\n"
+        "• воспоминание о конфликте"
+        "</blockquote>\n\n"
+        "Что именно зацепило или запустило реакцию?"
+    )
+    assert tone.target_prompt("actors") == (
+        "Участники\n\n"
+        "<blockquote>"
+        "• я и коллега\n"
+        "• партнёр\n"
+        "• начальник и команда"
+        "</blockquote>\n\n"
+        "Кто был вовлечён в ситуацию?"
+    )
+    assert tone.target_prompt("speech") == (
+        "Речь\n\n"
+        "<blockquote>"
+        "• коллега: «это не подходит»\n"
+        "• я написал: «ок»\n"
+        "• сообщений не было"
+        "</blockquote>\n\n"
+        "Какие слова или сообщения там были?"
     )
 
 
@@ -141,6 +176,34 @@ def test_session_messages_render_unchanged():
     ) == (
         "■■■■■■■ 7/7 💯\n\n"
         "ситуация: s\n"
+        "действие: b\n"
+        "сразу после: st\n"
+        "потом: lt\n"
+        "мысль: at\n"
+        "эмоция: e\n"
+        "тело: body\n\n"
+        "Сохраняем?"
+    )
+    assert tone.review_screen(
+        {
+            "situation": {"value": "s"},
+            "trigger": {"value": "tr"},
+            "actors": {"value": "ac"},
+            "speech": {"value": "sp"},
+            "behavior": {"value": "b"},
+            "short_term_consequence": {"value": "st"},
+            "long_term_consequence": {"value": "lt"},
+            "automatic_thought": {"value": "at"},
+            "emotion": {"value": "e"},
+            "body": {"value": "body"},
+        },
+        FULL_TARGETS,
+    ) == (
+        "■■■■■■■■■■ 10/10 💯\n\n"
+        "ситуация: s\n"
+        "триггер: tr\n"
+        "участники: ac\n"
+        "речь: sp\n"
         "действие: b\n"
         "сразу после: st\n"
         "потом: lt\n"

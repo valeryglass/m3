@@ -1,9 +1,13 @@
 from app.loop_extractor import (
+    FLOW_FULL,
+    FULL_OBSERVED_FIELDS,
     LoopSession,
+    OBSERVED_FIELDS,
     active_target,
     apply_user_reply,
     completed_observed_count,
     new_session,
+    target_fields,
 )
 
 
@@ -44,6 +48,36 @@ def test_session_from_dict_normalizes_legacy_target_index():
     assert session.target_index == 4
     assert active_target(session) == "automatic_thought"
     assert session.awaiting_save_confirmation is False
+    assert session.flow_mode == "basic"
+
+
+def test_full_flow_uses_expanded_target_order():
+    session = new_session(
+        chat_id=123, episode_date="2026-05-03", flow_mode=FLOW_FULL
+    )
+
+    assert target_fields(session) == FULL_OBSERVED_FIELDS
+    assert target_fields(session) == (
+        "situation",
+        "trigger",
+        "actors",
+        "speech",
+        "behavior",
+        "short_term_consequence",
+        "long_term_consequence",
+        "automatic_thought",
+        "emotion",
+        "body",
+    )
+    assert OBSERVED_FIELDS == (
+        "situation",
+        "behavior",
+        "short_term_consequence",
+        "long_term_consequence",
+        "automatic_thought",
+        "emotion",
+        "body",
+    )
 
 
 def test_session_from_dict_restores_save_confirmation_state():
@@ -90,3 +124,29 @@ def test_loop_completes_after_body_without_derived_targets():
         "atomic_thoughts": [],
         "cognitive_distortions": [],
     }
+
+
+def test_full_loop_completes_after_expanded_body_target():
+    session = new_session(
+        chat_id=123, episode_date="2026-04-30", flow_mode=FLOW_FULL
+    )
+
+    for answer in (
+        "Had a conversation.",
+        "Sharp comment.",
+        "Me and a colleague.",
+        "They said no.",
+        "Answered directly.",
+        "Felt relief.",
+        "It was okay later.",
+        "I can say this.",
+        "Shame.",
+    ):
+        result = apply_user_reply(session, answer)
+        assert not result.should_save
+
+    result = apply_user_reply(session, "Chest pressure.")
+
+    assert result.should_save
+    assert active_target(session) == "complete"
+    assert completed_observed_count(session) == 10

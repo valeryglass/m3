@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from app.messages import (
+    BASIC_TARGETS,
     BOT_PROFILE,
     COMMAND_DESCRIPTIONS,
     FIELD_GUIDES,
@@ -100,8 +101,8 @@ class ToneEngine:
     def bot_description(self) -> str:
         return BOT_PROFILE["description"]
 
-    def start_session(self, prompt: str) -> str:
-        total_count = len(TARGET_PROMPTS)
+    def start_session(self, prompt: str, total_count: int | None = None) -> str:
+        total_count = total_count or len(BASIC_TARGETS)
         return SESSION_MESSAGES["start_session"].format(
             progress_bar=self.progress_bar(0, total_count),
             completed_count=0,
@@ -119,12 +120,16 @@ class ToneEngine:
             prompt=prompt,
         )
 
-    def review_screen(self, observed: dict[str, dict[str, str]]) -> str:
+    def review_screen(
+        self,
+        observed: dict[str, dict[str, str]],
+        targets: tuple[str, ...] = BASIC_TARGETS,
+    ) -> str:
         overview = "\n".join(
             f"{FIELD_GUIDES[target]['label']}: {escape(_observed_value(observed, target))}"
-            for target in TARGET_PROMPTS
+            for target in targets
         )
-        total_count = len(TARGET_PROMPTS)
+        total_count = len(targets)
         return SESSION_MESSAGES["review_screen"].format(
             progress_bar=self.progress_bar(total_count, total_count),
             completed_count=total_count,
