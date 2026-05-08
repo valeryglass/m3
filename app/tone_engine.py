@@ -119,6 +119,19 @@ class ToneEngine:
             prompt=prompt,
         )
 
+    def review_screen(self, observed: dict[str, dict[str, str]]) -> str:
+        overview = "\n".join(
+            f"{FIELD_GUIDES[target]['label']}: {escape(_observed_value(observed, target))}"
+            for target in TARGET_PROMPTS
+        )
+        total_count = len(TARGET_PROMPTS)
+        return SESSION_MESSAGES["review_screen"].format(
+            progress_bar=self.progress_bar(total_count, total_count),
+            completed_count=total_count,
+            total_count=total_count,
+            overview=overview,
+        )
+
     def progress_bar(self, completed_count: int, total_count: int) -> str:
         completed = max(0, min(completed_count, total_count))
         remaining = max(0, total_count - completed)
@@ -207,3 +220,8 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
         else:
             merged[key] = value
     return merged
+
+
+def _observed_value(observed: dict[str, dict[str, str]], target: str) -> str:
+    item = observed.get(target, {})
+    return item.get("value") or item.get("source_quote") or ""

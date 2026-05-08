@@ -162,6 +162,7 @@ SESSION_MESSAGES = {
     "next_prompt_bridge": (
         "💾 {progress_bar} {completed_count}/{total_count}\n\n{prompt}"
     ),
+    "review_screen": "💯 {progress_bar} {completed_count}/{total_count}\n\n{overview}\n\nСохраняем?",
     "complete": "Готово. Эпизод собран",
     "already_complete": "Эпизод уже собран",
     "status": "Текущий шаг: {target}\nЗаполнено: {completed_count}/{total_count}",

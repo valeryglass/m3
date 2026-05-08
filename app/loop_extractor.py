@@ -35,6 +35,7 @@ class LoopSession:
         }
     )
     saved_episode_path: str | None = None
+    awaiting_save_confirmation: bool = False
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "LoopSession":
@@ -53,6 +54,9 @@ class LoopSession:
                 )
             ),
             saved_episode_path=data.get("saved_episode_path"),
+            awaiting_save_confirmation=bool(
+                data.get("awaiting_save_confirmation", False)
+            ),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -65,6 +69,7 @@ class LoopSession:
             "observed": self.observed,
             "derived": self.derived,
             "saved_episode_path": self.saved_episode_path,
+            "awaiting_save_confirmation": self.awaiting_save_confirmation,
         }
 
 

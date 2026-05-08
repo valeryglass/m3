@@ -35,6 +35,7 @@ def main() -> None:
         from telegram import BotCommand, Update
         from telegram.ext import (
             Application,
+            CallbackQueryHandler,
             CommandHandler,
             ContextTypes,
             MessageHandler,
@@ -106,6 +107,15 @@ def main() -> None:
             return
         await _handle_message_after_authorized(update, storage, ux_events, settings, tone)
 
+    async def episode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
+            return
+        await _handle_episode_callback_after_authorized(
+            update, storage, ux_events, tone
+        )
+
     async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _handle_admin_decision(
             update, context.args, settings, tone, ux_events, userlist, "approve"
@@ -144,6 +154,7 @@ def main() -> None:
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("approve", approve))
     application.add_handler(CommandHandler("pause", pause))
+    application.add_handler(CallbackQueryHandler(episode_callback, pattern="^episode:"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
     application.run_polling(bootstrap_retries=-1)
 
@@ -222,6 +233,11 @@ async def _handle_message_after_authorized(
     if session is None:
         await _reply_text(update, tone.no_active_loop_start())
         return
+    if session.awaiting_save_confirmation:
+        await _reply_text(
+            update, tone.review_screen(session.observed), reply_markup=_review_reply_markup()
+        )
+        return
 
     _ensure_episode_date(session, now)
     if session.session_id is None:
@@ -256,17 +272,11 @@ async def _handle_message_after_authorized(
         )
     )
     if result.should_save:
-        storage.save_episode(session)
-        ux_events.append(
-            base_event(
-                "session_completed",
-                session.session_id,
-                str(chat_id),
-                created_at=now,
-            )
+        session.awaiting_save_confirmation = True
+        storage.save_session(session)
+        await _reply_text(
+            update, tone.review_screen(session.observed), reply_markup=_review_reply_markup()
         )
-        storage.delete_session(chat_id)
-        await _reply_text(update, tone.saved_episode(result.reply))
         return
     _log_step_prompted(ux_events, session, str(chat_id), now=now)
     storage.save_session(session)
@@ -278,6 +288,74 @@ async def _handle_message_after_authorized(
             result.reply,
         )
     await _reply_text(update, reply)
+
+
+async def _handle_episode_callback_after_authorized(
+    update,
+    storage: JsonStorage,
+    ux_events: UxEventLog,
+    tone,
+) -> None:
+    query = getattr(update, "callback_query", None)
+    if query is not None:
+        await query.answer()
+    chat_id = update.effective_chat.id
+    session = storage.load_session(chat_id)
+    if session is None or not session.awaiting_save_confirmation:
+        if query is not None:
+            await _reply_to_callback(query, tone.no_active_loop())
+        return
+
+    now = utc_now()
+    data = getattr(query, "data", "") if query is not None else ""
+    if data == "episode:save":
+        storage.save_episode(session)
+        ux_events.append(
+            base_event(
+                "session_completed",
+                session.session_id,
+                str(chat_id),
+                created_at=now,
+            )
+        )
+        storage.delete_session(chat_id)
+        await _reply_to_callback(query, tone.saved_episode(tone.complete()))
+        return
+    if data == "episode:cancel":
+        ux_events.append(
+            _session_cancelled_event(
+                session,
+                str(chat_id),
+                now=now,
+                cancel_reason="review_cancel",
+            )
+        )
+        storage.delete_session(chat_id)
+        await _reply_to_callback(query, tone.cancel())
+        return
+    if query is not None:
+        await _reply_to_callback(query, tone.review_screen(session.observed))
+
+
+async def _reply_to_callback(query, text: str) -> None:
+    message = getattr(query, "message", None) if query is not None else None
+    if message is not None:
+        await message.reply_text(text, parse_mode="HTML")
+
+
+def _review_reply_markup():
+    try:
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    except ImportError:  # pragma: no cover - runtime dependency guard
+        return None
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("Сохранить", callback_data="episode:save"),
+                InlineKeyboardButton("Отменить", callback_data="episode:cancel"),
+            ]
+        ]
+    )
 
 
 async def _authorize(
@@ -403,9 +481,16 @@ async def _notify_admin_waitlist(bot, settings: Settings, tone, record: dict) ->
     )
 
 
-async def _reply_text(update, text: str) -> None:
+async def _reply_text(update, text: str, *, reply_markup=None):
     if update.message is not None:
-        await update.message.reply_text(text, parse_mode="HTML")
+        kwargs = {"parse_mode": "HTML"}
+        if reply_markup is not None:
+            kwargs["reply_markup"] = reply_markup
+        return await update.message.reply_text(
+            text,
+            **kwargs,
+        )
+    return None
 
 
 def _telegram_update_user_id(update) -> str:

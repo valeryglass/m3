@@ -105,6 +105,27 @@ def test_session_messages_render_unchanged():
     assert tone.next_prompt_bridge(1, 7, behavior_card) == (
         f"💾 ■□□□□□□ 1/7\n\n{behavior_card}"
     )
+    assert tone.review_screen(
+        {
+            "situation": {"value": "s"},
+            "behavior": {"value": "b"},
+            "short_term_consequence": {"value": "st"},
+            "long_term_consequence": {"value": "lt"},
+            "automatic_thought": {"value": "at"},
+            "emotion": {"value": "e"},
+            "body": {"value": "body"},
+        }
+    ) == (
+        "💯 ■■■■■■■ 7/7\n\n"
+        "ситуация: s\n"
+        "действие: b\n"
+        "сразу после: st\n"
+        "потом: lt\n"
+        "мысль: at\n"
+        "эмоция: e\n"
+        "тело: body\n\n"
+        "Сохраняем?"
+    )
     assert tone.complete() == "Готово. Эпизод собран"
     assert tone.already_complete() == "Эпизод уже собран"
     assert tone.status("situation", 1, 7) == "Текущий шаг: situation\nЗаполнено: 1/7"
@@ -149,6 +170,7 @@ def test_session_messages_render_unchanged():
         "empty_answer",
         "start_session",
         "next_prompt_bridge",
+        "review_screen",
         "complete",
         "already_complete",
         "status",

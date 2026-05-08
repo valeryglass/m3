@@ -439,7 +439,7 @@ def test_empty_answer_retries_without_bridge(tmp_path):
     assert "💾" not in message.replies[0]
 
 
-def test_completion_reply_has_no_episode_path_and_requires_restart_after(tmp_path):
+def test_final_answer_opens_save_review_without_saving(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = LoopSession(
@@ -466,13 +466,24 @@ def test_completion_reply_has_no_episode_path_and_requires_restart_after(tmp_pat
         )
     )
 
-    assert storage.load_session(123) is None
-    assert [path.name for path in (tmp_path / "episodes").glob("*.json")] == [
-        "episode-20260503-1.json"
+    loaded = storage.load_session(123)
+    assert loaded is not None
+    assert loaded.awaiting_save_confirmation is True
+    assert loaded.target_index == 7
+    assert [path.name for path in (tmp_path / "episodes").glob("*.json")] == []
+    assert message.replies == [
+        "💯 ■■■■■■■ 7/7\n\n"
+        "ситуация: s\n"
+        "действие: b\n"
+        "сразу после: st\n"
+        "потом: lt\n"
+        "мысль: at\n"
+        "эмоция: e\n"
+        "тело: body\n\n"
+        "Сохраняем?"
     ]
-    assert message.replies == ["Готово. Эпизод собран"]
-    assert "data/episodes" not in message.replies[0]
-    assert ux_events.read()[-1]["event_type"] == "session_completed"
+    assert message.reply_options[0]["reply_markup"] is not None
+    assert ux_events.read()[-1]["event_type"] == "step_answered"
 
     followup = _FakeMessage("next")
     _run(
@@ -485,10 +496,58 @@ def test_completion_reply_has_no_episode_path_and_requires_restart_after(tmp_pat
         )
     )
 
+    loaded = storage.load_session(123)
+    assert loaded is not None
+    assert loaded.observed["body"]["value"] == "body"
+    assert followup.replies[0].endswith("Сохраняем?")
+
+
+def test_save_callback_writes_episode_and_replies_completion(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session = _complete_review_session()
+    storage.save_session(session)
+    callback = _FakeCallbackQuery("episode:save")
+
+    _run(
+        telegram_bot._handle_episode_callback_after_authorized(
+            _fake_callback_update(123, callback),
+            storage,
+            ux_events,
+            ToneEngine.default(),
+        )
+    )
+
+    assert callback.answered is True
     assert storage.load_session(123) is None
-    assert followup.replies == [
-        "Сейчас активной сессии нет. Отправь /start, чтобы начать новый эпизод"
+    assert [path.name for path in (tmp_path / "episodes").glob("*.json")] == [
+        "episode-20260503-1.json"
     ]
+    assert callback.message.replies == ["Готово. Эпизод собран"]
+    assert callback.message.reply_options == [{"parse_mode": "HTML"}]
+    assert ux_events.read()[-1]["event_type"] == "session_completed"
+
+
+def test_cancel_callback_discards_review_session(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session = _complete_review_session()
+    storage.save_session(session)
+    callback = _FakeCallbackQuery("episode:cancel")
+
+    _run(
+        telegram_bot._handle_episode_callback_after_authorized(
+            _fake_callback_update(123, callback),
+            storage,
+            ux_events,
+            ToneEngine.default(),
+        )
+    )
+
+    assert storage.load_session(123) is None
+    assert [path.name for path in (tmp_path / "episodes").glob("*.json")] == []
+    assert callback.message.replies == ["Сессия отменена"]
+    assert ux_events.read()[-1]["cancel_reason"] == "review_cancel"
 
 
 def test_stale_initial_session_expires_and_logs_reason(tmp_path):
@@ -648,6 +707,16 @@ class _FakeBot:
         )
 
 
+class _FakeCallbackQuery:
+    def __init__(self, data: str) -> None:
+        self.data = data
+        self.answered = False
+        self.message = _FakeMessage("callback")
+
+    async def answer(self) -> None:
+        self.answered = True
+
+
 def _run(coro):
     return asyncio.run(coro)
 
@@ -657,6 +726,34 @@ def _fake_update(chat_id: int, message: _FakeMessage):
         effective_chat=SimpleNamespace(id=chat_id),
         effective_user=SimpleNamespace(id=chat_id),
         message=message,
+    )
+
+
+def _fake_callback_update(chat_id: int, callback_query: _FakeCallbackQuery):
+    return SimpleNamespace(
+        effective_chat=SimpleNamespace(id=chat_id),
+        effective_user=SimpleNamespace(id=chat_id),
+        message=None,
+        callback_query=callback_query,
+    )
+
+
+def _complete_review_session() -> LoopSession:
+    return LoopSession(
+        chat_id=123,
+        session_id="session-123",
+        target_index=7,
+        episode_date="2026-05-03",
+        awaiting_save_confirmation=True,
+        observed={
+            "situation": {"value": "s", "source_quote": "s"},
+            "behavior": {"value": "b", "source_quote": "b"},
+            "short_term_consequence": {"value": "st", "source_quote": "st"},
+            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+            "automatic_thought": {"value": "at", "source_quote": "at"},
+            "emotion": {"value": "e", "source_quote": "e"},
+            "body": {"value": "body", "source_quote": "body"},
+        },
     )
 
 

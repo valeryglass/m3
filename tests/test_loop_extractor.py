@@ -43,6 +43,21 @@ def test_session_from_dict_normalizes_legacy_target_index():
 
     assert session.target_index == 4
     assert active_target(session) == "automatic_thought"
+    assert session.awaiting_save_confirmation is False
+
+
+def test_session_from_dict_restores_save_confirmation_state():
+    session = LoopSession.from_dict(
+        {
+            "chat_id": 123,
+            "session_id": "session-123",
+            "awaiting_save_confirmation": True,
+            "observed": {},
+        }
+    )
+
+    assert session.awaiting_save_confirmation is True
+    assert session.to_dict()["awaiting_save_confirmation"] is True
 
 
 def test_empty_observed_reply_stays_on_current_target():
