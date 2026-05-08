@@ -280,6 +280,7 @@ SESSION_MESSAGES = {
         "/pause {chat_id}"
     ),
     "admin_approved": "Доступ одобрен для {chat_id}",
+    "approval_granted": "Доступ открыт. Отправь /start, чтобы начать.",
     "admin_paused": "Заявка поставлена на паузу для {chat_id}",
     "admin_bad_command": "Используй {command} &lt;chat_id&gt;",
     "expired_initial_session": (

@@ -245,6 +245,7 @@ def test_session_messages_render_unchanged():
         "/pause 456"
     )
     assert tone.admin_approved(456) == "Доступ одобрен для 456"
+    assert tone.approval_granted() == "Доступ открыт. Отправь /start, чтобы начать."
     assert tone.admin_paused(456) == "Заявка поставлена на паузу для 456"
     assert tone.admin_bad_command("/approve") == "Используй /approve &lt;chat_id&gt;"
     assert tone.expired_initial_session() == (
@@ -270,6 +271,7 @@ def test_session_messages_render_unchanged():
         "waitlisted",
         "admin_waitlist_notice",
         "admin_approved",
+        "approval_granted",
         "admin_paused",
         "admin_bad_command",
         "expired_initial_session",

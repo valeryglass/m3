@@ -63,18 +63,26 @@ def test_start_session_reply_uses_rich_first_card():
     )
 
 
-def test_admin_start_full_starts_expanded_session(tmp_path):
+def test_admin_start_full_starts_expanded_session_after_approval(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage("/start_full")
     update = _fake_update(123, message)
+    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
+    userlist.approve(
+        123,
+        decided_by="123",
+        now=datetime(2026, 5, 8, 10, 0, tzinfo=timezone.utc),
+    )
 
     authorized = _run(
-        telegram_bot._authorize_admin(
+        telegram_bot._authorize_admin_user(
             update,
-            _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123),
+            _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123),
             ToneEngine.default(),
             ux_events,
+            userlist,
+            _FakeBot(),
         )
     )
 
@@ -98,6 +106,48 @@ def test_admin_start_full_starts_expanded_session(tmp_path):
         f"{ToneEngine.default().target_prompt('situation')}"
     ]
 
+def test_unapproved_admin_start_full_goes_to_waitlist_without_session(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
+    message = _FakeMessage("/start_full")
+    bot = _FakeBot()
+
+    authorized = _run(
+        telegram_bot._authorize_admin_user(
+            _fake_update(225672, message),
+            _settings(
+                admin_chat_ids=frozenset({225672, 327002663}),
+                owner_chat_id=225672,
+            ),
+            ToneEngine.default(),
+            ux_events,
+            userlist,
+            bot,
+        )
+    )
+
+    assert authorized is False
+    assert storage.load_session(225672) is None
+    assert userlist.load()["225672"]["status"] == WAITLISTED
+    assert message.replies == [
+        "Спасибо за интерес. Мы добавили тебя в waitlist. "
+        "Напишем, как только доступ откроется"
+    ]
+    assert bot.messages == [
+        {
+            "chat_id": 225672,
+            "text": (
+                "Новый пользователь в waitlist\n"
+                "chat_id: 225672\n"
+                "user_id: 225672\n\n"
+                "/approve 225672\n"
+                "/pause 225672"
+            ),
+            "parse_mode": "HTML",
+        }
+    ]
+
 def test_non_admin_start_full_is_rejected(tmp_path):
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage("/start_full")
@@ -105,7 +155,7 @@ def test_non_admin_start_full_is_rejected(tmp_path):
     authorized = _run(
         telegram_bot._authorize_admin(
             _fake_update(456, message),
-            _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123),
+            _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123),
             ToneEngine.default(),
             ux_events,
         )
@@ -113,6 +163,26 @@ def test_non_admin_start_full_is_rejected(tmp_path):
 
     assert authorized is False
     assert message.replies == ["Нет доступа"]
+
+def test_second_admin_is_authorized_for_hidden_commands(tmp_path):
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("/start_full")
+
+    authorized = _run(
+        telegram_bot._authorize_admin(
+            _fake_update(327002663, message),
+            _settings(
+                admin_chat_ids=frozenset({225672, 327002663}),
+                owner_chat_id=225672,
+            ),
+            ToneEngine.default(),
+            ux_events,
+        )
+    )
+
+    assert authorized is True
+    assert message.replies == []
+
 
 def test_send_help_replies_without_creating_session(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
@@ -150,7 +220,7 @@ def test_authorize_logs_unauthorized_attempt_without_session(tmp_path):
         effective_user=SimpleNamespace(id=456),
         message=message,
     )
-    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    settings = _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123)
     userlist = JsonUserList(tmp_path / "userlist" / "users.json")
     bot = _FakeBot()
 
@@ -203,7 +273,7 @@ def test_authorize_logs_unauthorized_attempt_without_session(tmp_path):
 
 def test_authorize_repeated_waitlist_attempt_does_not_notify_admin(tmp_path):
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    settings = _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123)
     userlist = JsonUserList(tmp_path / "userlist" / "users.json")
     userlist.upsert_waitlisted(
         456, "456", now=datetime(2026, 5, 7, 10, 0, tzinfo=timezone.utc)
@@ -229,7 +299,7 @@ def test_authorize_repeated_waitlist_attempt_does_not_notify_admin(tmp_path):
 
 def test_authorize_paused_user_gets_waitlist_copy(tmp_path):
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    settings = _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123)
     userlist = JsonUserList(tmp_path / "userlist" / "users.json")
     userlist.pause(
         456,
@@ -259,7 +329,7 @@ def test_authorize_paused_user_gets_waitlist_copy(tmp_path):
 
 def test_authorize_approved_user_passes(tmp_path):
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    settings = _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123)
     userlist = JsonUserList(tmp_path / "userlist" / "users.json")
     userlist.approve(
         456,
@@ -284,9 +354,9 @@ def test_authorize_approved_user_passes(tmp_path):
     assert userlist.load()["456"]["status"] == APPROVED
 
 
-def test_authorize_open_mvp_does_not_use_waitlist(tmp_path):
+def test_authorize_empty_config_still_uses_waitlist(tmp_path):
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    settings = _settings(allowed_chat_ids=frozenset(), admin_chat_id=None)
+    settings = _settings(admin_chat_ids=frozenset(), owner_chat_id=None)
     userlist = JsonUserList(tmp_path / "userlist" / "users.json")
 
     authorized = _run(
@@ -300,15 +370,16 @@ def test_authorize_open_mvp_does_not_use_waitlist(tmp_path):
         )
     )
 
-    assert authorized is True
-    assert userlist.load() == {}
+    assert authorized is False
+    assert userlist.load()["456"]["status"] == WAITLISTED
 
 
-def test_admin_approve_updates_userlist_without_user_notification(tmp_path):
+def test_admin_approve_updates_userlist_and_notifies_user(tmp_path):
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    settings = _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123)
     userlist = JsonUserList(tmp_path / "userlist" / "users.json")
     message = _FakeMessage("/approve 456")
+    bot = _FakeBot()
 
     _run(
         telegram_bot._handle_admin_decision(
@@ -319,16 +390,24 @@ def test_admin_approve_updates_userlist_without_user_notification(tmp_path):
             ux_events,
             userlist,
             "approve",
+            bot,
         )
     )
 
     assert userlist.load()["456"]["status"] == APPROVED
     assert message.replies == ["Доступ одобрен для 456"]
+    assert bot.messages == [
+        {
+            "chat_id": 456,
+            "text": "Доступ открыт. Отправь /start, чтобы начать.",
+            "parse_mode": "HTML",
+        }
+    ]
 
 
 def test_admin_pause_updates_userlist_without_user_notification(tmp_path):
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    settings = _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123)
     userlist = JsonUserList(tmp_path / "userlist" / "users.json")
     message = _FakeMessage("/pause 456")
 
@@ -350,7 +429,7 @@ def test_admin_pause_updates_userlist_without_user_notification(tmp_path):
 
 def test_non_admin_decision_command_is_rejected(tmp_path):
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    settings = _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123)
     userlist = JsonUserList(tmp_path / "userlist" / "users.json")
     message = _FakeMessage("/approve 456")
 
@@ -372,7 +451,7 @@ def test_non_admin_decision_command_is_rejected(tmp_path):
 
 def test_admin_decision_requires_chat_id(tmp_path):
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    settings = _settings(allowed_chat_ids=frozenset({123}), admin_chat_id=123)
+    settings = _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123)
     userlist = JsonUserList(tmp_path / "userlist" / "users.json")
     message = _FakeMessage("/approve")
 
@@ -912,11 +991,11 @@ def _complete_full_review_session() -> LoopSession:
 
 
 def _settings(
-    allowed_chat_ids=frozenset({123}),
-    admin_chat_id=123,
+    admin_chat_ids=frozenset({123}),
+    owner_chat_id=123,
 ):
     return SimpleNamespace(
         initial_session_ttl_sec=600,
-        telegram_allowed_chat_ids=allowed_chat_ids,
-        telegram_admin_chat_id=admin_chat_id,
+        telegram_admin_chat_ids=admin_chat_ids,
+        telegram_owner_chat_id=owner_chat_id,
     )

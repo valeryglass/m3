@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from app.config import Settings, admin_chat_id_for_settings, load_settings
+from app.config import (
+    Settings,
+    admin_chat_ids_for_settings,
+    load_settings,
+    owner_chat_id_for_settings,
+)
 from app.loop_extractor import (
     FLOW_FULL,
     active_target,
@@ -54,7 +59,9 @@ def main() -> None:
         await _handle_start_after_authorized(update, storage, ux_events, tone)
 
     async def start_full(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize_admin(update, settings, tone, ux_events):
+        if not await _authorize_admin_user(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
             return
         await _handle_start_after_authorized(
             update, storage, ux_events, tone, flow_mode=FLOW_FULL
@@ -110,12 +117,12 @@ def main() -> None:
 
     async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _handle_admin_decision(
-            update, context.args, settings, tone, ux_events, userlist, "approve"
+            update, context.args, settings, tone, ux_events, userlist, "approve", context.bot
         )
 
     async def pause(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _handle_admin_decision(
-            update, context.args, settings, tone, ux_events, userlist, "pause"
+            update, context.args, settings, tone, ux_events, userlist, "pause", context.bot
         )
 
     async def post_init(application) -> None:
@@ -418,9 +425,7 @@ async def _authorize(
             **metadata,
         )
     )
-    if not settings.telegram_allowed_chat_ids:
-        return True
-    if chat.id in settings.telegram_allowed_chat_ids or userlist.is_approved(chat.id):
+    if userlist.is_approved(chat.id):
         return True
 
     ux_events.append(
@@ -459,7 +464,7 @@ async def _authorize_admin(
             **metadata,
         )
     )
-    if chat.id != admin_chat_id_for_settings(settings):
+    if chat.id not in admin_chat_ids_for_settings(settings):
         ux_events.append(
             telegram_event(
                 "unauthorized_attempt",
@@ -474,6 +479,41 @@ async def _authorize_admin(
     return True
 
 
+async def _authorize_admin_user(
+    update,
+    settings: Settings,
+    tone,
+    ux_events: UxEventLog,
+    userlist: JsonUserList,
+    bot=None,
+) -> bool:
+    if not await _authorize_admin(update, settings, tone, ux_events):
+        return False
+    chat = update.effective_chat
+    if chat is None:
+        return False
+    if userlist.is_approved(chat.id):
+        return True
+
+    now = utc_now()
+    user_id = _telegram_update_user_id(update)
+    metadata = _telegram_update_metadata(update)
+    ux_events.append(
+        telegram_event(
+            "unauthorized_attempt",
+            user_id,
+            created_at=now,
+            **metadata,
+        )
+    )
+    result = userlist.upsert_waitlisted(chat.id, user_id, now=now)
+    if result.created:
+        await _notify_admin_waitlist(bot, settings, tone, result.record)
+    if update.message is not None:
+        await _reply_text(update, tone.waitlisted())
+    return False
+
+
 async def _handle_admin_decision(
     update,
     args,
@@ -482,6 +522,7 @@ async def _handle_admin_decision(
     ux_events: UxEventLog,
     userlist: JsonUserList,
     decision: str,
+    bot=None,
 ) -> None:
     if not await _authorize_admin(update, settings, tone, ux_events):
         return
@@ -500,6 +541,7 @@ async def _handle_admin_decision(
     if decision == "approve":
         userlist.approve(target_chat_id, decided_by=decided_by, now=now)
         await _reply_text(update, tone.admin_approved(target_chat_id))
+        await _notify_approved_user(bot, target_chat_id, tone)
         return
     if decision == "pause":
         userlist.pause(target_chat_id, decided_by=decided_by, now=now)
@@ -509,12 +551,22 @@ async def _handle_admin_decision(
 
 
 async def _notify_admin_waitlist(bot, settings: Settings, tone, record: dict) -> None:
-    admin_chat_id = admin_chat_id_for_settings(settings)
-    if bot is None or admin_chat_id is None:
+    owner_chat_id = owner_chat_id_for_settings(settings)
+    if bot is None or owner_chat_id is None:
         return
     await bot.send_message(
-        chat_id=admin_chat_id,
+        chat_id=owner_chat_id,
         text=tone.admin_waitlist_notice(record["chat_id"], str(record["user_id"])),
+        parse_mode="HTML",
+    )
+
+
+async def _notify_approved_user(bot, chat_id: int, tone) -> None:
+    if bot is None:
+        return
+    await bot.send_message(
+        chat_id=chat_id,
+        text=tone.approval_granted(),
         parse_mode="HTML",
     )
 

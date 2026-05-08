@@ -33,12 +33,16 @@ The local Telegram MVP runs a deterministic one-question loop from
 
 ```bash
 cp .env.example .env
-# fill TELEGRAM_BOT_TOKEN and TELEGRAM_ALLOWED_CHAT_IDS
+# fill TELEGRAM_BOT_TOKEN, M3_TELEGRAM_ADMIN_CHAT_IDS, and M3_TELEGRAM_OWNER_CHAT_ID
 python -m app.telegram_bot
 ```
 
 Runtime episode artifacts, session state, and alpha userlist records are stored
 under `data/` and are ignored by git.
+
+Normal bot access is granted through approved records in
+`data/userlist/users.json`. The `.env` admin settings only control hidden admin
+commands and owner notifications.
 
 The bot uses `config/tone.yaml` for user-facing loop tone, with fallback text in
 `app/tone_engine.py`. Tone changes interface wording only; CBT data and analytics

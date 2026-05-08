@@ -188,6 +188,9 @@ class ToneEngine:
     def admin_approved(self, chat_id: int) -> str:
         return SESSION_MESSAGES["admin_approved"].format(chat_id=chat_id)
 
+    def approval_granted(self) -> str:
+        return SESSION_MESSAGES["approval_granted"]
+
     def admin_paused(self, chat_id: int) -> str:
         return SESSION_MESSAGES["admin_paused"].format(chat_id=chat_id)
 
