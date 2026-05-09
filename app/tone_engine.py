@@ -176,6 +176,9 @@ class ToneEngine:
     def unauthorized(self) -> str:
         return SESSION_MESSAGES["unauthorized"]
 
+    def emotion_buttons_required(self) -> str:
+        return SESSION_MESSAGES["emotion_buttons_required"]
+
     def waitlisted(self) -> str:
         return SESSION_MESSAGES["waitlisted"]
 

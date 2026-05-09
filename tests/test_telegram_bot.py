@@ -539,6 +539,96 @@ def test_accepted_answer_replies_with_bridge_and_next_question(tmp_path):
     assert message.reply_options == [{"parse_mode": "HTML"}]
 
 
+def test_automatic_thought_answer_replies_with_emotion_keyboard(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session = LoopSession(
+        chat_id=123,
+        session_id="session-123",
+        target_index=4,
+        episode_date="2026-05-03",
+        observed={
+            "situation": {"value": "s", "source_quote": "s"},
+            "behavior": {"value": "b", "source_quote": "b"},
+            "short_term_consequence": {"value": "st", "source_quote": "st"},
+            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+        },
+    )
+    storage.save_session(session)
+    message = _FakeMessage("thought")
+
+    _run(
+        telegram_bot._handle_message_after_authorized(
+            _fake_update(123, message),
+            storage,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = storage.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == 5
+    assert message.replies == [
+        f"■■■■■□□ 5/7\n\n{ToneEngine.default().target_prompt('emotion')}",
+    ]
+    assert "страх" in _reply_markup_texts(message.reply_options[0]["reply_markup"])
+    assert "Готово" in _reply_markup_texts(message.reply_options[0]["reply_markup"])
+
+
+def test_text_during_emotion_step_does_not_advance(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session = _emotion_step_session()
+    storage.save_session(session)
+    message = _FakeMessage("страх")
+
+    _run(
+        telegram_bot._handle_message_after_authorized(
+            _fake_update(123, message),
+            storage,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = storage.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == 5
+    assert "emotion" not in loaded.observed
+    assert loaded.emotion_free_text == "страх"
+    assert message.replies == ["Выбери эмоции кнопками и нажми Готово"]
+    assert "страх" in _reply_markup_texts(message.reply_options[0]["reply_markup"])
+
+
+def test_second_text_during_emotion_step_replaces_free_text(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session = _emotion_step_session()
+    session.emotion_free_text = "растерянность"
+    storage.save_session(session)
+    message = _FakeMessage("смущение")
+
+    _run(
+        telegram_bot._handle_message_after_authorized(
+            _fake_update(123, message),
+            storage,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = storage.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == 5
+    assert loaded.emotion_free_text == "смущение"
+    assert message.replies == ["Выбери эмоции кнопками и нажми Готово"]
+    assert "Готово" in _reply_markup_texts(message.reply_options[0]["reply_markup"])
+
+
 def test_empty_answer_retries_without_bridge(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
@@ -684,6 +774,171 @@ def test_full_final_answer_opens_save_review_with_all_fields(tmp_path):
         "эмоция: e\n"
         "тело: body\n\n"
         "Сохраняем?"
+    ]
+
+
+def test_emotion_button_cycle_updates_session_and_markup(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session = _emotion_step_session()
+    storage.save_session(session)
+    callback = _FakeCallbackQuery("emotion:fear")
+
+    _run(
+        telegram_bot._handle_emotion_callback_after_authorized(
+            _fake_callback_update(123, callback),
+            storage,
+            ux_events,
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = storage.load_session(123)
+    assert loaded is not None
+    assert loaded.emotion_draft == {"fear": 1}
+    assert callback.answered is True
+    assert "▁ страх ▁" in _reply_markup_texts(callback.edits[0]["reply_markup"])
+
+
+def test_emotion_done_without_selection_stays_on_emotion_step(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session = _emotion_step_session()
+    storage.save_session(session)
+    callback = _FakeCallbackQuery("emotion:done")
+
+    _run(
+        telegram_bot._handle_emotion_callback_after_authorized(
+            _fake_callback_update(123, callback),
+            storage,
+            ux_events,
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = storage.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == 5
+    assert "emotion" not in loaded.observed
+    assert callback.message.replies == ["Выбери эмоции кнопками и нажми Готово"]
+    assert "Готово" in _reply_markup_texts(callback.message.reply_options[0]["reply_markup"])
+
+
+def test_emotion_done_with_only_free_text_stays_on_emotion_step(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session = _emotion_step_session()
+    session.emotion_free_text = "растерянность"
+    storage.save_session(session)
+    callback = _FakeCallbackQuery("emotion:done")
+
+    _run(
+        telegram_bot._handle_emotion_callback_after_authorized(
+            _fake_callback_update(123, callback),
+            storage,
+            ux_events,
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = storage.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == 5
+    assert loaded.emotion_free_text == "растерянность"
+    assert "emotion" not in loaded.observed
+    assert callback.message.replies == ["Выбери эмоции кнопками и нажми Готово"]
+    assert "Готово" in _reply_markup_texts(callback.message.reply_options[0]["reply_markup"])
+
+
+def test_emotion_done_writes_items_and_advances_to_body(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session = _emotion_step_session()
+    session.emotion_draft = {"shame": 1, "fear": 3}
+    storage.save_session(session)
+    callback = _FakeCallbackQuery("emotion:done")
+
+    _run(
+        telegram_bot._handle_emotion_callback_after_authorized(
+            _fake_callback_update(123, callback),
+            storage,
+            ux_events,
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = storage.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == 6
+    assert loaded.emotion_draft == {}
+    assert loaded.observed["emotion"] == {
+        "value": "стыд: 0.33, страх: 1.0",
+        "source_quote": "стыд: 0.33, страх: 1.0",
+        "items": [
+            {"label": "стыд", "intensity": 0.33, "source_quote": "стыд: 0.33"},
+            {"label": "страх", "intensity": 1.0, "source_quote": "страх: 1.0"},
+        ],
+    }
+    assert callback.message.replies == [
+        f"■■■■■■□ 6/7\n\n{ToneEngine.default().target_prompt('body')}",
+    ]
+    assert ux_events.read()[-2]["event_type"] == "step_answered"
+
+
+def test_emotion_done_writes_free_text_layer(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session = _emotion_step_session()
+    session.emotion_draft = {"fear": 3}
+    session.emotion_free_text = "растерянность"
+    storage.save_session(session)
+    callback = _FakeCallbackQuery("emotion:done")
+
+    _run(
+        telegram_bot._handle_emotion_callback_after_authorized(
+            _fake_callback_update(123, callback),
+            storage,
+            ux_events,
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = storage.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == 6
+    assert loaded.emotion_free_text is None
+    assert loaded.observed["emotion"] == {
+        "value": "страх: 1.0; другое: растерянность",
+        "source_quote": "страх: 1.0; другое: растерянность",
+        "items": [
+            {"label": "страх", "intensity": 1.0, "source_quote": "страх: 1.0"},
+        ],
+        "free_text": "растерянность",
+    }
+
+
+def test_full_emotion_done_uses_full_progress(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session = _full_emotion_step_session()
+    session.emotion_draft = {"fear": 3}
+    storage.save_session(session)
+    callback = _FakeCallbackQuery("emotion:done")
+
+    _run(
+        telegram_bot._handle_emotion_callback_after_authorized(
+            _fake_callback_update(123, callback),
+            storage,
+            ux_events,
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = storage.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == 9
+    assert callback.message.replies == [
+        f"■■■■■■■■■□ 9/10\n\n{ToneEngine.default().target_prompt('body')}",
     ]
 
 
@@ -922,9 +1177,13 @@ class _FakeCallbackQuery:
         self.data = data
         self.answered = False
         self.message = _FakeMessage("callback")
+        self.edits = []
 
     async def answer(self) -> None:
         self.answered = True
+
+    async def edit_message_reply_markup(self, **kwargs) -> None:
+        self.edits.append(kwargs)
 
 
 def _run(coro):
@@ -945,6 +1204,50 @@ def _fake_callback_update(chat_id: int, callback_query: _FakeCallbackQuery):
         effective_user=SimpleNamespace(id=chat_id),
         message=None,
         callback_query=callback_query,
+    )
+
+
+def _reply_markup_texts(reply_markup) -> list[str]:
+    return [
+        button.text
+        for row in getattr(reply_markup, "inline_keyboard", ())
+        for button in row
+    ]
+
+
+def _emotion_step_session() -> LoopSession:
+    return LoopSession(
+        chat_id=123,
+        session_id="session-123",
+        target_index=5,
+        episode_date="2026-05-03",
+        observed={
+            "situation": {"value": "s", "source_quote": "s"},
+            "behavior": {"value": "b", "source_quote": "b"},
+            "short_term_consequence": {"value": "st", "source_quote": "st"},
+            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+            "automatic_thought": {"value": "at", "source_quote": "at"},
+        },
+    )
+
+
+def _full_emotion_step_session() -> LoopSession:
+    return LoopSession(
+        chat_id=123,
+        flow_mode=FLOW_FULL,
+        session_id="session-123",
+        target_index=8,
+        episode_date="2026-05-03",
+        observed={
+            "situation": {"value": "s", "source_quote": "s"},
+            "trigger": {"value": "tr", "source_quote": "tr"},
+            "actors": {"value": "ac", "source_quote": "ac"},
+            "speech": {"value": "sp", "source_quote": "sp"},
+            "behavior": {"value": "b", "source_quote": "b"},
+            "short_term_consequence": {"value": "st", "source_quote": "st"},
+            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+            "automatic_thought": {"value": "at", "source_quote": "at"},
+        },
     )
 
 

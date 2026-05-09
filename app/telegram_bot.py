@@ -9,13 +9,17 @@ from app.config import (
 from app.loop_extractor import (
     FLOW_FULL,
     active_target,
+    apply_emotion_draft,
     apply_user_reply,
     completed_observed_count,
+    cycle_emotion_draft,
     new_session,
     prompt_for_current_target,
+    set_emotion_free_text,
     status_text,
     target_fields,
 )
+from app.messages import EMOTION_BUCKETS, EMOTION_INTENSITY_MARKS
 from app.storage import JsonStorage
 from app.tone_engine import load_tone_engine
 from app.userlist import JsonUserList
@@ -115,6 +119,15 @@ def main() -> None:
             update, storage, ux_events, tone
         )
 
+    async def emotion_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
+            return
+        await _handle_emotion_callback_after_authorized(
+            update, storage, ux_events, tone
+        )
+
     async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _handle_admin_decision(
             update, context.args, settings, tone, ux_events, userlist, "approve", context.bot
@@ -154,6 +167,7 @@ def main() -> None:
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("approve", approve))
     application.add_handler(CommandHandler("pause", pause))
+    application.add_handler(CallbackQueryHandler(emotion_callback, pattern="^emotion:"))
     application.add_handler(CallbackQueryHandler(episode_callback, pattern="^episode:"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
     application.run_polling(bootstrap_retries=-1)
@@ -220,6 +234,7 @@ async def _handle_start_after_authorized(
             prompt_for_current_target(session, tone),
             total_count=len(target_fields(session)),
         ),
+        reply_markup=_target_reply_markup(session),
     )
 
 
@@ -278,6 +293,15 @@ async def _handle_message_after_authorized(
             reply_markup=_review_reply_markup(),
         )
         return
+    if active_target(session) == "emotion":
+        set_emotion_free_text(session, update.message.text or "")
+        storage.save_session(session)
+        await _reply_text(
+            update,
+            tone.emotion_buttons_required(),
+            reply_markup=_emotion_reply_markup(session.emotion_draft),
+        )
+        return
 
     _ensure_episode_date(session, now)
     if session.session_id is None:
@@ -329,7 +353,7 @@ async def _handle_message_after_authorized(
             len(target_fields(session)),
             result.reply,
         )
-    await _reply_text(update, reply)
+    await _reply_text(update, reply, reply_markup=_target_reply_markup(session))
 
 
 async def _handle_episode_callback_after_authorized(
@@ -382,10 +406,96 @@ async def _handle_episode_callback_after_authorized(
         )
 
 
-async def _reply_to_callback(query, text: str) -> None:
+async def _handle_emotion_callback_after_authorized(
+    update,
+    storage: JsonStorage,
+    ux_events: UxEventLog,
+    tone,
+) -> None:
+    query = getattr(update, "callback_query", None)
+    if query is not None:
+        await query.answer()
+    chat_id = update.effective_chat.id
+    session = storage.load_session(chat_id)
+    if session is None or active_target(session) != "emotion":
+        if query is not None:
+            await _reply_to_callback(query, tone.no_active_loop())
+        return
+
+    data = getattr(query, "data", "") if query is not None else ""
+    if data == "emotion:done":
+        await _finish_emotion_step(query, storage, ux_events, session, tone)
+        return
+    key = data.removeprefix("emotion:")
+    try:
+        cycle_emotion_draft(session, key)
+    except ValueError:
+        if query is not None:
+            await _reply_to_callback(query, prompt_for_current_target(session, tone))
+        return
+    storage.save_session(session)
+    if query is not None:
+        await _edit_callback_markup(
+            query,
+            _emotion_reply_markup(session.emotion_draft),
+        )
+
+
+async def _finish_emotion_step(
+    query,
+    storage: JsonStorage,
+    ux_events: UxEventLog,
+    session,
+    tone,
+) -> None:
+    if not session.emotion_draft:
+        await _reply_to_callback(
+            query,
+            tone.emotion_buttons_required(),
+            reply_markup=_emotion_reply_markup(session.emotion_draft),
+        )
+        return
+
+    chat_id = session.chat_id
+    now = utc_now()
+    target_before = active_target(session)
+    target_index_before = session.target_index
+    value = apply_emotion_draft(session)
+    ux_events.append(
+        base_event(
+            "step_answered",
+            session.session_id,
+            str(chat_id),
+            created_at=now,
+            target=target_before,
+            target_index=target_index_before,
+            duration_sec=_duration_since_last_prompt(session, now),
+            advanced=True,
+            answer_chars=len(value),
+        )
+    )
+    _log_step_prompted(ux_events, session, str(chat_id), now=now)
+    storage.save_session(session)
+    reply = tone.next_prompt_bridge(
+        completed_observed_count(session),
+        len(target_fields(session)),
+        prompt_for_current_target(session, tone),
+    )
+    await _reply_to_callback(query, reply, reply_markup=_target_reply_markup(session))
+
+
+async def _reply_to_callback(query, text: str, *, reply_markup=None) -> None:
     message = getattr(query, "message", None) if query is not None else None
     if message is not None:
-        await message.reply_text(text, parse_mode="HTML")
+        kwargs = {"parse_mode": "HTML"}
+        if reply_markup is not None:
+            kwargs["reply_markup"] = reply_markup
+        await message.reply_text(text, **kwargs)
+
+
+async def _edit_callback_markup(query, reply_markup) -> None:
+    if hasattr(query, "edit_message_reply_markup"):
+        await query.edit_message_reply_markup(reply_markup=reply_markup)
 
 
 def _review_reply_markup():
@@ -401,6 +511,32 @@ def _review_reply_markup():
             ]
         ]
     )
+
+
+def _target_reply_markup(session):
+    if active_target(session) == "emotion":
+        return _emotion_reply_markup(session.emotion_draft)
+    return None
+
+
+def _emotion_reply_markup(emotion_draft: dict[str, int]):
+    try:
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    except ImportError:  # pragma: no cover - runtime dependency guard
+        return None
+
+    buttons = []
+    for bucket in EMOTION_BUCKETS:
+        key = bucket["key"]
+        label = bucket["label"]
+        level = emotion_draft.get(key)
+        if level is not None:
+            mark = EMOTION_INTENSITY_MARKS[level]
+            label = f"{mark} {label} {mark}"
+        buttons.append(InlineKeyboardButton(label, callback_data=f"emotion:{key}"))
+    rows = [buttons[index : index + 2] for index in range(0, len(buttons), 2)]
+    rows.append([InlineKeyboardButton("Готово", callback_data="emotion:done")])
+    return InlineKeyboardMarkup(rows)
 
 
 async def _authorize(

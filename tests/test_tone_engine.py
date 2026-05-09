@@ -128,22 +128,17 @@ def test_every_field_card_has_required_sections():
             assert tip not in card
 
 
-def test_emotion_card_uses_base_buckets_in_reverse_order():
+def test_emotion_card_explains_buttons_and_free_text():
     tone = ToneEngine.default()
 
     assert tone.target_prompt("emotion") == (
         "Эмоция\n\n"
         "<blockquote>"
-        "• нейтральное/смешанное\n"
-        "• любовь/тепло\n"
-        "• радость\n"
-        "• отвращение\n"
-        "• стыд\n"
-        "• грусть\n"
-        "• злость\n"
-        "• страх"
+        "• растерянность, оцепенение, беспомощность"
         "</blockquote>\n\n"
-        "Какая эмоция была? Если несколько, напиши через запятую"
+        "Выбери одну или несколько эмоций\n"
+        "Щёлкай несколько раз, чтобы выбрать интенсивность\n"
+        "Можешь написать дополнительно, что чувствовал"
     )
 
 
@@ -233,6 +228,7 @@ def test_session_messages_render_unchanged():
     )
     assert tone.cancel() == "Сессия отменена"
     assert tone.unauthorized() == "Нет доступа"
+    assert tone.emotion_buttons_required() == "Выбери эмоции кнопками и нажми Готово"
     assert tone.waitlisted() == (
         "Спасибо за интерес. Мы добавили тебя в waitlist. "
         "Напишем, как только доступ откроется"
@@ -268,6 +264,7 @@ def test_session_messages_render_unchanged():
         "no_active_loop_start",
         "cancel",
         "unauthorized",
+        "emotion_buttons_required",
         "waitlisted",
         "admin_waitlist_notice",
         "admin_approved",
