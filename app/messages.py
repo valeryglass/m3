@@ -190,6 +190,25 @@ FIELD_GUIDES = {
 }
 
 
+EMOTION_BUCKETS = (
+    {"key": "neutral", "label": "нейтраль/мешанные"},
+    {"key": "warmth", "label": "любовь/тепло"},
+    {"key": "joy", "label": "радость"},
+    {"key": "disgust", "label": "отвращение"},
+    {"key": "shame", "label": "стыд"},
+    {"key": "sadness", "label": "грусть"},
+    {"key": "anger", "label": "злость"},
+    {"key": "fear", "label": "страх"},
+)
+
+
+EMOTION_INTENSITIES = {
+    1: 0.33,
+    2: 0.66,
+    3: 1.0,
+}
+
+
 BASIC_TARGETS = (
     "situation",
     "behavior",

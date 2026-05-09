@@ -4,7 +4,12 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from app.messages import BASIC_TARGETS, FULL_TARGETS
+from app.messages import (
+    BASIC_TARGETS,
+    EMOTION_BUCKETS,
+    EMOTION_INTENSITIES,
+    FULL_TARGETS,
+)
 from app.tone_engine import ToneEngine
 
 
@@ -25,7 +30,7 @@ class LoopSession:
     target_index: int = 0
     last_prompted_at: str | None = None
     episode_date: str | None = None
-    observed: dict[str, dict[str, str]] = field(default_factory=dict)
+    observed: dict[str, dict[str, Any]] = field(default_factory=dict)
     derived: dict[str, list[dict[str, str]]] = field(
         default_factory=lambda: {
             "atomic_thoughts": [],
@@ -34,6 +39,8 @@ class LoopSession:
     )
     saved_episode_path: str | None = None
     awaiting_save_confirmation: bool = False
+    emotion_draft: dict[str, int] = field(default_factory=dict)
+    emotion_free_text: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "LoopSession":
@@ -57,6 +64,8 @@ class LoopSession:
             awaiting_save_confirmation=bool(
                 data.get("awaiting_save_confirmation", False)
             ),
+            emotion_draft=_normalize_emotion_draft(data.get("emotion_draft", {})),
+            emotion_free_text=_normalize_optional_text(data.get("emotion_free_text")),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -71,6 +80,8 @@ class LoopSession:
             "derived": self.derived,
             "saved_episode_path": self.saved_episode_path,
             "awaiting_save_confirmation": self.awaiting_save_confirmation,
+            "emotion_draft": self.emotion_draft,
+            "emotion_free_text": self.emotion_free_text,
         }
 
 
@@ -142,6 +153,63 @@ def apply_user_reply(
     raise ValueError(f"Unknown target: {target}")
 
 
+def cycle_emotion_draft(session: LoopSession, key: str) -> None:
+    if key not in _emotion_bucket_labels():
+        raise ValueError(f"Unknown emotion bucket: {key}")
+    next_value = session.emotion_draft.get(key, 0) + 1
+    if next_value > 3:
+        session.emotion_draft.pop(key, None)
+        return
+    session.emotion_draft[key] = next_value
+
+
+def set_emotion_free_text(session: LoopSession, text: str) -> None:
+    value = text.strip()
+    session.emotion_free_text = value or None
+
+
+def apply_emotion_draft(session: LoopSession) -> str:
+    if active_target(session) != "emotion":
+        raise ValueError("Emotion draft can only be applied on emotion target")
+    items = []
+    parts = []
+    labels = _emotion_bucket_labels()
+    for key, label in labels.items():
+        level = session.emotion_draft.get(key)
+        if level is None:
+            continue
+        intensity = EMOTION_INTENSITIES[level]
+        source_quote = f"{label}: {_format_intensity(intensity)}"
+        parts.append(source_quote)
+        items.append(
+            {
+                "label": label,
+                "intensity": intensity,
+                "source_quote": source_quote,
+            }
+        )
+    if not items:
+        raise ValueError("Cannot apply empty emotion draft")
+
+    bucket_value = ", ".join(parts)
+    value = bucket_value
+    emotion = {
+        "value": value,
+        "source_quote": value,
+        "items": items,
+    }
+    if session.emotion_free_text is not None:
+        value = f"{bucket_value}; другое: {session.emotion_free_text}"
+        emotion["value"] = value
+        emotion["source_quote"] = value
+        emotion["free_text"] = session.emotion_free_text
+    session.observed["emotion"] = emotion
+    session.emotion_draft.clear()
+    session.emotion_free_text = None
+    session.target_index += 1
+    return value
+
+
 def _apply_observed_field(
     session: LoopSession, target: str, value: str, tone: ToneEngine
 ) -> LoopResult:
@@ -159,9 +227,7 @@ def _tone(tone: ToneEngine | None) -> ToneEngine:
     return tone if tone is not None else ToneEngine.default()
 
 
-def _target_index_for_observed(
-    observed: dict[str, dict[str, str]], flow_mode: str = FLOW_BASIC
-) -> int:
+def _target_index_for_observed(observed: dict[str, dict[str, Any]], flow_mode: str = FLOW_BASIC) -> int:
     fields = FULL_OBSERVED_FIELDS if flow_mode == FLOW_FULL else OBSERVED_FIELDS
     for index, field_name in enumerate(fields):
         if field_name not in observed:
@@ -173,3 +239,29 @@ def _normalize_flow_mode(flow_mode: Any) -> str:
     if flow_mode == FLOW_FULL:
         return FLOW_FULL
     return FLOW_BASIC
+
+
+def _normalize_emotion_draft(value: Any) -> dict[str, int]:
+    if not isinstance(value, dict):
+        return {}
+    valid_keys = _emotion_bucket_labels()
+    draft: dict[str, int] = {}
+    for key, level in value.items():
+        if key in valid_keys and level in EMOTION_INTENSITIES:
+            draft[key] = int(level)
+    return draft
+
+
+def _normalize_optional_text(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or None
+
+
+def _emotion_bucket_labels() -> dict[str, str]:
+    return {bucket["key"]: bucket["label"] for bucket in EMOTION_BUCKETS}
+
+
+def _format_intensity(intensity: float) -> str:
+    return "1.0" if intensity == 1.0 else str(intensity)
