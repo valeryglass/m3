@@ -1,3 +1,5 @@
+import json
+
 from app.loop_extractor import LoopSession
 from app.loop_extractor import FLOW_FULL
 from app.storage import JsonStorage
@@ -73,3 +75,95 @@ def test_save_episode_persists_full_observed_fields(tmp_path):
     assert '"trigger"' in text
     assert '"actors"' in text
     assert '"speech"' in text
+
+
+def test_save_episode_keeps_plain_emotion_without_items(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    session = LoopSession(
+        chat_id=123,
+        episode_date="2026-04-30",
+        observed={
+            "situation": {"value": "s", "source_quote": "s"},
+            "behavior": {"value": "b", "source_quote": "b"},
+            "short_term_consequence": {"value": "st", "source_quote": "st"},
+            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+            "automatic_thought": {"value": "at", "source_quote": "at"},
+            "emotion": {"value": "страх", "source_quote": "страх"},
+            "body": {"value": "body", "source_quote": "body"},
+        },
+    )
+
+    path = storage.save_episode(session)
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["observed"]["emotion"] == {
+        "value": "страх",
+        "source_quote": "страх",
+    }
+
+
+def test_save_episode_persists_structured_emotion_items(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    session = LoopSession(
+        chat_id=123,
+        episode_date="2026-04-30",
+        observed={
+            "situation": {"value": "s", "source_quote": "s"},
+            "behavior": {"value": "b", "source_quote": "b"},
+            "short_term_consequence": {"value": "st", "source_quote": "st"},
+            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+            "automatic_thought": {"value": "at", "source_quote": "at"},
+            "emotion": {
+                "value": "страх: 1.0",
+                "source_quote": "страх: 1.0",
+                "items": [
+                    {
+                        "label": "страх",
+                        "intensity": 1.0,
+                        "source_quote": "страх: 1.0",
+                    }
+                ],
+            },
+            "body": {"value": "body", "source_quote": "body"},
+        },
+    )
+
+    path = storage.save_episode(session)
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["observed"]["emotion"]["items"] == [
+        {"label": "страх", "intensity": 1.0, "source_quote": "страх: 1.0"}
+    ]
+
+
+def test_save_episode_persists_emotion_free_text(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    session = LoopSession(
+        chat_id=123,
+        episode_date="2026-04-30",
+        observed={
+            "situation": {"value": "s", "source_quote": "s"},
+            "behavior": {"value": "b", "source_quote": "b"},
+            "short_term_consequence": {"value": "st", "source_quote": "st"},
+            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+            "automatic_thought": {"value": "at", "source_quote": "at"},
+            "emotion": {
+                "value": "страх: 1.0; другое: растерянность",
+                "source_quote": "страх: 1.0; другое: растерянность",
+                "items": [
+                    {
+                        "label": "страх",
+                        "intensity": 1.0,
+                        "source_quote": "страх: 1.0",
+                    }
+                ],
+                "free_text": "растерянность",
+            },
+            "body": {"value": "body", "source_quote": "body"},
+        },
+    )
+
+    path = storage.save_episode(session)
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["observed"]["emotion"]["free_text"] == "растерянность"

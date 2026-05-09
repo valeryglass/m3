@@ -34,11 +34,20 @@
         "situation": {
           "$ref": "#/$defs/observed_field"
         },
+        "trigger": {
+          "$ref": "#/$defs/observed_field"
+        },
+        "actors": {
+          "$ref": "#/$defs/observed_field"
+        },
+        "speech": {
+          "$ref": "#/$defs/observed_field"
+        },
         "automatic_thought": {
           "$ref": "#/$defs/observed_field"
         },
         "emotion": {
-          "$ref": "#/$defs/observed_field"
+          "$ref": "#/$defs/emotion_field"
         },
         "body": {
           "$ref": "#/$defs/observed_field"
@@ -84,6 +93,57 @@
           "type": "string"
         },
         "source_quote": {
+          "type": "string"
+        }
+      }
+    },
+    "emotion_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "intensity", "source_quote"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "enum": [
+            "нейтраль/мешанные",
+            "любовь/тепло",
+            "радость",
+            "отвращение",
+            "стыд",
+            "грусть",
+            "злость",
+            "страх"
+          ]
+        },
+        "intensity": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "source_quote": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "emotion_field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "source_quote"],
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "source_quote": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/emotion_item"
+          }
+        },
+        "free_text": {
           "type": "string"
         }
       }

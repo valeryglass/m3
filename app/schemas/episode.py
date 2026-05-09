@@ -7,6 +7,16 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 Confidence = Literal["low", "medium", "high"]
+EmotionLabel = Literal[
+    "нейтраль/мешанные",
+    "любовь/тепло",
+    "радость",
+    "отвращение",
+    "стыд",
+    "грусть",
+    "злость",
+    "страх",
+]
 
 
 class ObservedField(BaseModel):
@@ -14,6 +24,19 @@ class ObservedField(BaseModel):
 
     value: str
     source_quote: str
+
+
+class EmotionItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: EmotionLabel
+    intensity: float = Field(ge=0.0, le=1.0)
+    source_quote: str = Field(min_length=1)
+
+
+class EmotionField(ObservedField):
+    items: list[EmotionItem] | None = None
+    free_text: str | None = None
 
 
 class AtomicThought(BaseModel):
@@ -44,7 +67,7 @@ class Observed(BaseModel):
     actors: ObservedField | None = None
     speech: ObservedField | None = None
     automatic_thought: ObservedField
-    emotion: ObservedField
+    emotion: EmotionField
     body: ObservedField
     behavior: ObservedField
     short_term_consequence: ObservedField
