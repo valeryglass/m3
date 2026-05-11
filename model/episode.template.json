@@ -33,7 +33,12 @@
     }
   },
   "derived": {
-    "atomic_thoughts": [],
-    "cognitive_distortions": []
+    "decompositions": [],
+    "trigger_annotations": [],
+    "actor_annotations": [],
+    "cognition_annotations": [],
+    "emotion_annotations": [],
+    "behavior_annotations": [],
+    "relations": []
   }
 }

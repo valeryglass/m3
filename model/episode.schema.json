@@ -66,19 +66,57 @@
     "derived": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["atomic_thoughts", "cognitive_distortions"],
+      "required": [
+        "decompositions",
+        "trigger_annotations",
+        "actor_annotations",
+        "cognition_annotations",
+        "emotion_annotations",
+        "behavior_annotations"
+      ],
       "properties": {
-        "atomic_thoughts": {
+        "decompositions": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/atomic_thought"
+            "$ref": "#/$defs/decomposition"
           }
         },
-        "cognitive_distortions": {
+        "trigger_annotations": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/cognitive_distortion"
+            "$ref": "#/$defs/trigger_annotation"
           }
+        },
+        "actor_annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/actor_annotation"
+          }
+        },
+        "cognition_annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/cognition_annotation"
+          }
+        },
+        "emotion_annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/emotion_annotation"
+          }
+        },
+        "behavior_annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/behavior_annotation"
+          }
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/graph_relation"
+          },
+          "default": []
         }
       }
     }
@@ -103,17 +141,7 @@
       "required": ["label", "intensity", "source_quote"],
       "properties": {
         "label": {
-          "type": "string",
-          "enum": [
-            "нейтраль/мешанные",
-            "любовь/тепло",
-            "радость",
-            "отвращение",
-            "стыд",
-            "грусть",
-            "злость",
-            "страх"
-          ]
+          "$ref": "#/$defs/emotion_label"
         },
         "intensity": {
           "type": "number",
@@ -149,21 +177,208 @@
       }
     },
     "confidence": {
-      "type": "string",
-      "enum": ["low", "medium", "high"]
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0
     },
-    "atomic_thought": {
+    "observed_ref_field": {
+      "type": "string",
+      "enum": [
+        "observed.situation",
+        "observed.trigger",
+        "observed.actors",
+        "observed.speech",
+        "observed.behavior",
+        "observed.short_term_consequence",
+        "observed.long_term_consequence",
+        "observed.automatic_thought",
+        "observed.emotion",
+        "observed.body"
+      ]
+    },
+    "emotion_label": {
+      "type": "string",
+      "enum": [
+        "нейтраль/мешанные",
+        "любовь/тепло",
+        "радость",
+        "отвращение",
+        "стыд",
+        "грусть",
+        "злость",
+        "страх"
+      ]
+    },
+    "decomposition": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "text", "source_field", "source_quote", "confidence"],
+      "required": [
+        "id",
+        "kind",
+        "text",
+        "source_field",
+        "source_quote",
+        "confidence"
+      ],
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^atomic-thought-[0-9]+$"
+          "pattern": "^decomposition-[0-9]+$"
+        },
+        "node_origin": {
+          "type": "string",
+          "enum": ["observed", "support"],
+          "default": "observed"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["actor", "cognition", "emotion", "speech", "behavior"]
         },
         "text": {
           "type": "string",
           "minLength": 1
+        },
+        "source_field": {
+          "type": "string",
+          "enum": [
+            "observed.actors",
+            "observed.speech",
+            "observed.automatic_thought",
+            "observed.emotion",
+            "observed.emotion.items",
+            "observed.emotion.free_text",
+            "observed.behavior"
+          ]
+        },
+        "source_quote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
+      }
+    },
+    "trigger_annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "source_field", "source_quote", "confidence"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^trigger-annotation-[0-9]+$"
+        },
+        "decomposition_id": {
+          "anyOf": [
+            {"type": "string", "pattern": "^decomposition-[0-9]+$"},
+            {"type": "null"}
+          ],
+          "default": null
+        },
+        "type": {
+          "type": "string",
+          "enum": ["external", "internal", "social", "body", "memory", "thought"]
+        },
+        "source_field": {
+          "type": "string",
+          "enum": [
+            "observed.trigger",
+            "observed.situation",
+            "observed.automatic_thought"
+          ]
+        },
+        "source_quote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
+      }
+    },
+    "actor_annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "role",
+        "label",
+        "source_field",
+        "source_quote",
+        "confidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^actor-annotation-[0-9]+$"
+        },
+        "decomposition_id": {
+          "anyOf": [
+            {"type": "string", "pattern": "^decomposition-[0-9]+$"},
+            {"type": "null"}
+          ],
+          "default": null
+        },
+        "role": {
+          "type": "string",
+          "enum": ["self", "other", "group", "institution", "unknown"]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_field": {
+          "type": "string",
+          "enum": ["observed.actors", "observed.speech", "observed.situation"]
+        },
+        "source_quote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
+      }
+    },
+    "cognition_annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "text",
+        "kind",
+        "source_field",
+        "source_quote",
+        "confidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^cognition-annotation-[0-9]+$"
+        },
+        "decomposition_id": {
+          "anyOf": [
+            {"type": "string", "pattern": "^decomposition-[0-9]+$"},
+            {"type": "null"}
+          ],
+          "default": null
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "evaluation",
+            "prediction",
+            "rule",
+            "meaning",
+            "memory",
+            "image",
+            "urge",
+            "question"
+          ]
         },
         "source_field": {
           "const": "observed.automatic_thought"
@@ -177,27 +392,148 @@
         }
       }
     },
-    "cognitive_distortion": {
+    "emotion_annotation": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "type",
-        "source_atomic_thought",
+        "id",
+        "label",
+        "valence",
+        "arousal",
         "source_field",
         "source_quote",
         "confidence"
       ],
       "properties": {
-        "type": {
+        "id": {
+          "type": "string",
+          "pattern": "^emotion-annotation-[0-9]+$"
+        },
+        "decomposition_id": {
+          "anyOf": [
+            {"type": "string", "pattern": "^decomposition-[0-9]+$"},
+            {"type": "null"}
+          ],
+          "default": null
+        },
+        "label": {
+          "$ref": "#/$defs/emotion_label"
+        },
+        "intensity": {
+          "type": ["number", "null"],
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "valence": {
+          "type": "number",
+          "minimum": -1.0,
+          "maximum": 1.0
+        },
+        "arousal": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "source_field": {
+          "type": "string",
+          "enum": [
+            "observed.emotion",
+            "observed.emotion.items",
+            "observed.emotion.free_text"
+          ]
+        },
+        "source_quote": {
           "type": "string",
           "minLength": 1
         },
-        "source_atomic_thought": {
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
+      }
+    },
+    "behavior_annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "source_field", "source_quote", "confidence"],
+      "properties": {
+        "id": {
           "type": "string",
-          "pattern": "^atomic-thought-[0-9]+$"
+          "pattern": "^behavior-annotation-[0-9]+$"
+        },
+        "decomposition_id": {
+          "anyOf": [
+            {"type": "string", "pattern": "^decomposition-[0-9]+$"},
+            {"type": "null"}
+          ],
+          "default": null
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "approach",
+            "avoid",
+            "freeze",
+            "attack",
+            "submit",
+            "compensate",
+            "distract"
+          ]
         },
         "source_field": {
-          "const": "observed.automatic_thought"
+          "const": "observed.behavior"
+        },
+        "source_quote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
+      }
+    },
+    "graph_relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "from_ref",
+        "to_ref",
+        "source_field",
+        "source_quote",
+        "confidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^relation-[0-9]+$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "belongs_to",
+            "derived_from",
+            "precedes",
+            "leads_to",
+            "co_occurs_with",
+            "elicits",
+            "expressed_as",
+            "reinforces",
+            "contrasts_with",
+            "acts_in",
+            "occurs_in"
+          ]
+        },
+        "from_ref": {
+          "type": "string",
+          "pattern": "^(episode|observed\\.(situation|trigger|actors|speech|behavior|short_term_consequence|long_term_consequence|automatic_thought|emotion|body)|decomposition-[0-9]+)$"
+        },
+        "to_ref": {
+          "type": "string",
+          "pattern": "^(episode|observed\\.(situation|trigger|actors|speech|behavior|short_term_consequence|long_term_consequence|automatic_thought|emotion|body)|decomposition-[0-9]+)$"
+        },
+        "source_field": {
+          "$ref": "#/$defs/observed_ref_field"
         },
         "source_quote": {
           "type": "string",

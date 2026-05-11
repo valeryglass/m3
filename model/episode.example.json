@@ -12,8 +12,16 @@
       "source_quote": "they'll probably think I'm stupid if I ask"
     },
     "emotion": {
-      "value": "Anxiety.",
-      "source_quote": "I felt anxious"
+      "value": "страх: 0.66; другое: anxious",
+      "source_quote": "I felt anxious",
+      "items": [
+        {
+          "label": "страх",
+          "intensity": 0.66,
+          "source_quote": "страх: 0.66"
+        }
+      ],
+      "free_text": "anxious"
     },
     "body": {
       "value": "Tension in chest.",
@@ -33,22 +41,106 @@
     }
   },
   "derived": {
-    "atomic_thoughts": [
+    "decompositions": [
       {
-        "id": "atomic-thought-1",
+        "id": "decomposition-1",
+        "node_origin": "observed",
+        "kind": "cognition",
         "text": "Others will judge me as stupid.",
         "source_field": "observed.automatic_thought",
         "source_quote": "they'll probably think I'm stupid if I ask",
-        "confidence": "medium"
+        "confidence": 0.9
+      },
+      {
+        "id": "decomposition-2",
+        "node_origin": "observed",
+        "kind": "emotion",
+        "text": "страх",
+        "source_field": "observed.emotion.items",
+        "source_quote": "страх: 0.66",
+        "confidence": 0.95
+      },
+      {
+        "id": "decomposition-3",
+        "node_origin": "observed",
+        "kind": "behavior",
+        "text": "Did not ask the question.",
+        "source_field": "observed.behavior",
+        "source_quote": "so I closed it and didn't ask",
+        "confidence": 0.95
       }
     ],
-    "cognitive_distortions": [
+    "trigger_annotations": [
       {
-        "type": "mind reading",
-        "source_atomic_thought": "atomic-thought-1",
+        "id": "trigger-annotation-1",
+        "type": "social",
+        "source_field": "observed.situation",
+        "source_quote": "group chat",
+        "confidence": 0.7
+      }
+    ],
+    "actor_annotations": [
+      {
+        "id": "actor-annotation-1",
+        "role": "self",
+        "label": "I",
+        "source_field": "observed.situation",
+        "source_quote": "I wanted to ask",
+        "confidence": 1.0
+      }
+    ],
+    "cognition_annotations": [
+      {
+        "id": "cognition-annotation-1",
+        "decomposition_id": "decomposition-1",
+        "text": "Others will judge me as stupid.",
+        "kind": "prediction",
         "source_field": "observed.automatic_thought",
         "source_quote": "they'll probably think I'm stupid if I ask",
-        "confidence": "medium"
+        "confidence": 0.85
+      }
+    ],
+    "emotion_annotations": [
+      {
+        "id": "emotion-annotation-1",
+        "decomposition_id": "decomposition-2",
+        "label": "страх",
+        "intensity": 0.66,
+        "valence": -0.8,
+        "arousal": 0.8,
+        "source_field": "observed.emotion",
+        "source_quote": "I felt anxious",
+        "confidence": 0.9
+      }
+    ],
+    "behavior_annotations": [
+      {
+        "id": "behavior-annotation-1",
+        "decomposition_id": "decomposition-3",
+        "type": "avoid",
+        "source_field": "observed.behavior",
+        "source_quote": "I closed it and didn't ask",
+        "confidence": 0.95
+      }
+    ],
+    "relations": [
+      {
+        "id": "relation-1",
+        "type": "belongs_to",
+        "from_ref": "decomposition-1",
+        "to_ref": "episode",
+        "source_field": "observed.automatic_thought",
+        "source_quote": "they'll probably think I'm stupid if I ask",
+        "confidence": 1.0
+      },
+      {
+        "id": "relation-2",
+        "type": "leads_to",
+        "from_ref": "decomposition-1",
+        "to_ref": "decomposition-3",
+        "source_field": "observed.behavior",
+        "source_quote": "so I closed it and didn't ask",
+        "confidence": 0.75
       }
     ]
   }

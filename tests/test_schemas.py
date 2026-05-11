@@ -6,123 +6,97 @@ from pydantic import ValidationError
 from app.schemas.episode import Episode
 
 
+def _empty_derived():
+    return {
+        "decompositions": [],
+        "trigger_annotations": [],
+        "actor_annotations": [],
+        "cognition_annotations": [],
+        "emotion_annotations": [],
+        "behavior_annotations": [],
+        "relations": [],
+    }
+
+
+def _valid_episode(**overrides):
+    episode = {
+        "id": "episode-20260430-1",
+        "date": "2026-04-30",
+        "source": "telegram-chat:123",
+        "observed": {
+            "situation": {
+                "value": "Asked a question.",
+                "source_quote": "I asked a question",
+            },
+            "automatic_thought": {
+                "value": "They will judge me.",
+                "source_quote": "they will judge me",
+            },
+            "emotion": {"value": "Anxiety.", "source_quote": "anxious"},
+            "body": {"value": "Tight chest.", "source_quote": "tight chest"},
+            "behavior": {
+                "value": "Closed the chat.",
+                "source_quote": "closed the chat",
+            },
+            "short_term_consequence": {
+                "value": "Relief.",
+                "source_quote": "relieved",
+            },
+            "long_term_consequence": {
+                "value": "Question stayed unresolved.",
+                "source_quote": "still did not know",
+            },
+        },
+        "derived": _empty_derived(),
+    }
+    episode.update(overrides)
+    return episode
+
+
 def test_episode_schema_accepts_valid_episode():
-    episode = Episode.model_validate(
-        {
-            "id": "episode-20260430-1",
-            "date": "2026-04-30",
-            "source": "telegram-chat:123",
-            "observed": {
-                "situation": {
-                    "value": "Asked a question.",
-                    "source_quote": "I asked a question",
-                },
-                "automatic_thought": {
-                    "value": "They will judge me.",
-                    "source_quote": "they will judge me",
-                },
-                "emotion": {"value": "Anxiety.", "source_quote": "anxious"},
-                "body": {"value": "Tight chest.", "source_quote": "tight chest"},
-                "behavior": {
-                    "value": "Closed the chat.",
-                    "source_quote": "closed the chat",
-                },
-                "short_term_consequence": {
-                    "value": "Relief.",
-                    "source_quote": "relieved",
-                },
-                "long_term_consequence": {
-                    "value": "Question stayed unresolved.",
-                    "source_quote": "still did not know",
-                },
-            },
-            "derived": {
-                "atomic_thoughts": [
-                    {
-                        "id": "atomic-thought-1",
-                        "text": "They will judge me.",
-                        "source_field": "observed.automatic_thought",
-                        "source_quote": "they will judge me",
-                        "confidence": "medium",
-                    }
-                ],
-                "cognitive_distortions": [],
-            },
-        }
-    )
+    episode = Episode.model_validate(_valid_episode())
 
     assert episode.id == "episode-20260430-1"
+    assert episode.derived.cognition_annotations == []
 
 
 def test_episode_schema_accepts_optional_full_observed_fields():
-    episode = Episode.model_validate(
+    data = _valid_episode()
+    data["observed"].update(
         {
-            "id": "episode-20260430-1",
-            "date": "2026-04-30",
-            "source": "telegram-chat:123",
-            "observed": {
-                "situation": {"value": "s", "source_quote": "s"},
-                "trigger": {"value": "tr", "source_quote": "tr"},
-                "actors": {"value": "ac", "source_quote": "ac"},
-                "speech": {"value": "sp", "source_quote": "sp"},
-                "automatic_thought": {"value": "at", "source_quote": "at"},
-                "emotion": {"value": "e", "source_quote": "e"},
-                "body": {"value": "body", "source_quote": "body"},
-                "behavior": {"value": "b", "source_quote": "b"},
-                "short_term_consequence": {"value": "st", "source_quote": "st"},
-                "long_term_consequence": {"value": "lt", "source_quote": "lt"},
-            },
-            "derived": {
-                "atomic_thoughts": [],
-                "cognitive_distortions": [],
-            },
+            "trigger": {"value": "tr", "source_quote": "tr"},
+            "actors": {"value": "ac", "source_quote": "ac"},
+            "speech": {"value": "sp", "source_quote": "sp"},
         }
     )
+
+    episode = Episode.model_validate(data)
 
     assert episode.observed.trigger is not None
     assert episode.observed.trigger.value == "tr"
 
 
 def test_episode_schema_accepts_structured_emotions():
-    episode = Episode.model_validate(
-        {
-            "id": "episode-20260430-1",
-            "date": "2026-04-30",
-            "source": "telegram-chat:123",
-            "observed": {
-                "situation": {"value": "s", "source_quote": "s"},
-                "trigger": {"value": "tr", "source_quote": "tr"},
-                "actors": {"value": "ac", "source_quote": "ac"},
-                "speech": {"value": "sp", "source_quote": "sp"},
-                "automatic_thought": {"value": "at", "source_quote": "at"},
-                "emotion": {
-                    "value": "страх: 1.0, стыд: 0.33; другое: растерянность",
-                    "source_quote": "страх: 1.0, стыд: 0.33; другое: растерянность",
-                    "items": [
-                        {
-                            "label": "страх",
-                            "intensity": 1.0,
-                            "source_quote": "страх высокий",
-                        },
-                        {
-                            "label": "стыд",
-                            "intensity": 0.33,
-                            "source_quote": "стыд низкий",
-                        },
-                    ],
-                    "free_text": "растерянность",
-                },
-                "body": {"value": "body", "source_quote": "body"},
-                "behavior": {"value": "b", "source_quote": "b"},
-                "short_term_consequence": {"value": "st", "source_quote": "st"},
-                "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+    data = _valid_episode()
+    data["observed"]["emotion"] = {
+        "value": "страх: 1.0, стыд: 0.33; другое: растерянность",
+        "source_quote": "страх: 1.0, стыд: 0.33; другое: растерянность",
+        "items": [
+            {
+                "label": "страх",
+                "intensity": 1.0,
+                "source_quote": "страх высокий",
             },
-            "derived": {
-                "atomic_thoughts": [],
-                "cognitive_distortions": [],
+            {
+                "label": "стыд",
+                "intensity": 0.33,
+                "source_quote": "стыд низкий",
             },
-        }
-    )
+        ],
+        "free_text": "растерянность",
+    }
+
+    episode = Episode.model_validate(data)
 
     assert episode.observed.emotion.items is not None
     assert episode.observed.emotion.items[0].label == "страх"
@@ -139,6 +113,7 @@ def test_episode_schema_accepts_structured_emotions():
     ),
 )
 def test_episode_schema_rejects_invalid_structured_emotion(field, value):
+    data = _valid_episode()
     emotion_item = {
         "label": "страх",
         "intensity": 1.0,
@@ -153,28 +128,262 @@ def test_episode_schema_rejects_invalid_structured_emotion(field, value):
         emotion[field] = value
     else:
         emotion_item[field] = value
+    data["observed"]["emotion"] = emotion
 
     with pytest.raises(ValidationError):
-        Episode.model_validate(
+        Episode.model_validate(data)
+
+
+def test_episode_schema_accepts_derived_annotations():
+    data = _valid_episode()
+    data["observed"].update(
+        {
+            "trigger": {"value": "comment", "source_quote": "comment"},
+            "actors": {"value": "me and colleague", "source_quote": "me and colleague"},
+            "speech": {"value": "not good", "source_quote": "not good"},
+        }
+    )
+    data["derived"] = {
+        "decompositions": [
             {
-                "id": "episode-20260430-1",
-                "date": "2026-04-30",
-                "source": "telegram-chat:123",
-                "observed": {
-                    "situation": {"value": "s", "source_quote": "s"},
-                    "automatic_thought": {"value": "at", "source_quote": "at"},
-                    "emotion": emotion,
-                    "body": {"value": "body", "source_quote": "body"},
-                    "behavior": {"value": "b", "source_quote": "b"},
-                    "short_term_consequence": {"value": "st", "source_quote": "st"},
-                    "long_term_consequence": {"value": "lt", "source_quote": "lt"},
-                },
-                "derived": {
-                    "atomic_thoughts": [],
-                    "cognitive_distortions": [],
-                },
+                "id": "decomposition-1",
+                "node_origin": "observed",
+                "kind": "cognition",
+                "text": "They will judge me.",
+                "source_field": "observed.automatic_thought",
+                "source_quote": "they will judge me",
+                "confidence": 0.9,
             }
-        )
+        ],
+        "trigger_annotations": [
+            {
+                "id": "trigger-annotation-1",
+                "type": "social",
+                "source_field": "observed.trigger",
+                "source_quote": "comment",
+                "confidence": 0.9,
+            }
+        ],
+        "actor_annotations": [
+            {
+                "id": "actor-annotation-1",
+                "role": "self",
+                "label": "me",
+                "source_field": "observed.actors",
+                "source_quote": "me",
+                "confidence": 1.0,
+            }
+        ],
+        "cognition_annotations": [
+            {
+                "id": "cognition-annotation-1",
+                "decomposition_id": "decomposition-1",
+                "text": "They will judge me.",
+                "kind": "prediction",
+                "source_field": "observed.automatic_thought",
+                "source_quote": "they will judge me",
+                "confidence": 0.8,
+            }
+        ],
+        "emotion_annotations": [
+            {
+                "id": "emotion-annotation-1",
+                "label": "страх",
+                "intensity": 1.0,
+                "valence": -0.8,
+                "arousal": 0.9,
+                "source_field": "observed.emotion",
+                "source_quote": "anxious",
+                "confidence": 0.85,
+            }
+        ],
+        "behavior_annotations": [
+            {
+                "id": "behavior-annotation-1",
+                "type": "avoid",
+                "source_field": "observed.behavior",
+                "source_quote": "closed the chat",
+                "confidence": 0.95,
+            }
+        ],
+        "relations": [
+            {
+                "id": "relation-1",
+                "type": "belongs_to",
+                "from_ref": "decomposition-1",
+                "to_ref": "episode",
+                "source_field": "observed.automatic_thought",
+                "source_quote": "they will judge me",
+                "confidence": 1.0,
+            },
+            {
+                "id": "relation-2",
+                "type": "precedes",
+                "from_ref": "observed.situation",
+                "to_ref": "observed.behavior",
+                "source_field": "observed.situation",
+                "source_quote": "comment",
+                "confidence": 0.7,
+            },
+        ],
+    }
+
+    episode = Episode.model_validate(data)
+
+    assert episode.derived.trigger_annotations[0].type == "social"
+    assert episode.derived.decompositions[0].node_origin == "observed"
+    assert episode.derived.cognition_annotations[0].decomposition_id == "decomposition-1"
+    assert episode.derived.emotion_annotations[0].valence == -0.8
+    assert episode.derived.relations[0].from_ref == "decomposition-1"
+
+
+def test_episode_schema_rejects_legacy_derived_keys():
+    data = _valid_episode(
+        derived={
+            "atomic_thoughts": [],
+            "cognitive_distortions": [],
+        }
+    )
+
+    with pytest.raises(ValidationError):
+        Episode.model_validate(data)
+
+
+@pytest.mark.parametrize(
+    ("section", "field", "value"),
+    (
+        ("decompositions", "kind", "event"),
+        ("decompositions", "node_origin", "direct"),
+        ("decompositions", "confidence", 1.1),
+        ("trigger_annotations", "type", "weather"),
+        ("behavior_annotations", "type", "run"),
+        ("cognition_annotations", "kind", "distortion"),
+        ("emotion_annotations", "label", "паника"),
+        ("trigger_annotations", "confidence", 1.1),
+        ("emotion_annotations", "valence", -1.1),
+        ("emotion_annotations", "arousal", 1.1),
+        ("relations", "type", "causes"),
+        ("relations", "from_ref", "observed.money"),
+        ("relations", "confidence", 1.1),
+    ),
+)
+def test_episode_schema_rejects_invalid_annotation_values(section, field, value):
+    data = _valid_episode()
+    data["derived"] = {
+        "decompositions": [
+            {
+                "id": "decomposition-1",
+                "node_origin": "observed",
+                "kind": "cognition",
+                "text": "They will judge me.",
+                "source_field": "observed.automatic_thought",
+                "source_quote": "they will judge me",
+                "confidence": 0.8,
+            }
+        ],
+        "trigger_annotations": [
+            {
+                "id": "trigger-annotation-1",
+                "type": "social",
+                "source_field": "observed.situation",
+                "source_quote": "chat",
+                "confidence": 0.8,
+            }
+        ],
+        "actor_annotations": [],
+        "cognition_annotations": [
+            {
+                "id": "cognition-annotation-1",
+                "text": "They will judge me.",
+                "kind": "prediction",
+                "source_field": "observed.automatic_thought",
+                "source_quote": "they will judge me",
+                "confidence": 0.8,
+            }
+        ],
+        "emotion_annotations": [
+            {
+                "id": "emotion-annotation-1",
+                "label": "страх",
+                "intensity": 1.0,
+                "valence": -0.8,
+                "arousal": 0.9,
+                "source_field": "observed.emotion",
+                "source_quote": "anxious",
+                "confidence": 0.85,
+            }
+        ],
+        "behavior_annotations": [
+            {
+                "id": "behavior-annotation-1",
+                "type": "avoid",
+                "source_field": "observed.behavior",
+                "source_quote": "closed the chat",
+                "confidence": 0.95,
+            }
+        ],
+        "relations": [
+            {
+                "id": "relation-1",
+                "type": "belongs_to",
+                "from_ref": "decomposition-1",
+                "to_ref": "episode",
+                "source_field": "observed.automatic_thought",
+                "source_quote": "they will judge me",
+                "confidence": 0.8,
+            }
+        ],
+    }
+    data["derived"][section][0][field] = value
+
+    with pytest.raises(ValidationError):
+        Episode.model_validate(data)
+
+
+def test_episode_schema_defaults_old_decomposition_origin_to_observed():
+    data = _valid_episode()
+    data["derived"]["decompositions"] = [
+        {
+            "id": "decomposition-1",
+            "kind": "emotion",
+            "text": "страх",
+            "source_field": "observed.emotion",
+            "source_quote": "anxious",
+            "confidence": 0.9,
+        }
+    ]
+
+    episode = Episode.model_validate(data)
+
+    assert episode.derived.decompositions[0].node_origin == "observed"
+
+
+def test_episode_schema_accepts_support_decomposition_origin():
+    data = _valid_episode()
+    data["derived"]["decompositions"] = [
+        {
+            "id": "decomposition-1",
+            "node_origin": "support",
+            "kind": "cognition",
+            "text": "fear of social evaluation",
+            "source_field": "observed.automatic_thought",
+            "source_quote": "they will judge me",
+            "confidence": 0.75,
+        }
+    ]
+
+    episode = Episode.model_validate(data)
+
+    assert episode.derived.decompositions[0].node_origin == "support"
+
+
+def test_episode_schema_defaults_old_derived_relations_to_empty_list():
+    data = _valid_episode()
+    data["derived"].pop("relations")
+
+    episode = Episode.model_validate(data)
+
+    assert episode.derived.relations == []
 
 
 def test_json_schema_describes_emotion_items_and_full_fields():
@@ -186,16 +395,7 @@ def test_json_schema_describes_emotion_items_and_full_fields():
     assert observed["actors"] == {"$ref": "#/$defs/observed_field"}
     assert observed["speech"] == {"$ref": "#/$defs/observed_field"}
     assert observed["emotion"] == {"$ref": "#/$defs/emotion_field"}
-    assert emotion_item["properties"]["label"]["enum"] == [
-        "нейтраль/мешанные",
-        "любовь/тепло",
-        "радость",
-        "отвращение",
-        "стыд",
-        "грусть",
-        "злость",
-        "страх",
-    ]
+    assert emotion_item["properties"]["label"] == {"$ref": "#/$defs/emotion_label"}
     assert emotion_item["properties"]["intensity"] == {
         "type": "number",
         "minimum": 0.0,
@@ -204,3 +404,82 @@ def test_json_schema_describes_emotion_items_and_full_fields():
     assert schema["$defs"]["emotion_field"]["properties"]["free_text"] == {
         "type": "string"
     }
+
+
+def test_json_schema_describes_derived_annotations():
+    schema = json.loads(open("model/episode.schema.json", encoding="utf-8").read())
+    derived = schema["properties"]["derived"]
+
+    assert derived["required"] == [
+        "decompositions",
+        "trigger_annotations",
+        "actor_annotations",
+        "cognition_annotations",
+        "emotion_annotations",
+        "behavior_annotations",
+    ]
+    assert "atomic_thought" not in schema["$defs"]
+    assert "cognitive_distortion" not in schema["$defs"]
+    assert schema["$defs"]["confidence"] == {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 1.0,
+    }
+    assert schema["$defs"]["decomposition"]["properties"]["kind"]["enum"] == [
+        "actor",
+        "cognition",
+        "emotion",
+        "speech",
+        "behavior",
+    ]
+    assert schema["$defs"]["decomposition"]["properties"]["node_origin"] == {
+        "type": "string",
+        "enum": ["observed", "support"],
+        "default": "observed",
+    }
+    assert schema["$defs"]["cognition_annotation"]["properties"]["decomposition_id"] == {
+        "anyOf": [
+            {"type": "string", "pattern": "^decomposition-[0-9]+$"},
+            {"type": "null"},
+        ],
+        "default": None,
+    }
+    assert schema["$defs"]["emotion_annotation"]["properties"]["valence"] == {
+        "type": "number",
+        "minimum": -1.0,
+        "maximum": 1.0,
+    }
+    assert schema["$defs"]["emotion_annotation"]["properties"]["arousal"] == {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 1.0,
+    }
+    relation = schema["$defs"]["graph_relation"]
+    assert relation["properties"]["type"]["enum"] == [
+        "belongs_to",
+        "derived_from",
+        "precedes",
+        "leads_to",
+        "co_occurs_with",
+        "elicits",
+        "expressed_as",
+        "reinforces",
+        "contrasts_with",
+        "acts_in",
+        "occurs_in",
+    ]
+    assert "relations" in derived["properties"]
+
+
+def test_episode_example_matches_schema_model():
+    data = json.loads(open("model/episode.example.json", encoding="utf-8").read())
+
+    episode = Episode.model_validate(data)
+
+    assert episode.derived.cognition_annotations[0].id == "cognition-annotation-1"
+
+
+def test_episode_template_uses_current_derived_keys():
+    data = json.loads(open("model/episode.template.json", encoding="utf-8").read())
+
+    assert data["derived"] == _empty_derived()

@@ -11,15 +11,30 @@ Episode is the only MVP entity.
 Episode
   |-- observed CBT loop
   |     |-- situation
-  |     |-- automatic thought
+  |     |-- actors
+  |     |-- automatic_thought
   |     |-- emotion
   |     |-- body
+  |     |-- speech
   |     |-- behavior
-  |     `-- consequence
-  |
-  `-- derived annotations
-        |-- atomic thoughts
-        `-- cognitive distortions
+  |     |-- trigger
+  |     |-- outcome - ST consequence
+  |     `-- outcome - LT consequence
+	  |
+	  `-- derived
+	        |-- decompositions
+	        |     |-- node_origin: observed | support
+	        |     |-- actor
+	        |     |-- cognition
+	        |     |-- emotion
+	        |     |-- speech
+	        |     `-- behavior
+	        |-- trigger_annotations
+	        |-- actor_annotations
+	        |-- cognition_annotations
+	        |-- emotion_annotations
+	        |-- behavior_annotations
+	        `-- relations
 ```
 
 ## Evidence Boundary
@@ -31,11 +46,24 @@ Derived fields are LLM-inferred annotations from observed data.
 Every derived item must trace back to observed evidence. If it cannot be traced,
 do not save it.
 
-Traceability chain:
+Derived provenance is stored on each derived item:
 
 ```text
-cognitive_distortion
-  -> atomic_thought
+source_field
+source_quote
+confidence 0.0..1.0
+```
+
+Traceability chain examples:
+
+```text
+cognition_annotation
+  -> decomposition
   -> automatic_thought_observed
+  -> source
+
+emotion_annotation
+  -> decomposition
+  -> emotion_observed
   -> source
 ```

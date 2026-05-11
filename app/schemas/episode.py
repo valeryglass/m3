@@ -6,7 +6,6 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-Confidence = Literal["low", "medium", "high"]
 EmotionLabel = Literal[
     "нейтраль/мешанные",
     "любовь/тепло",
@@ -17,6 +16,99 @@ EmotionLabel = Literal[
     "злость",
     "страх",
 ]
+TriggerType = Literal["external", "internal", "social", "body", "memory", "thought"]
+ActorRole = Literal["self", "other", "group", "institution", "unknown"]
+CognitionKind = Literal[
+    "evaluation",
+    "prediction",
+    "rule",
+    "meaning",
+    "memory",
+    "image",
+    "urge",
+    "question",
+]
+BehaviorType = Literal[
+    "approach",
+    "avoid",
+    "freeze",
+    "attack",
+    "submit",
+    "compensate",
+    "distract",
+]
+NodeOrigin = Literal["observed", "support"]
+RelationType = Literal[
+    "belongs_to",
+    "derived_from",
+    "precedes",
+    "leads_to",
+    "co_occurs_with",
+    "elicits",
+    "expressed_as",
+    "reinforces",
+    "contrasts_with",
+    "acts_in",
+    "occurs_in",
+]
+ObservedRefField = Literal[
+    "observed.situation",
+    "observed.trigger",
+    "observed.actors",
+    "observed.speech",
+    "observed.behavior",
+    "observed.short_term_consequence",
+    "observed.long_term_consequence",
+    "observed.automatic_thought",
+    "observed.emotion",
+    "observed.body",
+]
+DecompositionKind = Literal["actor", "cognition", "emotion", "speech", "behavior"]
+DecompositionSourceField = Literal[
+    "observed.actors",
+    "observed.speech",
+    "observed.automatic_thought",
+    "observed.emotion",
+    "observed.emotion.items",
+    "observed.emotion.free_text",
+    "observed.behavior",
+]
+
+
+class Decomposition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(pattern=r"^decomposition-[0-9]+$")
+    node_origin: NodeOrigin = "observed"
+    kind: DecompositionKind
+    text: str = Field(min_length=1)
+    source_field: DecompositionSourceField
+    source_quote: str = Field(min_length=1)
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class GraphRelation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(pattern=r"^relation-[0-9]+$")
+    type: RelationType
+    from_ref: str = Field(
+        pattern=(
+            r"^(episode|observed\.(situation|trigger|actors|speech|behavior|"
+            r"short_term_consequence|long_term_consequence|automatic_thought|"
+            r"emotion|body)|decomposition-[0-9]+)$"
+        )
+    )
+    to_ref: str = Field(
+        pattern=(
+            r"^(episode|observed\.(situation|trigger|actors|speech|behavior|"
+            r"short_term_consequence|long_term_consequence|automatic_thought|"
+            r"emotion|body)|decomposition-[0-9]+)$"
+        )
+    )
+    source_field: ObservedRefField
+    source_quote: str = Field(min_length=1)
+    confidence: float = Field(ge=0.0, le=1.0)
 
 
 class ObservedField(BaseModel):
@@ -39,24 +131,82 @@ class EmotionField(ObservedField):
     free_text: str | None = None
 
 
-class AtomicThought(BaseModel):
+class TriggerAnnotation(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    id: str = Field(pattern=r"^atomic-thought-[0-9]+$")
+    id: str = Field(pattern=r"^trigger-annotation-[0-9]+$")
+    decomposition_id: str | None = Field(
+        default=None, pattern=r"^decomposition-[0-9]+$"
+    )
+    type: TriggerType
+    source_field: Literal[
+        "observed.trigger",
+        "observed.situation",
+        "observed.automatic_thought",
+    ]
+    source_quote: str = Field(min_length=1)
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class ActorAnnotation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(pattern=r"^actor-annotation-[0-9]+$")
+    decomposition_id: str | None = Field(
+        default=None, pattern=r"^decomposition-[0-9]+$"
+    )
+    role: ActorRole
+    label: str = Field(min_length=1)
+    source_field: Literal["observed.actors", "observed.speech", "observed.situation"]
+    source_quote: str = Field(min_length=1)
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class CognitionAnnotation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(pattern=r"^cognition-annotation-[0-9]+$")
+    decomposition_id: str | None = Field(
+        default=None, pattern=r"^decomposition-[0-9]+$"
+    )
     text: str = Field(min_length=1)
+    kind: CognitionKind
     source_field: Literal["observed.automatic_thought"]
     source_quote: str = Field(min_length=1)
-    confidence: Confidence
+    confidence: float = Field(ge=0.0, le=1.0)
 
 
-class CognitiveDistortion(BaseModel):
+class EmotionAnnotation(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    type: str = Field(min_length=1)
-    source_atomic_thought: str = Field(pattern=r"^atomic-thought-[0-9]+$")
-    source_field: Literal["observed.automatic_thought"]
+    id: str = Field(pattern=r"^emotion-annotation-[0-9]+$")
+    decomposition_id: str | None = Field(
+        default=None, pattern=r"^decomposition-[0-9]+$"
+    )
+    label: EmotionLabel
+    intensity: float | None = Field(default=None, ge=0.0, le=1.0)
+    valence: float = Field(ge=-1.0, le=1.0)
+    arousal: float = Field(ge=0.0, le=1.0)
+    source_field: Literal[
+        "observed.emotion",
+        "observed.emotion.items",
+        "observed.emotion.free_text",
+    ]
     source_quote: str = Field(min_length=1)
-    confidence: Confidence
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class BehaviorAnnotation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(pattern=r"^behavior-annotation-[0-9]+$")
+    decomposition_id: str | None = Field(
+        default=None, pattern=r"^decomposition-[0-9]+$"
+    )
+    type: BehaviorType
+    source_field: Literal["observed.behavior"]
+    source_quote: str = Field(min_length=1)
+    confidence: float = Field(ge=0.0, le=1.0)
 
 
 class Observed(BaseModel):
@@ -77,8 +227,13 @@ class Observed(BaseModel):
 class Derived(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    atomic_thoughts: list[AtomicThought]
-    cognitive_distortions: list[CognitiveDistortion]
+    decompositions: list[Decomposition]
+    trigger_annotations: list[TriggerAnnotation]
+    actor_annotations: list[ActorAnnotation]
+    cognition_annotations: list[CognitionAnnotation]
+    emotion_annotations: list[EmotionAnnotation]
+    behavior_annotations: list[BehaviorAnnotation]
+    relations: list[GraphRelation] = Field(default_factory=list)
 
 
 class Episode(BaseModel):
