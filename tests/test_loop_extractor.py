@@ -97,6 +97,30 @@ def test_session_from_dict_restores_save_confirmation_state():
     assert session.to_dict()["awaiting_save_confirmation"] is True
 
 
+def test_session_from_dict_drops_legacy_derived_keys():
+    session = LoopSession.from_dict(
+        {
+            "chat_id": 123,
+            "session_id": "session-123",
+            "observed": {},
+            "derived": {
+                "atomic_thoughts": [{"id": "atomic-thought-1"}],
+                "cognitive_distortions": [],
+            },
+        }
+    )
+
+    assert session.derived == {
+        "decompositions": [],
+        "trigger_annotations": [],
+        "actor_annotations": [],
+        "cognition_annotations": [],
+        "emotion_annotations": [],
+        "behavior_annotations": [],
+        "relations": [],
+    }
+
+
 def test_session_from_dict_restores_emotion_draft():
     session = LoopSession.from_dict(
         {
@@ -243,8 +267,13 @@ def test_loop_completes_after_body_without_derived_targets():
     assert result.should_save
     assert active_target(session) == "complete"
     assert session.derived == {
-        "atomic_thoughts": [],
-        "cognitive_distortions": [],
+        "decompositions": [],
+        "trigger_annotations": [],
+        "actor_annotations": [],
+        "cognition_annotations": [],
+        "emotion_annotations": [],
+        "behavior_annotations": [],
+        "relations": [],
     }
 
 

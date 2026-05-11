@@ -56,7 +56,7 @@ Do not save until all required top-level fields are complete:
 - `date`
 - `source`
 - `observed`
-- `derived` with empty `atomic_thoughts` and `cognitive_distortions` arrays
+- `derived` with the five empty annotation arrays from `model/episode.schema.json`
 
 Do not save until every observed field has both `value` and `source_quote`:
 
@@ -119,12 +119,19 @@ Always save:
 
 ```json
 {
-  "atomic_thoughts": [],
-  "cognitive_distortions": []
+  "decompositions": [],
+  "trigger_annotations": [],
+  "actor_annotations": [],
+  "cognition_annotations": [],
+  "emotion_annotations": [],
+  "behavior_annotations": [],
+  "relations": []
 }
 ```
 
 Never force a classification just to fill the artifact.
+Use `roles/annotator.md` for derived annotation work after observed extraction
+is complete.
 
 ## Save Procedure
 
@@ -138,5 +145,5 @@ Before saving:
    complete.
 6. Save exactly one file under `data/episodes/`.
 
-After saving, report the file path and any derived arrays left empty because
-derived extraction is disabled.
+After saving, report the file path only if the runtime UX calls for it. Derived
+arrays remain empty because derived extraction is handled by the annotator role.

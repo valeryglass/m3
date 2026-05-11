@@ -10,6 +10,7 @@ from app.messages import (
     EMOTION_INTENSITIES,
     FULL_TARGETS,
 )
+from app.derived_normalizer import empty_derived
 from app.tone_engine import ToneEngine
 
 
@@ -31,11 +32,8 @@ class LoopSession:
     last_prompted_at: str | None = None
     episode_date: str | None = None
     observed: dict[str, dict[str, Any]] = field(default_factory=dict)
-    derived: dict[str, list[dict[str, str]]] = field(
-        default_factory=lambda: {
-            "atomic_thoughts": [],
-            "cognitive_distortions": [],
-        }
+    derived: dict[str, list[dict[str, Any]]] = field(
+        default_factory=empty_derived
     )
     saved_episode_path: str | None = None
     awaiting_save_confirmation: bool = False
@@ -54,12 +52,7 @@ class LoopSession:
             last_prompted_at=data.get("last_prompted_at"),
             episode_date=data.get("episode_date"),
             observed=observed,
-            derived=dict(
-                data.get(
-                    "derived",
-                    {"atomic_thoughts": [], "cognitive_distortions": []},
-                )
-            ),
+            derived=_normalize_derived(data.get("derived")),
             saved_episode_path=data.get("saved_episode_path"),
             awaiting_save_confirmation=bool(
                 data.get("awaiting_save_confirmation", False)
@@ -265,3 +258,14 @@ def _emotion_bucket_labels() -> dict[str, str]:
 
 def _format_intensity(intensity: float) -> str:
     return "1.0" if intensity == 1.0 else str(intensity)
+
+
+def _normalize_derived(value: Any) -> dict[str, list[dict[str, Any]]]:
+    derived = empty_derived()
+    if not isinstance(value, dict):
+        return derived
+    for key in derived:
+        items = value.get(key)
+        if isinstance(items, list):
+            derived[key] = items
+    return derived
