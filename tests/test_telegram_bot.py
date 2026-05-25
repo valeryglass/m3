@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import app.telegram_bot as telegram_bot
-from app.loop_extractor import FLOW_FULL, LoopSession, prompt_for_current_target
+from app.loop_extractor import LoopSession, prompt_for_current_target
 from app.storage import JsonStorage
 from app.tone_engine import ToneEngine
 from app.userlist import APPROVED, PAUSED, WAITLISTED, JsonUserList
@@ -24,7 +24,6 @@ def test_visible_command_menu_excludes_hidden_status():
         "help",
         "approve",
         "pause",
-        "start_full",
     )
     assert telegram_bot._visible_command_menu(tone) == (
         {"command": "start", "description": "Начать новый эпизод"},
@@ -39,7 +38,7 @@ def test_bot_profile_uses_tone_engine_copy():
     assert telegram_bot._bot_profile(tone) == {
         "short_description": "МИШа собирает один CBT/ACT-эпизод короткими вопросами",
         "description": (
-            "МИШа — машина извлечения шаблонов\n\n"
+            "МИШа — машина извлечения шаблонов аналитическая\n\n"
             "Помогает собрать один конкретный эпизод: факт, действие, последствия, "
             "мысль, эмоцию и тело\n\n"
             "Начни с /start"
@@ -57,116 +56,14 @@ def test_start_session_reply_uses_rich_first_card():
     )
 
     assert tone.start_session(prompt_for_current_target(session, tone)) == (
-        "Соберём один конкретный эпизод. Идём коротко, не спеша, по фактам\n\n"
-        "□□□□□□□ 0/7\n\n"
+        "□□□□□□□□□□ 0/10\n\n"
         f"{tone.target_prompt('situation')}"
     )
 
 
-def test_admin_start_full_starts_expanded_session_after_approval(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    message = _FakeMessage("/start_full")
-    update = _fake_update(123, message)
-    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
-    userlist.approve(
-        123,
-        decided_by="123",
-        now=datetime(2026, 5, 8, 10, 0, tzinfo=timezone.utc),
-    )
-
-    authorized = _run(
-        telegram_bot._authorize_admin_user(
-            update,
-            _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123),
-            ToneEngine.default(),
-            ux_events,
-            userlist,
-            _FakeBot(),
-        )
-    )
-
-    assert authorized is True
-    _run(
-        telegram_bot._handle_start_after_authorized(
-            update,
-            storage,
-            ux_events,
-            ToneEngine.default(),
-            flow_mode=FLOW_FULL,
-        )
-    )
-
-    loaded = storage.load_session(123)
-    assert loaded is not None
-    assert loaded.flow_mode == FLOW_FULL
-    assert message.replies == [
-        "Соберём один конкретный эпизод. Идём коротко, не спеша, по фактам\n\n"
-        "□□□□□□□□□□ 0/10\n\n"
-        f"{ToneEngine.default().target_prompt('situation')}"
-    ]
-
-def test_unapproved_admin_start_full_goes_to_waitlist_without_session(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
-    message = _FakeMessage("/start_full")
-    bot = _FakeBot()
-
-    authorized = _run(
-        telegram_bot._authorize_admin_user(
-            _fake_update(225672, message),
-            _settings(
-                admin_chat_ids=frozenset({225672, 327002663}),
-                owner_chat_id=225672,
-            ),
-            ToneEngine.default(),
-            ux_events,
-            userlist,
-            bot,
-        )
-    )
-
-    assert authorized is False
-    assert storage.load_session(225672) is None
-    assert userlist.load()["225672"]["status"] == WAITLISTED
-    assert message.replies == [
-        "Спасибо за интерес. Мы добавили тебя в waitlist. "
-        "Напишем, как только доступ откроется"
-    ]
-    assert bot.messages == [
-        {
-            "chat_id": 225672,
-            "text": (
-                "Новый пользователь в waitlist\n"
-                "chat_id: 225672\n"
-                "user_id: 225672\n\n"
-                "/approve 225672\n"
-                "/pause 225672"
-            ),
-            "parse_mode": "HTML",
-        }
-    ]
-
-def test_non_admin_start_full_is_rejected(tmp_path):
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    message = _FakeMessage("/start_full")
-
-    authorized = _run(
-        telegram_bot._authorize_admin(
-            _fake_update(456, message),
-            _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123),
-            ToneEngine.default(),
-            ux_events,
-        )
-    )
-
-    assert authorized is False
-    assert message.replies == ["Нет доступа"]
-
 def test_second_admin_is_authorized_for_hidden_commands(tmp_path):
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    message = _FakeMessage("/start_full")
+    message = _FakeMessage("/approve 456")
 
     authorized = _run(
         telegram_bot._authorize_admin(
@@ -217,7 +114,14 @@ def test_authorize_logs_unauthorized_attempt_without_session(tmp_path):
     message = _FakeMessage("/start")
     update = SimpleNamespace(
         effective_chat=SimpleNamespace(id=456),
-        effective_user=SimpleNamespace(id=456),
+        effective_user=SimpleNamespace(
+            id=456,
+            username="tester",
+            first_name="Test",
+            last_name="User",
+            language_code="en",
+            is_bot=False,
+        ),
         message=message,
     )
     settings = _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123)
@@ -237,13 +141,22 @@ def test_authorize_logs_unauthorized_attempt_without_session(tmp_path):
     ]
     assert storage.load_session(456) is None
     assert userlist.load()["456"]["status"] == WAITLISTED
+    assert userlist.load()["456"]["username"] == "tester"
+    assert userlist.load()["456"]["first_name"] == "Test"
+    assert userlist.load()["456"]["last_name"] == "User"
+    assert userlist.load()["456"]["language_code"] == "en"
     assert bot.messages == [
         {
             "chat_id": 123,
             "text": (
                 "Новый пользователь в waitlist\n"
                 "chat_id: 456\n"
-                "user_id: 456\n\n"
+                "user_id: 456\n"
+                "username: tester\n"
+                "first_name: Test\n"
+                "last_name: User\n"
+                "language_code: en\n"
+                "is_bot: False\n\n"
                 "/approve 456\n"
                 "/pause 456"
             ),
@@ -533,13 +446,13 @@ def test_accepted_answer_replies_with_bridge_and_next_question(tmp_path):
     assert loaded is not None
     assert loaded.target_index == 1
     assert message.replies == [
-        f"■□□□□□□ 1/7\n\n"
-        f"{ToneEngine.default().target_prompt('behavior')}",
+        f"■□□□□□□□□□ 1/10\n\n"
+        f"{ToneEngine.default().target_prompt('trigger')}",
     ]
     assert message.reply_options == [{"parse_mode": "HTML"}]
 
 
-def test_automatic_thought_answer_replies_with_emotion_keyboard(tmp_path):
+def test_automatic_thought_answer_replies_with_plain_emotion_frame(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = LoopSession(
@@ -549,9 +462,9 @@ def test_automatic_thought_answer_replies_with_emotion_keyboard(tmp_path):
         episode_date="2026-05-03",
         observed={
             "situation": {"value": "s", "source_quote": "s"},
-            "behavior": {"value": "b", "source_quote": "b"},
-            "short_term_consequence": {"value": "st", "source_quote": "st"},
-            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+            "trigger": {"value": "tr", "source_quote": "tr"},
+            "actor": {"value": "ac", "source_quote": "ac"},
+            "quote": {"value": "sp", "source_quote": "sp"},
         },
     )
     storage.save_session(session)
@@ -571,13 +484,12 @@ def test_automatic_thought_answer_replies_with_emotion_keyboard(tmp_path):
     assert loaded is not None
     assert loaded.target_index == 5
     assert message.replies == [
-        f"■■■■■□□ 5/7\n\n{ToneEngine.default().target_prompt('emotion')}",
+        f"■■■■■□□□□□ 5/10\n\n{ToneEngine.default().target_prompt('emotion')}",
     ]
-    assert "страх" in _reply_markup_texts(message.reply_options[0]["reply_markup"])
-    assert "Готово" in _reply_markup_texts(message.reply_options[0]["reply_markup"])
+    assert message.reply_options == [{"parse_mode": "HTML"}]
 
 
-def test_text_during_emotion_step_does_not_advance(tmp_path):
+def test_text_during_emotion_step_advances_to_behavior(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = _emotion_step_session()
@@ -596,18 +508,23 @@ def test_text_during_emotion_step_does_not_advance(tmp_path):
 
     loaded = storage.load_session(123)
     assert loaded is not None
-    assert loaded.target_index == 5
-    assert "emotion" not in loaded.observed
-    assert loaded.emotion_free_text == "страх"
-    assert message.replies == ["Выбери эмоции кнопками и нажми Готово"]
-    assert "страх" in _reply_markup_texts(message.reply_options[0]["reply_markup"])
+    assert loaded.target_index == 6
+    assert loaded.observed["emotion"] == {
+        "value": "страх",
+        "source_quote": "страх",
+    }
+    assert message.replies == [
+        f"■■■■■■□□□□ 6/10\n\n{ToneEngine.default().target_prompt('behavior')}",
+    ]
+    assert message.reply_options == [{"parse_mode": "HTML"}]
 
 
-def test_second_text_during_emotion_step_replaces_free_text(tmp_path):
+def test_text_during_emotion_step_ignores_legacy_emotion_state(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = _emotion_step_session()
     session.emotion_free_text = "растерянность"
+    session.emotion_draft = {"fear": 3}
     storage.save_session(session)
     message = _FakeMessage("смущение")
 
@@ -623,10 +540,16 @@ def test_second_text_during_emotion_step_replaces_free_text(tmp_path):
 
     loaded = storage.load_session(123)
     assert loaded is not None
-    assert loaded.target_index == 5
-    assert loaded.emotion_free_text == "смущение"
-    assert message.replies == ["Выбери эмоции кнопками и нажми Готово"]
-    assert "Готово" in _reply_markup_texts(message.reply_options[0]["reply_markup"])
+    assert loaded.target_index == 6
+    assert loaded.emotion_free_text == "растерянность"
+    assert loaded.emotion_draft == {"fear": 3}
+    assert loaded.observed["emotion"] == {
+        "value": "смущение",
+        "source_quote": "смущение",
+    }
+    assert message.replies == [
+        f"■■■■■■□□□□ 6/10\n\n{ToneEngine.default().target_prompt('behavior')}",
+    ]
 
 
 def test_empty_answer_retries_without_bridge(tmp_path):
@@ -660,92 +583,28 @@ def test_empty_answer_retries_without_bridge(tmp_path):
     assert "■" not in message.replies[0]
 
 
-def test_final_answer_opens_save_review_without_saving(tmp_path):
+def test_final_answer_opens_save_review_with_all_fields(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = LoopSession(
         chat_id=123,
-        session_id="session-123",
-        target_index=6,
-        episode_date="2026-05-03",
-        observed={
-            "situation": {"value": "s", "source_quote": "s"},
-            "behavior": {"value": "b", "source_quote": "b"},
-            "short_term_consequence": {"value": "st", "source_quote": "st"},
-            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
-            "automatic_thought": {"value": "at", "source_quote": "at"},
-            "emotion": {"value": "e", "source_quote": "e"},
-        },
-    )
-    storage.save_session(session)
-    message = _FakeMessage("body")
-    update = _fake_update(123, message)
-
-    _run(
-        telegram_bot._handle_message_after_authorized(
-            update, storage, ux_events, _settings(), ToneEngine.default()
-        )
-    )
-
-    loaded = storage.load_session(123)
-    assert loaded is not None
-    assert loaded.awaiting_save_confirmation is True
-    assert loaded.target_index == 7
-    assert [path.name for path in (tmp_path / "episodes").glob("*.json")] == []
-    assert message.replies == [
-        "■■■■■■■ 7/7 💯\n\n"
-        "ситуация: s\n"
-        "действие: b\n"
-        "сразу после: st\n"
-        "потом: lt\n"
-        "мысль: at\n"
-        "эмоция: e\n"
-        "тело: body\n\n"
-        "Сохраняем?"
-    ]
-    assert message.reply_options[0]["reply_markup"] is not None
-    assert ux_events.read()[-1]["event_type"] == "step_answered"
-
-    followup = _FakeMessage("next")
-    _run(
-        telegram_bot._handle_message_after_authorized(
-            _fake_update(123, followup),
-            storage,
-            ux_events,
-            _settings(),
-            ToneEngine.default(),
-        )
-    )
-
-    loaded = storage.load_session(123)
-    assert loaded is not None
-    assert loaded.observed["body"]["value"] == "body"
-    assert followup.replies[0].endswith("Сохраняем?")
-
-
-def test_full_final_answer_opens_save_review_with_all_fields(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    session = LoopSession(
-        chat_id=123,
-        flow_mode=FLOW_FULL,
         session_id="session-123",
         target_index=9,
         episode_date="2026-05-03",
         observed={
             "situation": {"value": "s", "source_quote": "s"},
             "trigger": {"value": "tr", "source_quote": "tr"},
-            "actors": {"value": "ac", "source_quote": "ac"},
-            "speech": {"value": "sp", "source_quote": "sp"},
-            "behavior": {"value": "b", "source_quote": "b"},
-            "short_term_consequence": {"value": "st", "source_quote": "st"},
-            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+            "actor": {"value": "ac", "source_quote": "ac"},
+            "quote": {"value": "sp", "source_quote": "sp"},
             "automatic_thought": {"value": "at", "source_quote": "at"},
             "emotion": {"value": "e", "source_quote": "e"},
+            "behavior": {"value": "b", "source_quote": "b"},
+            "physical": {"value": "physical", "source_quote": "physical"},
+            "short_term_consequence": {"value": "st", "source_quote": "st"},
         },
     )
     storage.save_session(session)
-    message = _FakeMessage("body")
+    message = _FakeMessage("lt")
 
     _run(
         telegram_bot._handle_message_after_authorized(
@@ -765,181 +624,34 @@ def test_full_final_answer_opens_save_review_with_all_fields(tmp_path):
         "■■■■■■■■■■ 10/10 💯\n\n"
         "ситуация: s\n"
         "триггер: tr\n"
-        "участники: ac\n"
-        "речь: sp\n"
-        "действие: b\n"
-        "сразу после: st\n"
-        "потом: lt\n"
+        "участник: ac\n"
+        "цитата: sp\n"
         "мысль: at\n"
         "эмоция: e\n"
-        "тело: body\n\n"
+        "действие: b\n"
+        "физическое: physical\n"
+        "сразу после: st\n"
+        "потом: lt\n\n"
         "Сохраняем?"
     ]
+    assert message.reply_options[0]["reply_markup"] is not None
+    assert ux_events.read()[-1]["event_type"] == "step_answered"
 
-
-def test_emotion_button_cycle_updates_session_and_markup(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    session = _emotion_step_session()
-    storage.save_session(session)
-    callback = _FakeCallbackQuery("emotion:fear")
-
+    followup = _FakeMessage("next")
     _run(
-        telegram_bot._handle_emotion_callback_after_authorized(
-            _fake_callback_update(123, callback),
+        telegram_bot._handle_message_after_authorized(
+            _fake_update(123, followup),
             storage,
             ux_events,
+            _settings(),
             ToneEngine.default(),
         )
     )
 
     loaded = storage.load_session(123)
     assert loaded is not None
-    assert loaded.emotion_draft == {"fear": 1}
-    assert callback.answered is True
-    assert "▁ страх ▁" in _reply_markup_texts(callback.edits[0]["reply_markup"])
-
-
-def test_emotion_done_without_selection_stays_on_emotion_step(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    session = _emotion_step_session()
-    storage.save_session(session)
-    callback = _FakeCallbackQuery("emotion:done")
-
-    _run(
-        telegram_bot._handle_emotion_callback_after_authorized(
-            _fake_callback_update(123, callback),
-            storage,
-            ux_events,
-            ToneEngine.default(),
-        )
-    )
-
-    loaded = storage.load_session(123)
-    assert loaded is not None
-    assert loaded.target_index == 5
-    assert "emotion" not in loaded.observed
-    assert callback.message.replies == ["Выбери эмоции кнопками и нажми Готово"]
-    assert "Готово" in _reply_markup_texts(callback.message.reply_options[0]["reply_markup"])
-
-
-def test_emotion_done_with_only_free_text_stays_on_emotion_step(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    session = _emotion_step_session()
-    session.emotion_free_text = "растерянность"
-    storage.save_session(session)
-    callback = _FakeCallbackQuery("emotion:done")
-
-    _run(
-        telegram_bot._handle_emotion_callback_after_authorized(
-            _fake_callback_update(123, callback),
-            storage,
-            ux_events,
-            ToneEngine.default(),
-        )
-    )
-
-    loaded = storage.load_session(123)
-    assert loaded is not None
-    assert loaded.target_index == 5
-    assert loaded.emotion_free_text == "растерянность"
-    assert "emotion" not in loaded.observed
-    assert callback.message.replies == ["Выбери эмоции кнопками и нажми Готово"]
-    assert "Готово" in _reply_markup_texts(callback.message.reply_options[0]["reply_markup"])
-
-
-def test_emotion_done_writes_items_and_advances_to_body(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    session = _emotion_step_session()
-    session.emotion_draft = {"shame": 1, "fear": 3}
-    storage.save_session(session)
-    callback = _FakeCallbackQuery("emotion:done")
-
-    _run(
-        telegram_bot._handle_emotion_callback_after_authorized(
-            _fake_callback_update(123, callback),
-            storage,
-            ux_events,
-            ToneEngine.default(),
-        )
-    )
-
-    loaded = storage.load_session(123)
-    assert loaded is not None
-    assert loaded.target_index == 6
-    assert loaded.emotion_draft == {}
-    assert loaded.observed["emotion"] == {
-        "value": "стыд: 0.33, страх: 1.0",
-        "source_quote": "стыд: 0.33, страх: 1.0",
-        "items": [
-            {"label": "стыд", "intensity": 0.33, "source_quote": "стыд: 0.33"},
-            {"label": "страх", "intensity": 1.0, "source_quote": "страх: 1.0"},
-        ],
-    }
-    assert callback.message.replies == [
-        f"■■■■■■□ 6/7\n\n{ToneEngine.default().target_prompt('body')}",
-    ]
-    assert ux_events.read()[-2]["event_type"] == "step_answered"
-
-
-def test_emotion_done_writes_free_text_layer(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    session = _emotion_step_session()
-    session.emotion_draft = {"fear": 3}
-    session.emotion_free_text = "растерянность"
-    storage.save_session(session)
-    callback = _FakeCallbackQuery("emotion:done")
-
-    _run(
-        telegram_bot._handle_emotion_callback_after_authorized(
-            _fake_callback_update(123, callback),
-            storage,
-            ux_events,
-            ToneEngine.default(),
-        )
-    )
-
-    loaded = storage.load_session(123)
-    assert loaded is not None
-    assert loaded.target_index == 6
-    assert loaded.emotion_free_text is None
-    assert loaded.observed["emotion"] == {
-        "value": "страх: 1.0; другое: растерянность",
-        "source_quote": "страх: 1.0; другое: растерянность",
-        "items": [
-            {"label": "страх", "intensity": 1.0, "source_quote": "страх: 1.0"},
-        ],
-        "free_text": "растерянность",
-    }
-
-
-def test_full_emotion_done_uses_full_progress(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    session = _full_emotion_step_session()
-    session.emotion_draft = {"fear": 3}
-    storage.save_session(session)
-    callback = _FakeCallbackQuery("emotion:done")
-
-    _run(
-        telegram_bot._handle_emotion_callback_after_authorized(
-            _fake_callback_update(123, callback),
-            storage,
-            ux_events,
-            ToneEngine.default(),
-        )
-    )
-
-    loaded = storage.load_session(123)
-    assert loaded is not None
-    assert loaded.target_index == 9
-    assert callback.message.replies == [
-        f"■■■■■■■■■□ 9/10\n\n{ToneEngine.default().target_prompt('body')}",
-    ]
+    assert loaded.observed["long_term_consequence"]["value"] == "lt"
+    assert followup.replies[0].endswith("Сохраняем?")
 
 
 def test_save_callback_writes_episode_and_replies_completion(tmp_path):
@@ -968,10 +680,10 @@ def test_save_callback_writes_episode_and_replies_completion(tmp_path):
     assert ux_events.read()[-1]["event_type"] == "session_completed"
 
 
-def test_save_callback_writes_full_episode(tmp_path):
+def test_save_callback_writes_unified_episode(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    session = _complete_full_review_session()
+    session = _complete_review_session()
     storage.save_session(session)
     callback = _FakeCallbackQuery("episode:save")
 
@@ -988,8 +700,8 @@ def test_save_callback_writes_full_episode(tmp_path):
         encoding="utf-8"
     )
     assert '"trigger"' in saved
-    assert '"actors"' in saved
-    assert '"speech"' in saved
+    assert '"actor"' in saved
+    assert '"quote"' in saved
     assert storage.load_session(123) is None
 
 
@@ -1144,7 +856,7 @@ def test_restart_cancel_event_uses_current_target():
 
     assert event["event_type"] == "session_cancelled"
     assert event["cancel_reason"] == "restart"
-    assert event["target"] == "behavior"
+    assert event["target"] == "trigger"
 
 
 class _FakeMessage:
@@ -1207,14 +919,6 @@ def _fake_callback_update(chat_id: int, callback_query: _FakeCallbackQuery):
     )
 
 
-def _reply_markup_texts(reply_markup) -> list[str]:
-    return [
-        button.text
-        for row in getattr(reply_markup, "inline_keyboard", ())
-        for button in row
-    ]
-
-
 def _emotion_step_session() -> LoopSession:
     return LoopSession(
         chat_id=123,
@@ -1223,29 +927,9 @@ def _emotion_step_session() -> LoopSession:
         episode_date="2026-05-03",
         observed={
             "situation": {"value": "s", "source_quote": "s"},
-            "behavior": {"value": "b", "source_quote": "b"},
-            "short_term_consequence": {"value": "st", "source_quote": "st"},
-            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
-            "automatic_thought": {"value": "at", "source_quote": "at"},
-        },
-    )
-
-
-def _full_emotion_step_session() -> LoopSession:
-    return LoopSession(
-        chat_id=123,
-        flow_mode=FLOW_FULL,
-        session_id="session-123",
-        target_index=8,
-        episode_date="2026-05-03",
-        observed={
-            "situation": {"value": "s", "source_quote": "s"},
             "trigger": {"value": "tr", "source_quote": "tr"},
-            "actors": {"value": "ac", "source_quote": "ac"},
-            "speech": {"value": "sp", "source_quote": "sp"},
-            "behavior": {"value": "b", "source_quote": "b"},
-            "short_term_consequence": {"value": "st", "source_quote": "st"},
-            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+            "actor": {"value": "ac", "source_quote": "ac"},
+            "quote": {"value": "sp", "source_quote": "sp"},
             "automatic_thought": {"value": "at", "source_quote": "at"},
         },
     )
@@ -1255,40 +939,20 @@ def _complete_review_session() -> LoopSession:
     return LoopSession(
         chat_id=123,
         session_id="session-123",
-        target_index=7,
-        episode_date="2026-05-03",
-        awaiting_save_confirmation=True,
-        observed={
-            "situation": {"value": "s", "source_quote": "s"},
-            "behavior": {"value": "b", "source_quote": "b"},
-            "short_term_consequence": {"value": "st", "source_quote": "st"},
-            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
-            "automatic_thought": {"value": "at", "source_quote": "at"},
-            "emotion": {"value": "e", "source_quote": "e"},
-            "body": {"value": "body", "source_quote": "body"},
-        },
-    )
-
-
-def _complete_full_review_session() -> LoopSession:
-    return LoopSession(
-        chat_id=123,
-        flow_mode=FLOW_FULL,
-        session_id="session-123",
         target_index=10,
         episode_date="2026-05-03",
         awaiting_save_confirmation=True,
         observed={
             "situation": {"value": "s", "source_quote": "s"},
             "trigger": {"value": "tr", "source_quote": "tr"},
-            "actors": {"value": "ac", "source_quote": "ac"},
-            "speech": {"value": "sp", "source_quote": "sp"},
-            "behavior": {"value": "b", "source_quote": "b"},
-            "short_term_consequence": {"value": "st", "source_quote": "st"},
-            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+            "actor": {"value": "ac", "source_quote": "ac"},
+            "quote": {"value": "sp", "source_quote": "sp"},
             "automatic_thought": {"value": "at", "source_quote": "at"},
             "emotion": {"value": "e", "source_quote": "e"},
-            "body": {"value": "body", "source_quote": "body"},
+            "behavior": {"value": "b", "source_quote": "b"},
+            "physical": {"value": "physical", "source_quote": "physical"},
+            "short_term_consequence": {"value": "st", "source_quote": "st"},
+            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
         },
     )
 

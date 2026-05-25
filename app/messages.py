@@ -5,6 +5,7 @@ FIELD_GUIDES = {
     "situation": {
         "field": "situation",
         "label": "ситуация",
+        "name": "Соберем эпизод",
         "source_field": "situation.event_description",
         "description": "Что произошло фактически. Без анализа и выводов",
         "formula": "[кто] → [действие] → [контекст]",
@@ -23,6 +24,7 @@ FIELD_GUIDES = {
     "trigger": {
         "field": "trigger",
         "label": "триггер",
+        "name": "Выявление триггера",
         "source_field": "trigger.description",
         "description": "Что стало пусковым стимулом",
         "formula": "[стимул] → [активация реакции]",
@@ -36,12 +38,13 @@ FIELD_GUIDES = {
             "может быть мысль или тело",
             "минимальный стимул",
         ),
-        "question": "Что именно зацепило или запустило реакцию?",
+        "question": "Что именно спровоцировало, зацепило или запустило реакцию?",
     },
-    "actors": {
-        "field": "actors",
-        "label": "участники",
-        "source_field": "actors",
+    "actor": {
+        "field": "actor",
+        "label": "участник",
+        "name": "Определение участников",
+        "source_field": "actor",
         "description": "Кто был вовлечён в эпизод",
         "formula": "[кто участвовал]",
         "examples": (
@@ -54,12 +57,13 @@ FIELD_GUIDES = {
             "кто влиял на момент",
             "короткий список",
         ),
-        "question": "Кто был вовлечён в ситуацию?",
+        "question": "Кто был рядом, влиял или участвовал в ситуации?",
     },
-    "speech": {
-        "field": "speech",
-        "label": "речь",
-        "source_field": "speech",
+    "quote": {
+        "field": "quote",
+        "label": "цитата",
+        "name": "Зафиксировать цитату",
+        "source_field": "quote",
         "description": "Точные слова или сообщения",
         "formula": "[кто] → [что сказал/написал]",
         "examples": (
@@ -72,11 +76,12 @@ FIELD_GUIDES = {
             "можно одним фрагментом",
             "если речи не было — так и напиши",
         ),
-        "question": "Какие слова или сообщения там были?",
+        "question": "Какая фраза или сообщение зафиксировались во внимании?",
     },
     "behavior": {
         "field": "behavior",
         "label": "действие",
+        "name": "Определение действия",
         "source_field": "behavior.action",
         "description": "Совершённое действие",
         "formula": "[субъект] → [действие]",
@@ -90,11 +95,12 @@ FIELD_GUIDES = {
             "что сделал фактически",
             "порядок действий важен",
         ),
-        "question": "Как ты поступил в этой ситуации, что сделал?",
+        "question": "Как ты поступил или что предпринял?",
     },
     "short_term_consequence": {
         "field": "short_term_consequence",
         "label": "сразу после",
+        "name": "Краткосрочные последствия",
         "source_field": "immediate_result",
         "description": "Мгновенный эффект поведения",
         "formula": "[действие] → [мгновенный эффект]",
@@ -108,11 +114,12 @@ FIELD_GUIDES = {
             "ищи relief/control",
             "краткосрочный эффект",
         ),
-        "question": "Что случилось сразу после твоего поступка?",
+        "question": "Что случилось сразу после?",
     },
     "long_term_consequence": {
         "field": "long_term_consequence",
         "label": "потом",
+        "name": "Долгосрочные последствия",
         "source_field": "consequence",
         "description": "Отложенное последствие поведения",
         "formula": "[действие] → [отложенный эффект]",
@@ -126,11 +133,12 @@ FIELD_GUIDES = {
             "ищи закрепление цикла",
             "LT-эффект важнее эмоции",
         ),
-        "question": "К чему это привело в дальнейшем?",
+        "question": "Как изменилось состояние со временем или к чему это привело дальше?",
     },
     "automatic_thought": {
         "field": "automatic_thought",
         "label": "мысль",
+        "name": "Фиксация мысли",
         "source_field": "automatic_thought.text",
         "description": "Быстрая автоматическая мысль",
         "formula": "[субъект] + [оценка/прогноз]",
@@ -149,11 +157,14 @@ FIELD_GUIDES = {
     "emotion": {
         "field": "emotion",
         "label": "эмоция",
+        "name": "Определение эмоций",
         "source_field": "emotion.label",
         "description": "Испытываемая эмоция",
         "formula": "[название эмоции]",
         "examples": (
             "растерянность, оцепенение, беспомощность",
+            "тревога с раздражением",
+            "стыд и растерянность",
         ),
         "tips": (
             "эмоция ≠ мысль",
@@ -161,15 +172,14 @@ FIELD_GUIDES = {
             "называй базово",
         ),
         "question": (
-            "Выбери одну или несколько эмоций\n"
-            "Щёлкай несколько раз, чтобы выбрать интенсивность\n"
-            "Можешь написать дополнительно, что чувствовал"
+            "Какие эмоции были самыми яркими в эпизоде?"
         ),
     },
-    "body": {
-        "field": "body",
-        "label": "тело",
-        "source_field": "body_sensation.sensation",
+    "physical": {
+        "field": "physical",
+        "label": "физическое",
+        "name": "Реакция тела",
+        "source_field": "physical.sensation",
         "description": "Телесное ощущение",
         "formula": "[ощущение] + [зона тела]",
         "examples": (
@@ -182,71 +192,34 @@ FIELD_GUIDES = {
             "где именно?",
             "ищи давление/жар",
         ),
-        "question": "Что ощущалось в теле?",
+        "question": "Какие ощущения были в теле в течение эпизода?",
     },
 }
 
 
-EMOTION_BUCKETS = (
-    {"key": "neutral", "label": "нейтраль/мешанные"},
-    {"key": "warmth", "label": "любовь/тепло"},
-    {"key": "joy", "label": "радость"},
-    {"key": "disgust", "label": "отвращение"},
-    {"key": "shame", "label": "стыд"},
-    {"key": "sadness", "label": "грусть"},
-    {"key": "anger", "label": "злость"},
-    {"key": "fear", "label": "страх"},
-)
-
-
-EMOTION_INTENSITIES = {
-    1: 0.33,
-    2: 0.66,
-    3: 1.0,
-}
-
-
-EMOTION_INTENSITY_MARKS = {
-    1: "▁",
-    2: "▄",
-    3: "█",
-}
-
-
-BASIC_TARGETS = (
-    "situation",
-    "behavior",
-    "short_term_consequence",
-    "long_term_consequence",
-    "automatic_thought",
-    "emotion",
-    "body",
-)
-
-
-FULL_TARGETS = (
+TARGETS = (
     "situation",
     "trigger",
-    "actors",
-    "speech",
-    "behavior",
-    "short_term_consequence",
-    "long_term_consequence",
+    "actor",
+    "quote",
     "automatic_thought",
     "emotion",
-    "body",
+    "behavior",
+    "physical",
+    "short_term_consequence",
+    "long_term_consequence",
 )
 
 
 TARGET_PROMPTS = {
-    target: FIELD_GUIDES[target]["question"] for target in BASIC_TARGETS
+    target: FIELD_GUIDES[target]["question"] for target in TARGETS
 }
 
 
 BOT_PROFILE = {
     "short_description": "МИШа собирает один CBT/ACT-эпизод короткими вопросами",
     "description": (
-        "МИШа — машина извлечения шаблонов\n\n"
+        "МИШа — машина извлечения шаблонов аналитическая\n\n"
         "Помогает собрать один конкретный эпизод: факт, действие, последствия, "
         "мысль, эмоцию и тело\n\n"
         "Начни с /start"
@@ -262,7 +235,6 @@ SESSION_MESSAGES = {
     ),
     "empty_answer": "Нужен непустой ответ",
     "start_session": (
-        "Соберём один конкретный эпизод. Идём коротко, не спеша, по фактам\n\n"
         "{progress_bar} {completed_count}/{total_count}\n\n"
         "{prompt}"
     ),
@@ -291,7 +263,6 @@ SESSION_MESSAGES = {
     ),
     "cancel": "Сессия отменена",
     "unauthorized": "Нет доступа",
-    "emotion_buttons_required": "Выбери эмоции кнопками и нажми Готово",
     "waitlisted": (
         "Спасибо за интерес. Мы добавили тебя в waitlist. "
         "Напишем, как только доступ откроется"
@@ -299,7 +270,8 @@ SESSION_MESSAGES = {
     "admin_waitlist_notice": (
         "Новый пользователь в waitlist\n"
         "chat_id: {chat_id}\n"
-        "user_id: {user_id}\n\n"
+        "user_id: {user_id}"
+        "{profile}\n\n"
         "/approve {chat_id}\n"
         "/pause {chat_id}"
     ),

@@ -7,11 +7,11 @@ from pathlib import Path
 from typing import Any
 
 from app.messages import (
-    BASIC_TARGETS,
     BOT_PROFILE,
     COMMAND_DESCRIPTIONS,
     FIELD_GUIDES,
     SESSION_MESSAGES,
+    TARGETS,
     TARGET_PROMPTS,
 )
 
@@ -90,7 +90,7 @@ class ToneEngine:
         guide = self.field_guide(target)
         examples = "\n".join(f"• {escape(example)}" for example in guide["examples"])
         return SESSION_MESSAGES["field_card"].format(
-            name=escape(guide["label"].capitalize()),
+            name=escape(guide.get("name", guide["label"].capitalize())),
             example=examples,
             question=guide["question"],
         )
@@ -102,7 +102,7 @@ class ToneEngine:
         return BOT_PROFILE["description"]
 
     def start_session(self, prompt: str, total_count: int | None = None) -> str:
-        total_count = total_count or len(BASIC_TARGETS)
+        total_count = total_count or len(TARGETS)
         return SESSION_MESSAGES["start_session"].format(
             progress_bar=self.progress_bar(0, total_count),
             completed_count=0,
@@ -123,7 +123,7 @@ class ToneEngine:
     def review_screen(
         self,
         observed: dict[str, dict[str, str]],
-        targets: tuple[str, ...] = BASIC_TARGETS,
+        targets: tuple[str, ...] = TARGETS,
     ) -> str:
         overview = "\n".join(
             f"{FIELD_GUIDES[target]['label']}: {escape(_observed_value(observed, target))}"
@@ -176,16 +176,17 @@ class ToneEngine:
     def unauthorized(self) -> str:
         return SESSION_MESSAGES["unauthorized"]
 
-    def emotion_buttons_required(self) -> str:
-        return SESSION_MESSAGES["emotion_buttons_required"]
-
     def waitlisted(self) -> str:
         return SESSION_MESSAGES["waitlisted"]
 
-    def admin_waitlist_notice(self, chat_id: int, user_id: str) -> str:
+    def admin_waitlist_notice(
+        self, chat_id: int, user_id: str, profile: dict[str, Any] | None = None
+    ) -> str:
+        profile_text = _format_admin_profile(profile or {})
         return SESSION_MESSAGES["admin_waitlist_notice"].format(
             chat_id=chat_id,
-            user_id=user_id,
+            user_id=escape(user_id),
+            profile=profile_text,
         )
 
     def admin_approved(self, chat_id: int) -> str:
@@ -239,3 +240,14 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
 def _observed_value(observed: dict[str, dict[str, str]], target: str) -> str:
     item = observed.get(target, {})
     return item.get("value") or item.get("source_quote") or ""
+
+
+def _format_admin_profile(profile: dict[str, Any]) -> str:
+    lines = []
+    for field in ("username", "first_name", "last_name", "language_code", "is_bot"):
+        value = profile.get(field)
+        if value is not None and value != "":
+            lines.append(f"{field}: {escape(str(value))}")
+    if not lines:
+        return ""
+    return "\n" + "\n".join(lines)

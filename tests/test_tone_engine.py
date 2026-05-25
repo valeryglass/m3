@@ -1,11 +1,10 @@
 from app.loop_extractor import OBSERVED_FIELDS
 from app.messages import (
-    BASIC_TARGETS,
     BOT_PROFILE,
     COMMAND_DESCRIPTIONS,
     FIELD_GUIDES,
-    FULL_TARGETS,
     SESSION_MESSAGES,
+    TARGETS,
     TARGET_PROMPTS,
 )
 from app.tone_engine import ToneEngine, load_tone_engine
@@ -46,8 +45,8 @@ def test_default_target_prompts_are_russian_and_short():
 
 def test_message_catalog_covers_every_observed_target():
     assert set(TARGET_PROMPTS) == set(OBSERVED_FIELDS)
-    assert set(FIELD_GUIDES) == set(FULL_TARGETS)
-    assert BASIC_TARGETS == OBSERVED_FIELDS
+    assert set(FIELD_GUIDES) == set(TARGETS)
+    assert TARGETS == OBSERVED_FIELDS
 
 
 def test_field_guide_card_renders_source_copy():
@@ -57,7 +56,7 @@ def test_field_guide_card_renders_source_copy():
         "situation.event_description"
     )
     assert tone.target_prompt("situation") == (
-        "Ситуация\n\n"
+        "Соберем эпизод\n\n"
         "<blockquote>"
         "• коллега раскритиковал мой текст в чате\n"
         "• партнёр не ответил на сообщение вечером\n"
@@ -67,35 +66,35 @@ def test_field_guide_card_renders_source_copy():
     )
 
 
-def test_full_mode_field_cards_render_source_copy():
+def test_expanded_field_cards_render_source_copy():
     tone = ToneEngine.default()
 
     assert tone.target_prompt("trigger") == (
-        "Триггер\n\n"
+        "Выявление триггера\n\n"
         "<blockquote>"
         "• резкий комментарий в чате\n"
         "• уведомление от банка\n"
         "• воспоминание о конфликте"
         "</blockquote>\n\n"
-        "Что именно зацепило или запустило реакцию?"
+        "Что именно спровоцировало, зацепило или запустило реакцию?"
     )
-    assert tone.target_prompt("actors") == (
-        "Участники\n\n"
+    assert tone.target_prompt("actor") == (
+        "Определение участников\n\n"
         "<blockquote>"
         "• я и коллега\n"
         "• партнёр\n"
         "• начальник и команда"
         "</blockquote>\n\n"
-        "Кто был вовлечён в ситуацию?"
+        "Кто был рядом, влиял или участвовал в ситуации?"
     )
-    assert tone.target_prompt("speech") == (
-        "Речь\n\n"
+    assert tone.target_prompt("quote") == (
+        "Зафиксировать цитату\n\n"
         "<blockquote>"
         "• коллега: «это не подходит»\n"
         "• я написал: «ок»\n"
         "• сообщений не было"
         "</blockquote>\n\n"
-        "Какие слова или сообщения там были?"
+        "Какая фраза или сообщение зафиксировались во внимании?"
     )
 
 
@@ -118,7 +117,7 @@ def test_every_field_card_has_required_sections():
             assert len(guide["examples"]) == 3
         assert len(guide["tips"]) == 3
         assert guide["label"]
-        assert guide["label"].capitalize() in card
+        assert guide["name"] in card
         assert guide["description"] not in card
         assert guide["formula"] not in card
         assert guide["question"] in card
@@ -128,17 +127,17 @@ def test_every_field_card_has_required_sections():
             assert tip not in card
 
 
-def test_emotion_card_explains_buttons_and_free_text():
+def test_emotion_card_uses_plain_text_frame():
     tone = ToneEngine.default()
 
     assert tone.target_prompt("emotion") == (
-        "Эмоция\n\n"
+        "Определение эмоций\n\n"
         "<blockquote>"
-        "• растерянность, оцепенение, беспомощность"
+        "• растерянность, оцепенение, беспомощность\n"
+        "• тревога с раздражением\n"
+        "• стыд и растерянность"
         "</blockquote>\n\n"
-        "Выбери одну или несколько эмоций\n"
-        "Щёлкай несколько раз, чтобы выбрать интенсивность\n"
-        "Можешь написать дополнительно, что чувствовал"
+        "Какие эмоции были самыми яркими в эпизоде?"
     )
 
 
@@ -151,65 +150,42 @@ def test_session_messages_render_unchanged():
         f"Нужен непустой ответ\n\n{situation_card}"
     )
     assert tone.start_session(situation_card) == (
-        "Соберём один конкретный эпизод. Идём коротко, не спеша, по фактам\n\n"
-        "□□□□□□□ 0/7\n\n"
+        "□□□□□□□□□□ 0/10\n\n"
         f"{situation_card}"
     )
-    assert tone.next_prompt_bridge(1, 7, behavior_card) == (
-        f"■□□□□□□ 1/7\n\n{behavior_card}"
-    )
-    assert tone.review_screen(
-        {
-            "situation": {"value": "s"},
-            "behavior": {"value": "b"},
-            "short_term_consequence": {"value": "st"},
-            "long_term_consequence": {"value": "lt"},
-            "automatic_thought": {"value": "at"},
-            "emotion": {"value": "e"},
-            "body": {"value": "body"},
-        }
-    ) == (
-        "■■■■■■■ 7/7 💯\n\n"
-        "ситуация: s\n"
-        "действие: b\n"
-        "сразу после: st\n"
-        "потом: lt\n"
-        "мысль: at\n"
-        "эмоция: e\n"
-        "тело: body\n\n"
-        "Сохраняем?"
+    assert tone.next_prompt_bridge(1, 10, behavior_card) == (
+        f"■□□□□□□□□□ 1/10\n\n{behavior_card}"
     )
     assert tone.review_screen(
         {
             "situation": {"value": "s"},
             "trigger": {"value": "tr"},
-            "actors": {"value": "ac"},
-            "speech": {"value": "sp"},
-            "behavior": {"value": "b"},
-            "short_term_consequence": {"value": "st"},
-            "long_term_consequence": {"value": "lt"},
+            "actor": {"value": "ac"},
+            "quote": {"value": "sp"},
             "automatic_thought": {"value": "at"},
             "emotion": {"value": "e"},
-            "body": {"value": "body"},
-        },
-        FULL_TARGETS,
+            "behavior": {"value": "b"},
+            "physical": {"value": "physical"},
+            "short_term_consequence": {"value": "st"},
+            "long_term_consequence": {"value": "lt"},
+        }
     ) == (
         "■■■■■■■■■■ 10/10 💯\n\n"
         "ситуация: s\n"
         "триггер: tr\n"
-        "участники: ac\n"
-        "речь: sp\n"
-        "действие: b\n"
-        "сразу после: st\n"
-        "потом: lt\n"
+        "участник: ac\n"
+        "цитата: sp\n"
         "мысль: at\n"
         "эмоция: e\n"
-        "тело: body\n\n"
+        "действие: b\n"
+        "физическое: physical\n"
+        "сразу после: st\n"
+        "потом: lt\n\n"
         "Сохраняем?"
     )
     assert tone.complete() == "Готово. Эпизод собран"
     assert tone.already_complete() == "Эпизод уже собран"
-    assert tone.status("situation", 1, 7) == "Текущий шаг: situation\nЗаполнено: 1/7"
+    assert tone.status("situation", 1, 10) == "Текущий шаг: situation\nЗаполнено: 1/10"
     assert tone.help() == (
         "МИШа\n"
         "машина извлечения шаблонов\n"
@@ -228,15 +204,25 @@ def test_session_messages_render_unchanged():
     )
     assert tone.cancel() == "Сессия отменена"
     assert tone.unauthorized() == "Нет доступа"
-    assert tone.emotion_buttons_required() == "Выбери эмоции кнопками и нажми Готово"
     assert tone.waitlisted() == (
         "Спасибо за интерес. Мы добавили тебя в waitlist. "
         "Напишем, как только доступ откроется"
     )
-    assert tone.admin_waitlist_notice(456, "456") == (
+    assert tone.admin_waitlist_notice(
+        456,
+        "456",
+        {
+            "username": "tester",
+            "first_name": "Test",
+            "language_code": "en",
+        },
+    ) == (
         "Новый пользователь в waitlist\n"
         "chat_id: 456\n"
-        "user_id: 456\n\n"
+        "user_id: 456\n"
+        "username: tester\n"
+        "first_name: Test\n"
+        "language_code: en\n\n"
         "/approve 456\n"
         "/pause 456"
     )
@@ -264,7 +250,6 @@ def test_session_messages_render_unchanged():
         "no_active_loop_start",
         "cancel",
         "unauthorized",
-        "emotion_buttons_required",
         "waitlisted",
         "admin_waitlist_notice",
         "admin_approved",
@@ -283,7 +268,7 @@ def test_bot_profile_messages_render_unchanged():
         "МИШа собирает один CBT/ACT-эпизод короткими вопросами"
     )
     assert tone.bot_description() == (
-        "МИШа — машина извлечения шаблонов\n\n"
+        "МИШа — машина извлечения шаблонов аналитическая\n\n"
         "Помогает собрать один конкретный эпизод: факт, действие, последствия, "
         "мысль, эмоцию и тело\n\n"
         "Начни с /start"
@@ -291,7 +276,7 @@ def test_bot_profile_messages_render_unchanged():
     assert BOT_PROFILE == {
         "short_description": "МИШа собирает один CBT/ACT-эпизод короткими вопросами",
         "description": (
-            "МИШа — машина извлечения шаблонов\n\n"
+            "МИШа — машина извлечения шаблонов аналитическая\n\n"
             "Помогает собрать один конкретный эпизод: факт, действие, последствия, "
             "мысль, эмоцию и тело\n\n"
             "Начни с /start"
