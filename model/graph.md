@@ -1,37 +1,70 @@
 # Graph Model
 
-This file is the human SSOT for the CBT business graph model. Machine validation
-for the episode document layer lives in `model/episode.schema.json`.
+This file is the human SSOT for the CBT business graph model. Machine
+validation for the current episode document layer lives in
+`model/episode.schema.json`.
+
+## Contract Boundary
+
+The target graph vocabulary in this document is ahead of the current JSON
+contract.
+
+Current machine artifacts use:
+
+```text
+observed.situation
+derived.nodes[]
+node_id
+```
+
+Graph language uses:
+
+```text
+SIT/situation as the graph projection of observed.situation
+nodes as the conceptual graph entities
+node_id as the link from annotations to nodes
+```
+
+Do not emit unsupported fields such as `physical_annotations`, `forms_state`,
+`triggered_by`, or `outcome_of` until the schema migration explicitly adds them.
 
 ## Layers
 
 ```text
 observed = user-stated evidence
-derived.decompositions = graph node candidates extracted from observed evidence
+derived.nodes = current JSON field for graph node candidates
 derived.*_annotations = taxonomy-backed classifications of nodes or spans
-derived.relations = graph-ready edges between episode, observed refs, and nodes
+derived.relations = current JSON field for graph-ready edges
 taxonomy = allowed label dictionaries in schema/docs
 signatures = later cross-episode patterns
 ```
+
+Conceptually, `derived.nodes[]` is the current storage shape for
+target graph nodes.
 
 ## Episode Document Layer
 
 ```text
 Episode
   |-- observed
-  |     |-- situation                  SIT
-  |     |-- trigger                    TRI
-  |     |-- actors                     ACT
-  |     |-- speech                     SPE
-  |     |-- behavior                   BEH
-  |     |-- short_term_consequence     STC
-  |     |-- long_term_consequence      LTC
-  |     |-- automatic_thought          AT / COG source
-  |     |-- emotion                    EMO
-  |     `-- body                       BOD
+  |     |-- context
+  |     |     |-- situation                  SIT source / current field
+  |     |     |-- trigger                    TRI source
+  |     |     |-- actor                      ACT source
+  |     |     `-- quote                      QUO source
+  |     |
+  |     |-- state
+  |     |     |-- automatic_thought          COG source
+  |     |     |-- emotion                    EMO source
+  |     |     |-- physical                   PHY source
+  |     |     `-- behavior                   BEH source
+  |     |
+  |     `-- outcome
+  |           |-- short_term_consequence     STC source
+  |           `-- long_term_consequence      LTC source
   |
   `-- derived
-        |-- decompositions
+        |-- nodes                       current JSON field for nodes
         |-- trigger_annotations
         |-- actor_annotations
         |-- cognition_annotations
@@ -62,7 +95,7 @@ Traceability chain:
 
 ```text
 relation or annotation
-  -> decomposition when available
+  -> node when available
   -> source_field
   -> source_quote
   -> observed evidence
@@ -70,62 +103,77 @@ relation or annotation
 
 ## LOD1 - Core CBT Loop
 
-LOD1 is the core episode graph. It can be projected from observed fields plus
-high-confidence annotations.
+LOD1 is the core graph projection of one CBT episode.
 
-Core nodes:
-
-```text
-EPI  episode
-SIT  situation
-COG  cognition from automatic_thought
-EMO  selected base emotion buckets
-BEH  behavior
-STC  short-term consequence
-LTC  long-term consequence
-```
-
-Core edge types:
+Core graph nodes:
 
 ```text
-belongs_to   any node -> EPI
-precedes     SIT -> BEH
-leads_to     BEH -> STC -> LTC
+EPI      episode
+SIT      situation projected from observed.situation
+TRI      trigger
+ACT      actor
+STA      aggregate state
+COG      cognition from observed.automatic_thought
+EMO      selected base emotion bucket
+PHY      physical signal
+BEH      behavior
+STC      short-term consequence
+LTC      long-term consequence
 ```
+
+`STA` is an aggregate state node. It is formed by the state evidence available
+in `COG`, `EMO`, `PHY/physical`, and `BEH`.
+
+`SIT` is graph terminology only. The persisted observed field remains
+`observed.situation`.
 
 ## LOD2 - Current Derived Nodes
 
-LOD2 adds current decomposition nodes and support nodes.
+LOD2 is the current graph-node vocabulary represented by `derived.nodes[]`.
 
-Current decomposition kinds:
-
-```text
-actor
-cognition
-emotion
-speech
-behavior
-```
-
-Current decomposition sources:
+Target LOD2 node kinds:
 
 ```text
-observed.actors
-observed.speech
-observed.automatic_thought
-observed.emotion
-observed.emotion.items
-observed.emotion.free_text
-observed.behavior
+ACT      actor node
+TRI      trigger node
+SIT      situation node projected from observed.situation
+COG      cognition node
+EMO      emotion node
+PHY      physical node
+BEH      behavior node
+STC      short-term consequence node
+LTC      long-term consequence node
+STA      aggregate state node
 ```
 
-Do not create decomposition nodes from `observed.situation`, `observed.trigger`,
-`observed.body`, `observed.short_term_consequence`, or
-`observed.long_term_consequence` in LOD2.
+Current schema support is narrower:
 
-`observed.automatic_thought` decomposes into `cognition` nodes.
+```text
+derived.nodes[].kind = actor | cognition | emotion | quote | behavior
+```
 
-Each decomposition has `node_origin`:
+Target node sources:
+
+```text
+observed.situation                  SIT source
+observed.trigger                    TRI source
+observed.actor                      ACT source
+observed.quote                      QUO source
+
+observed.automatic_thought          COG source
+observed.emotion                    EMO source
+observed.emotion.items              EMO structured source
+observed.emotion.free_text          EMO free-text source
+observed.physical                   PHY source
+observed.behavior                   BEH source
+observed.short_term_consequence     STC source
+observed.long_term_consequence      LTC source
+```
+
+When a field contains many candidates, define main candidate and the best few high-quality support nodes
+rather than exhaustively splitting weak fragments.
+
+Each current node has `node_origin`:
 
 ```text
 observed = true node, directly split from observed text or structured observed fields
@@ -134,6 +182,34 @@ support = helper node inferred from compound observed text
 
 Support nodes are not new facts. They are grounded helper concepts and still
 must cite `source_field`, `source_quote`, and `confidence`.
+
+## Target Relations
+
+The target relation vocabulary is:
+
+```text
+belongs_to      node -> EPI
+derived_from    node -> observed.<field> or support node
+forms_state     COG/EMO/PHY/BEH -> STA
+triggered_by    STA -> TRI or SIT -> TRI when the trigger relation is explicit
+acts_in         ACT -> STA or ACT -> SIT
+outcome_of      STC/LTC -> STA
+co_occurs_with  peer evidence nodes that appear together
+leads_to        temporal or causal sequence when supported by evidence
+```
+
+Direction convention:
+
+```text
+COG/EMO/PHY/BEH -> STA
+SIT/TRI/ACT -> STA
+STA -> STC/LTC as the conceptual reading
+STC/LTC -> STA when using the `outcome_of` edge name
+```
+
+Current schema relation support is narrower and still validates only the enum in
+`model/episode.schema.json`. Until schema migration, use the closest current
+relation type and keep relation claims sparse.
 
 ## Taxonomy, Classification, Annotation
 
@@ -145,18 +221,18 @@ Annotation is the stored object that contains:
 
 ```text
 classification value
-optional decomposition_id
+optional node_id    current JSON field
 source_field
 source_quote
 confidence
 ```
 
-Example:
+Current example:
 
 ```json
 {
   "id": "behavior-annotation-1",
-  "decomposition_id": "decomposition-3",
+  "node_id": "node-3",
   "type": "avoid",
   "source_field": "observed.behavior",
   "source_quote": "закрыл телеграм",
@@ -166,54 +242,31 @@ Example:
 
 Here `avoid` is the classification, and the behavior type enum is the taxonomy.
 
-## Relations
+## Physical Axis
 
-`derived.relations[]` stores graph-ready edges.
+`PHY/physical` is the target physical node. It is grounded in
+`observed.physical`.
 
-Relation refs may point to:
-
-```text
-episode
-observed.<field>
-decomposition-N
-```
-
-Current relation types:
+Future physical annotations may add a zone axis, for example:
 
 ```text
-belongs_to
-derived_from
-precedes
-leads_to
-co_occurs_with
-elicits
-expressed_as
-reinforces
-contrasts_with
-acts_in
-occurs_in
+zone       chest | stomach | head | throat | limbs | whole_body | unknown
+signal     tension | pain | heat | numbness | pressure | movement | other
+intensity  0.0..1.0 when available
 ```
 
-Use relations sparingly. Prefer clear, evidenced edges over exhaustive graph
-completion.
+This axis is not part of the current episode contract.
 
 ## LOD3 - Future Projection
 
-LOD3 is not part of the current episode contract.
-
-Future LOD3 may add extra nodes from:
-
-```text
-SIT
-TRI
-BOD
-STC
-LTC
-```
-
-Future graph extensions may add:
+LOD3 is not part of the current episode contract. It is the schema/runtime
+migration stage that may add:
 
 ```text
-signatures[]  # repeated cross-episode patterns
-graph export  # separate graph-oriented storage/projection
+derived.nodes[]
+node_id on annotations
+physical_annotations[]
+target relation enums such as forms_state, triggered_by, outcome_of
+graph export or separate graph-oriented storage
+signatures[] for repeated cross-episode patterns
 ```

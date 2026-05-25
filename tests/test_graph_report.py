@@ -1,11 +1,25 @@
 import json
 
-from app.graph_report import build_report, load_episodes, render_markdown
+from app.graph_report import (
+    build_report,
+    load_episodes,
+    render_graph_html,
+    render_markdown,
+    write_graph_html,
+    write_markdown_reports,
+)
 
 
-def _episode(episode_id, *, graph_ready=True, emotion="страх", behavior="avoid"):
+def _episode(
+    episode_id,
+    *,
+    graph_ready=True,
+    emotion="страх",
+    behavior="avoid",
+    source="telegram-chat:123",
+):
     derived = {
-        "decompositions": [],
+        "nodes": [],
         "trigger_annotations": [],
         "actor_annotations": [],
         "cognition_annotations": [],
@@ -15,9 +29,9 @@ def _episode(episode_id, *, graph_ready=True, emotion="страх", behavior="av
     }
     if graph_ready:
         derived = {
-            "decompositions": [
+            "nodes": [
                 {
-                    "id": "decomposition-1",
+                    "id": "node-1",
                     "node_origin": "observed",
                     "kind": "cognition",
                     "text": "They will judge me.",
@@ -39,7 +53,7 @@ def _episode(episode_id, *, graph_ready=True, emotion="страх", behavior="av
             "cognition_annotations": [
                 {
                     "id": "cognition-annotation-1",
-                    "decomposition_id": "decomposition-1",
+                    "node_id": "node-1",
                     "text": "They will judge me.",
                     "kind": "prediction",
                     "source_field": "observed.automatic_thought",
@@ -72,7 +86,7 @@ def _episode(episode_id, *, graph_ready=True, emotion="страх", behavior="av
                 {
                     "id": "relation-1",
                     "type": "belongs_to",
-                    "from_ref": "decomposition-1",
+                    "from_ref": "node-1",
                     "to_ref": "episode",
                     "source_field": "observed.automatic_thought",
                     "source_quote": "they will judge me",
@@ -81,7 +95,7 @@ def _episode(episode_id, *, graph_ready=True, emotion="страх", behavior="av
                 {
                     "id": "relation-2",
                     "type": "leads_to",
-                    "from_ref": "decomposition-1",
+                    "from_ref": "node-1",
                     "to_ref": "observed.behavior",
                     "source_field": "observed.behavior",
                     "source_quote": "closed the chat",
@@ -92,7 +106,7 @@ def _episode(episode_id, *, graph_ready=True, emotion="страх", behavior="av
     return {
         "id": episode_id,
         "date": "2026-04-30",
-        "source": "telegram-chat:123",
+        "source": source,
         "observed": {
             "situation": {"value": "Group chat.", "source_quote": "group chat"},
             "automatic_thought": {
@@ -100,7 +114,7 @@ def _episode(episode_id, *, graph_ready=True, emotion="страх", behavior="av
                 "source_quote": "they will judge me",
             },
             "emotion": {"value": emotion, "source_quote": emotion},
-            "body": {"value": "Tight chest.", "source_quote": "tight chest"},
+            "physical": {"value": "Tight chest.", "source_quote": "tight chest"},
             "behavior": {"value": "Closed the chat.", "source_quote": "closed the chat"},
             "short_term_consequence": {"value": "Relief.", "source_quote": "relief"},
             "long_term_consequence": {
@@ -123,6 +137,8 @@ def test_graph_report_skips_non_graph_ready_episodes():
     assert report.total_episodes == 2
     assert [item.episode_id for item in report.graph_ready] == ["episode-20260430-1"]
     assert report.skipped == ("episode-20260430-2",)
+    assert report.readiness[0].graph_ready is True
+    assert report.readiness[1].gap_reasons == ("empty_derived",)
 
 
 def test_graph_report_counts_signature_clusters():
@@ -154,6 +170,12 @@ def test_graph_report_renders_markdown_summary_and_per_episode():
     assert "# Graph Report" in text
     assert "- episodes: 2" in text
     assert "- graph_ready: 2" in text
+    assert "- report_ready: 2" in text
+    assert "- profile_eligible: 2" in text
+    assert "## State Snapshots" in text
+    assert "- complete: 2" in text
+    assert "## Profile Maturity" in text
+    assert "- quantity: 2" in text
     assert "- страх: 2 episodes" in text
     assert "- avoid: 2 episodes" in text
     assert "- prediction -> avoid: 2 episodes" in text
@@ -175,6 +197,47 @@ def test_graph_report_loads_episode_files_from_directory(tmp_path):
 
     assert len(episodes) == 1
     assert episodes[0].id == "episode-20260430-1"
+
+
+def test_graph_report_writes_all_and_source_reports(tmp_path):
+    episodes = [
+        load_episode(_episode("episode-20260430-1", source="telegram-chat:123")),
+        load_episode(_episode("episode-20260430-2", source="telegram-chat:456")),
+    ]
+
+    paths = write_markdown_reports(
+        episodes,
+        tmp_path / "reports",
+        min_count=1,
+        by_source=True,
+    )
+
+    names = sorted(path.name for path in paths)
+    assert names == ["all.md", "telegram-chat-123.md", "telegram-chat-456.md"]
+    assert (tmp_path / "reports" / "all.md").read_text(encoding="utf-8").startswith(
+        "# Graph Report"
+    )
+    source_text = (tmp_path / "reports" / "telegram-chat-123.md").read_text(
+        encoding="utf-8"
+    )
+    assert "- episodes: 1" in source_text
+
+
+def test_graph_report_writes_self_contained_html(tmp_path):
+    episodes = [
+        load_episode(_episode("episode-20260430-1", source="telegram-chat:123")),
+        load_episode(_episode("episode-20260430-2", source="telegram-chat:456")),
+    ]
+
+    path = write_graph_html(episodes, tmp_path / "reports" / "graph.html")
+    text = path.read_text(encoding="utf-8")
+
+    assert "<!doctype html>" in text
+    assert "CBT Graph" in text
+    assert '"nodes"' in text
+    assert "telegram-chat:123" in text
+    assert "https://" not in text
+    assert render_graph_html(episodes).startswith("<!doctype html>")
 
 
 def load_episode(data):
