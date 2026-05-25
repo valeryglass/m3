@@ -34,12 +34,22 @@ class JsonUserList:
         return {str(chat_id): dict(record) for chat_id, record in users.items()}
 
     def upsert_waitlisted(
-        self, chat_id: int, user_id: str, *, now: datetime
+        self,
+        chat_id: int,
+        user_id: str,
+        *,
+        now: datetime,
+        profile: dict[str, Any] | None = None,
     ) -> UserListResult:
         users = self.load()
         key = str(chat_id)
         created = key not in users
         timestamp = format_utc(now)
+        profile = {
+            field: value
+            for field, value in (profile or {}).items()
+            if value is not None and value != ""
+        }
         if created:
             users[key] = {
                 "chat_id": chat_id,
@@ -51,6 +61,7 @@ class JsonUserList:
         else:
             users[key]["last_seen_at"] = timestamp
             users[key]["user_id"] = user_id
+        users[key].update(profile)
         self._save(users)
         return UserListResult(record=dict(users[key]), created=created)
 

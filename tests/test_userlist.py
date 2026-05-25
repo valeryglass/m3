@@ -7,7 +7,17 @@ def test_userlist_creates_waitlisted_user(tmp_path):
     userlist = JsonUserList(tmp_path / "users.json")
     now = datetime(2026, 5, 7, 10, 0, tzinfo=timezone.utc)
 
-    result = userlist.upsert_waitlisted(456, "456", now=now)
+    result = userlist.upsert_waitlisted(
+        456,
+        "456",
+        now=now,
+        profile={
+            "username": "tester",
+            "first_name": "Test",
+            "last_name": "",
+            "language_code": "en",
+        },
+    )
 
     assert result.created is True
     assert userlist.load() == {
@@ -17,6 +27,9 @@ def test_userlist_creates_waitlisted_user(tmp_path):
             "status": WAITLISTED,
             "first_seen_at": "2026-05-07T10:00:00Z",
             "last_seen_at": "2026-05-07T10:00:00Z",
+            "username": "tester",
+            "first_name": "Test",
+            "language_code": "en",
         }
     }
 
