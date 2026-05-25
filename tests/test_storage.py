@@ -1,7 +1,6 @@
 import json
 
 from app.loop_extractor import LoopSession
-from app.loop_extractor import FLOW_FULL
 from app.storage import JsonStorage
 
 
@@ -53,19 +52,18 @@ def test_save_episode_persists_full_observed_fields(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     session = LoopSession(
         chat_id=123,
-        flow_mode=FLOW_FULL,
         episode_date="2026-04-30",
         observed={
             "situation": {"value": "s", "source_quote": "s"},
             "trigger": {"value": "tr", "source_quote": "tr"},
-            "actors": {"value": "ac", "source_quote": "ac"},
-            "speech": {"value": "sp", "source_quote": "sp"},
+            "actor": {"value": "ac", "source_quote": "ac"},
+            "quote": {"value": "sp", "source_quote": "sp"},
             "behavior": {"value": "b", "source_quote": "b"},
             "short_term_consequence": {"value": "st", "source_quote": "st"},
             "long_term_consequence": {"value": "lt", "source_quote": "lt"},
             "automatic_thought": {"value": "at", "source_quote": "at"},
             "emotion": {"value": "e", "source_quote": "e"},
-            "body": {"value": "body", "source_quote": "body"},
+            "physical": {"value": "physical", "source_quote": "physical"},
         },
     )
 
@@ -73,8 +71,8 @@ def test_save_episode_persists_full_observed_fields(tmp_path):
 
     text = path.read_text(encoding="utf-8")
     assert '"trigger"' in text
-    assert '"actors"' in text
-    assert '"speech"' in text
+    assert '"actor"' in text
+    assert '"quote"' in text
 
 
 def test_save_episode_keeps_plain_emotion_without_items(tmp_path):
@@ -89,7 +87,7 @@ def test_save_episode_keeps_plain_emotion_without_items(tmp_path):
             "long_term_consequence": {"value": "lt", "source_quote": "lt"},
             "automatic_thought": {"value": "at", "source_quote": "at"},
             "emotion": {"value": "страх", "source_quote": "страх"},
-            "body": {"value": "body", "source_quote": "body"},
+            "physical": {"value": "physical", "source_quote": "physical"},
         },
     )
 
@@ -124,7 +122,7 @@ def test_save_episode_persists_structured_emotion_items(tmp_path):
                     }
                 ],
             },
-            "body": {"value": "body", "source_quote": "body"},
+            "physical": {"value": "physical", "source_quote": "physical"},
         },
     )
 
@@ -159,7 +157,7 @@ def test_save_episode_persists_emotion_free_text(tmp_path):
                 ],
                 "free_text": "растерянность",
             },
-            "body": {"value": "body", "source_quote": "body"},
+            "physical": {"value": "physical", "source_quote": "physical"},
         },
     )
 
@@ -181,12 +179,12 @@ def test_save_episode_persists_derived_annotations(tmp_path):
             "long_term_consequence": {"value": "lt", "source_quote": "lt"},
             "automatic_thought": {"value": "at", "source_quote": "at"},
             "emotion": {"value": "страх", "source_quote": "страх"},
-            "body": {"value": "body", "source_quote": "body"},
+            "physical": {"value": "physical", "source_quote": "physical"},
         },
         derived={
-            "decompositions": [
+            "nodes": [
                 {
-                    "id": "decomposition-1",
+                    "id": "node-1",
                     "kind": "cognition",
                     "text": "at",
                     "source_field": "observed.automatic_thought",
@@ -199,7 +197,7 @@ def test_save_episode_persists_derived_annotations(tmp_path):
             "cognition_annotations": [
                 {
                     "id": "cognition-annotation-1",
-                    "decomposition_id": "decomposition-1",
+                    "node_id": "node-1",
                     "text": "at",
                     "kind": "evaluation",
                     "source_field": "observed.automatic_thought",
@@ -224,7 +222,7 @@ def test_save_episode_persists_derived_annotations(tmp_path):
                 {
                     "id": "relation-1",
                     "type": "belongs_to",
-                    "from_ref": "decomposition-1",
+                    "from_ref": "node-1",
                     "to_ref": "episode",
                     "source_field": "observed.automatic_thought",
                     "source_quote": "at",
@@ -237,7 +235,7 @@ def test_save_episode_persists_derived_annotations(tmp_path):
     path = storage.save_episode(session)
 
     data = json.loads(path.read_text(encoding="utf-8"))
-    assert data["derived"]["decompositions"][0]["kind"] == "cognition"
+    assert data["derived"]["nodes"][0]["kind"] == "cognition"
     assert data["derived"]["cognition_annotations"][0]["confidence"] == 0.8
     assert data["derived"]["relations"][0]["type"] == "belongs_to"
     assert "intensity" not in data["derived"]["emotion_annotations"][0]

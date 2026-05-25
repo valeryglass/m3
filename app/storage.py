@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 
+from app.derived_normalizer import normalize_episode
 from app.loop_extractor import LoopSession
 from app.schemas.episode import Derived, Episode, Observed
 
@@ -39,12 +40,21 @@ class JsonStorage:
 
         episode_date = session.episode_date
         episode_id = self.next_episode_id(episode_date)
+        data, _ = normalize_episode(
+            {
+                "id": episode_id,
+                "date": episode_date,
+                "source": f"telegram-chat:{session.chat_id}",
+                "observed": session.observed,
+                "derived": session.derived,
+            }
+        )
         episode = Episode(
             id=episode_id,
             date=episode_date,
             source=f"telegram-chat:{session.chat_id}",
-            observed=Observed.model_validate(session.observed),
-            derived=Derived.model_validate(session.derived),
+            observed=Observed.model_validate(data["observed"]),
+            derived=Derived.model_validate(data["derived"]),
         )
         path = self.episode_dir / f"{episode_id}.json"
         path.write_text(

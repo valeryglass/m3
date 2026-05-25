@@ -16,7 +16,7 @@ EmotionLabel = Literal[
     "злость",
     "страх",
 ]
-TriggerType = Literal["external", "internal", "social", "body", "memory", "thought"]
+TriggerType = Literal["external", "internal", "social", "physical", "memory", "thought"]
 ActorRole = Literal["self", "other", "group", "institution", "unknown"]
 CognitionKind = Literal[
     "evaluation",
@@ -54,19 +54,19 @@ RelationType = Literal[
 ObservedRefField = Literal[
     "observed.situation",
     "observed.trigger",
-    "observed.actors",
-    "observed.speech",
+    "observed.actor",
+    "observed.quote",
     "observed.behavior",
     "observed.short_term_consequence",
     "observed.long_term_consequence",
     "observed.automatic_thought",
     "observed.emotion",
-    "observed.body",
+    "observed.physical",
 ]
-DecompositionKind = Literal["actor", "cognition", "emotion", "speech", "behavior"]
-DecompositionSourceField = Literal[
-    "observed.actors",
-    "observed.speech",
+NodeKind = Literal["actor", "cognition", "emotion", "quote", "behavior"]
+NodeSourceField = Literal[
+    "observed.actor",
+    "observed.quote",
     "observed.automatic_thought",
     "observed.emotion",
     "observed.emotion.items",
@@ -75,14 +75,14 @@ DecompositionSourceField = Literal[
 ]
 
 
-class Decomposition(BaseModel):
+class Node(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    id: str = Field(pattern=r"^decomposition-[0-9]+$")
+    id: str = Field(pattern=r"^node-[0-9]+$")
     node_origin: NodeOrigin = "observed"
-    kind: DecompositionKind
+    kind: NodeKind
     text: str = Field(min_length=1)
-    source_field: DecompositionSourceField
+    source_field: NodeSourceField
     source_quote: str = Field(min_length=1)
     confidence: float = Field(ge=0.0, le=1.0)
 
@@ -94,16 +94,16 @@ class GraphRelation(BaseModel):
     type: RelationType
     from_ref: str = Field(
         pattern=(
-            r"^(episode|observed\.(situation|trigger|actors|speech|behavior|"
+            r"^(episode|observed\.(situation|trigger|actor|quote|behavior|"
             r"short_term_consequence|long_term_consequence|automatic_thought|"
-            r"emotion|body)|decomposition-[0-9]+)$"
+            r"emotion|physical)|node-[0-9]+)$"
         )
     )
     to_ref: str = Field(
         pattern=(
-            r"^(episode|observed\.(situation|trigger|actors|speech|behavior|"
+            r"^(episode|observed\.(situation|trigger|actor|quote|behavior|"
             r"short_term_consequence|long_term_consequence|automatic_thought|"
-            r"emotion|body)|decomposition-[0-9]+)$"
+            r"emotion|physical)|node-[0-9]+)$"
         )
     )
     source_field: ObservedRefField
@@ -135,8 +135,8 @@ class TriggerAnnotation(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(pattern=r"^trigger-annotation-[0-9]+$")
-    decomposition_id: str | None = Field(
-        default=None, pattern=r"^decomposition-[0-9]+$"
+    node_id: str | None = Field(
+        default=None, pattern=r"^node-[0-9]+$"
     )
     type: TriggerType
     source_field: Literal[
@@ -152,12 +152,12 @@ class ActorAnnotation(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(pattern=r"^actor-annotation-[0-9]+$")
-    decomposition_id: str | None = Field(
-        default=None, pattern=r"^decomposition-[0-9]+$"
+    node_id: str | None = Field(
+        default=None, pattern=r"^node-[0-9]+$"
     )
     role: ActorRole
     label: str = Field(min_length=1)
-    source_field: Literal["observed.actors", "observed.speech", "observed.situation"]
+    source_field: Literal["observed.actor", "observed.quote", "observed.situation"]
     source_quote: str = Field(min_length=1)
     confidence: float = Field(ge=0.0, le=1.0)
 
@@ -166,8 +166,8 @@ class CognitionAnnotation(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(pattern=r"^cognition-annotation-[0-9]+$")
-    decomposition_id: str | None = Field(
-        default=None, pattern=r"^decomposition-[0-9]+$"
+    node_id: str | None = Field(
+        default=None, pattern=r"^node-[0-9]+$"
     )
     text: str = Field(min_length=1)
     kind: CognitionKind
@@ -180,8 +180,8 @@ class EmotionAnnotation(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(pattern=r"^emotion-annotation-[0-9]+$")
-    decomposition_id: str | None = Field(
-        default=None, pattern=r"^decomposition-[0-9]+$"
+    node_id: str | None = Field(
+        default=None, pattern=r"^node-[0-9]+$"
     )
     label: EmotionLabel
     intensity: float | None = Field(default=None, ge=0.0, le=1.0)
@@ -200,8 +200,8 @@ class BehaviorAnnotation(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(pattern=r"^behavior-annotation-[0-9]+$")
-    decomposition_id: str | None = Field(
-        default=None, pattern=r"^decomposition-[0-9]+$"
+    node_id: str | None = Field(
+        default=None, pattern=r"^node-[0-9]+$"
     )
     type: BehaviorType
     source_field: Literal["observed.behavior"]
@@ -214,12 +214,12 @@ class Observed(BaseModel):
 
     situation: ObservedField
     trigger: ObservedField | None = None
-    actors: ObservedField | None = None
-    speech: ObservedField | None = None
+    actor: ObservedField | None = None
+    quote: ObservedField | None = None
     automatic_thought: ObservedField
     emotion: EmotionField
-    body: ObservedField
     behavior: ObservedField
+    physical: ObservedField
     short_term_consequence: ObservedField
     long_term_consequence: ObservedField
 
@@ -227,7 +227,7 @@ class Observed(BaseModel):
 class Derived(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    decompositions: list[Decomposition]
+    nodes: list[Node]
     trigger_annotations: list[TriggerAnnotation]
     actor_annotations: list[ActorAnnotation]
     cognition_annotations: list[CognitionAnnotation]

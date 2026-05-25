@@ -22,7 +22,7 @@ def _episode(derived):
             "situation": {"value": "s", "source_quote": "s"},
             "automatic_thought": {"value": "at", "source_quote": "at"},
             "emotion": {"value": "e", "source_quote": "e"},
-            "body": {"value": "body", "source_quote": "body"},
+            "physical": {"value": "physical", "source_quote": "physical"},
             "behavior": {"value": "b", "source_quote": "b"},
             "short_term_consequence": {"value": "st", "source_quote": "st"},
             "long_term_consequence": {"value": "lt", "source_quote": "lt"},
@@ -253,7 +253,7 @@ def test_normalize_episode_preserves_existing_relations():
     relation = {
         "id": "relation-1",
         "type": "belongs_to",
-        "from_ref": "decomposition-1",
+        "from_ref": "node-1",
         "to_ref": "episode",
         "source_field": "observed.behavior",
         "source_quote": "b",
@@ -267,13 +267,13 @@ def test_normalize_episode_preserves_existing_relations():
     assert normalized["derived"]["relations"] == [relation]
 
 
-def test_normalize_episode_adds_missing_decomposition_origin():
+def test_normalize_episode_adds_missing_node_origin():
     episode = _episode(
         {
             **empty_derived(),
-            "decompositions": [
+            "nodes": [
                 {
-                    "id": "decomposition-1",
+                    "id": "node-1",
                     "kind": "emotion",
                     "text": "страх",
                     "source_field": "observed.emotion",
@@ -287,16 +287,16 @@ def test_normalize_episode_adds_missing_decomposition_origin():
     normalized, changed = normalize_episode(episode)
 
     assert changed is True
-    assert normalized["derived"]["decompositions"][0]["node_origin"] == "observed"
+    assert normalized["derived"]["nodes"][0]["node_origin"] == "observed"
 
 
-def test_normalize_episode_preserves_support_decomposition_origin():
+def test_normalize_episode_preserves_support_node_origin():
     episode = _episode(
         {
             **empty_derived(),
-            "decompositions": [
+            "nodes": [
                 {
-                    "id": "decomposition-1",
+                    "id": "node-1",
                     "node_origin": "support",
                     "kind": "cognition",
                     "text": "fear of social evaluation",
@@ -311,7 +311,7 @@ def test_normalize_episode_preserves_support_decomposition_origin():
     normalized, changed = normalize_episode(episode)
 
     assert changed is False
-    assert normalized["derived"]["decompositions"][0]["node_origin"] == "support"
+    assert normalized["derived"]["nodes"][0]["node_origin"] == "support"
 
 
 def test_batch_summary_formats_updated_skipped_failed_counts():

@@ -23,13 +23,13 @@
       ],
       "free_text": "anxious"
     },
-    "body": {
-      "value": "Tension in chest.",
-      "source_quote": "my chest got tight"
-    },
     "behavior": {
       "value": "Did not ask the question.",
       "source_quote": "so I closed it and didn't ask"
+    },
+    "physical": {
+      "value": "Tension in chest.",
+      "source_quote": "my chest got tight"
     },
     "short_term_consequence": {
       "value": "Immediate relief.",
@@ -41,9 +41,9 @@
     }
   },
   "derived": {
-    "decompositions": [
+    "nodes": [
       {
-        "id": "decomposition-1",
+        "id": "node-1",
         "node_origin": "observed",
         "kind": "cognition",
         "text": "Others will judge me as stupid.",
@@ -52,7 +52,7 @@
         "confidence": 0.9
       },
       {
-        "id": "decomposition-2",
+        "id": "node-2",
         "node_origin": "observed",
         "kind": "emotion",
         "text": "страх",
@@ -61,7 +61,7 @@
         "confidence": 0.95
       },
       {
-        "id": "decomposition-3",
+        "id": "node-3",
         "node_origin": "observed",
         "kind": "behavior",
         "text": "Did not ask the question.",
@@ -92,7 +92,7 @@
     "cognition_annotations": [
       {
         "id": "cognition-annotation-1",
-        "decomposition_id": "decomposition-1",
+        "node_id": "node-1",
         "text": "Others will judge me as stupid.",
         "kind": "prediction",
         "source_field": "observed.automatic_thought",
@@ -103,7 +103,7 @@
     "emotion_annotations": [
       {
         "id": "emotion-annotation-1",
-        "decomposition_id": "decomposition-2",
+        "node_id": "node-2",
         "label": "страх",
         "intensity": 0.66,
         "valence": -0.8,
@@ -116,7 +116,7 @@
     "behavior_annotations": [
       {
         "id": "behavior-annotation-1",
-        "decomposition_id": "decomposition-3",
+        "node_id": "node-3",
         "type": "avoid",
         "source_field": "observed.behavior",
         "source_quote": "I closed it and didn't ask",
@@ -127,7 +127,7 @@
       {
         "id": "relation-1",
         "type": "belongs_to",
-        "from_ref": "decomposition-1",
+        "from_ref": "node-1",
         "to_ref": "episode",
         "source_field": "observed.automatic_thought",
         "source_quote": "they'll probably think I'm stupid if I ask",
@@ -136,8 +136,8 @@
       {
         "id": "relation-2",
         "type": "leads_to",
-        "from_ref": "decomposition-1",
-        "to_ref": "decomposition-3",
+        "from_ref": "node-1",
+        "to_ref": "node-3",
         "source_field": "observed.behavior",
         "source_quote": "so I closed it and didn't ask",
         "confidence": 0.75

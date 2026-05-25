@@ -8,7 +8,7 @@ from app.schemas.episode import Episode
 
 def _empty_derived():
     return {
-        "decompositions": [],
+        "nodes": [],
         "trigger_annotations": [],
         "actor_annotations": [],
         "cognition_annotations": [],
@@ -33,7 +33,7 @@ def _valid_episode(**overrides):
                 "source_quote": "they will judge me",
             },
             "emotion": {"value": "Anxiety.", "source_quote": "anxious"},
-            "body": {"value": "Tight chest.", "source_quote": "tight chest"},
+            "physical": {"value": "Tight chest.", "source_quote": "tight chest"},
             "behavior": {
                 "value": "Closed the chat.",
                 "source_quote": "closed the chat",
@@ -65,8 +65,8 @@ def test_episode_schema_accepts_optional_full_observed_fields():
     data["observed"].update(
         {
             "trigger": {"value": "tr", "source_quote": "tr"},
-            "actors": {"value": "ac", "source_quote": "ac"},
-            "speech": {"value": "sp", "source_quote": "sp"},
+            "actor": {"value": "ac", "source_quote": "ac"},
+            "quote": {"value": "sp", "source_quote": "sp"},
         }
     )
 
@@ -139,14 +139,14 @@ def test_episode_schema_accepts_derived_annotations():
     data["observed"].update(
         {
             "trigger": {"value": "comment", "source_quote": "comment"},
-            "actors": {"value": "me and colleague", "source_quote": "me and colleague"},
-            "speech": {"value": "not good", "source_quote": "not good"},
+            "actor": {"value": "me and colleague", "source_quote": "me and colleague"},
+            "quote": {"value": "not good", "source_quote": "not good"},
         }
     )
     data["derived"] = {
-        "decompositions": [
+        "nodes": [
             {
-                "id": "decomposition-1",
+                "id": "node-1",
                 "node_origin": "observed",
                 "kind": "cognition",
                 "text": "They will judge me.",
@@ -169,7 +169,7 @@ def test_episode_schema_accepts_derived_annotations():
                 "id": "actor-annotation-1",
                 "role": "self",
                 "label": "me",
-                "source_field": "observed.actors",
+                "source_field": "observed.actor",
                 "source_quote": "me",
                 "confidence": 1.0,
             }
@@ -177,7 +177,7 @@ def test_episode_schema_accepts_derived_annotations():
         "cognition_annotations": [
             {
                 "id": "cognition-annotation-1",
-                "decomposition_id": "decomposition-1",
+                "node_id": "node-1",
                 "text": "They will judge me.",
                 "kind": "prediction",
                 "source_field": "observed.automatic_thought",
@@ -210,7 +210,7 @@ def test_episode_schema_accepts_derived_annotations():
             {
                 "id": "relation-1",
                 "type": "belongs_to",
-                "from_ref": "decomposition-1",
+                "from_ref": "node-1",
                 "to_ref": "episode",
                 "source_field": "observed.automatic_thought",
                 "source_quote": "they will judge me",
@@ -231,10 +231,10 @@ def test_episode_schema_accepts_derived_annotations():
     episode = Episode.model_validate(data)
 
     assert episode.derived.trigger_annotations[0].type == "social"
-    assert episode.derived.decompositions[0].node_origin == "observed"
-    assert episode.derived.cognition_annotations[0].decomposition_id == "decomposition-1"
+    assert episode.derived.nodes[0].node_origin == "observed"
+    assert episode.derived.cognition_annotations[0].node_id == "node-1"
     assert episode.derived.emotion_annotations[0].valence == -0.8
-    assert episode.derived.relations[0].from_ref == "decomposition-1"
+    assert episode.derived.relations[0].from_ref == "node-1"
 
 
 def test_episode_schema_rejects_legacy_derived_keys():
@@ -252,9 +252,9 @@ def test_episode_schema_rejects_legacy_derived_keys():
 @pytest.mark.parametrize(
     ("section", "field", "value"),
     (
-        ("decompositions", "kind", "event"),
-        ("decompositions", "node_origin", "direct"),
-        ("decompositions", "confidence", 1.1),
+        ("nodes", "kind", "event"),
+        ("nodes", "node_origin", "direct"),
+        ("nodes", "confidence", 1.1),
         ("trigger_annotations", "type", "weather"),
         ("behavior_annotations", "type", "run"),
         ("cognition_annotations", "kind", "distortion"),
@@ -270,9 +270,9 @@ def test_episode_schema_rejects_legacy_derived_keys():
 def test_episode_schema_rejects_invalid_annotation_values(section, field, value):
     data = _valid_episode()
     data["derived"] = {
-        "decompositions": [
+        "nodes": [
             {
-                "id": "decomposition-1",
+                "id": "node-1",
                 "node_origin": "observed",
                 "kind": "cognition",
                 "text": "They will judge me.",
@@ -326,7 +326,7 @@ def test_episode_schema_rejects_invalid_annotation_values(section, field, value)
             {
                 "id": "relation-1",
                 "type": "belongs_to",
-                "from_ref": "decomposition-1",
+                "from_ref": "node-1",
                 "to_ref": "episode",
                 "source_field": "observed.automatic_thought",
                 "source_quote": "they will judge me",
@@ -340,11 +340,11 @@ def test_episode_schema_rejects_invalid_annotation_values(section, field, value)
         Episode.model_validate(data)
 
 
-def test_episode_schema_defaults_old_decomposition_origin_to_observed():
+def test_episode_schema_defaults_old_node_origin_to_observed():
     data = _valid_episode()
-    data["derived"]["decompositions"] = [
+    data["derived"]["nodes"] = [
         {
-            "id": "decomposition-1",
+            "id": "node-1",
             "kind": "emotion",
             "text": "страх",
             "source_field": "observed.emotion",
@@ -355,14 +355,14 @@ def test_episode_schema_defaults_old_decomposition_origin_to_observed():
 
     episode = Episode.model_validate(data)
 
-    assert episode.derived.decompositions[0].node_origin == "observed"
+    assert episode.derived.nodes[0].node_origin == "observed"
 
 
-def test_episode_schema_accepts_support_decomposition_origin():
+def test_episode_schema_accepts_support_node_origin():
     data = _valid_episode()
-    data["derived"]["decompositions"] = [
+    data["derived"]["nodes"] = [
         {
-            "id": "decomposition-1",
+            "id": "node-1",
             "node_origin": "support",
             "kind": "cognition",
             "text": "fear of social evaluation",
@@ -374,7 +374,7 @@ def test_episode_schema_accepts_support_decomposition_origin():
 
     episode = Episode.model_validate(data)
 
-    assert episode.derived.decompositions[0].node_origin == "support"
+    assert episode.derived.nodes[0].node_origin == "support"
 
 
 def test_episode_schema_defaults_old_derived_relations_to_empty_list():
@@ -392,8 +392,8 @@ def test_json_schema_describes_emotion_items_and_full_fields():
     emotion_item = schema["$defs"]["emotion_item"]
 
     assert observed["trigger"] == {"$ref": "#/$defs/observed_field"}
-    assert observed["actors"] == {"$ref": "#/$defs/observed_field"}
-    assert observed["speech"] == {"$ref": "#/$defs/observed_field"}
+    assert observed["actor"] == {"$ref": "#/$defs/observed_field"}
+    assert observed["quote"] == {"$ref": "#/$defs/observed_field"}
     assert observed["emotion"] == {"$ref": "#/$defs/emotion_field"}
     assert emotion_item["properties"]["label"] == {"$ref": "#/$defs/emotion_label"}
     assert emotion_item["properties"]["intensity"] == {
@@ -411,7 +411,7 @@ def test_json_schema_describes_derived_annotations():
     derived = schema["properties"]["derived"]
 
     assert derived["required"] == [
-        "decompositions",
+        "nodes",
         "trigger_annotations",
         "actor_annotations",
         "cognition_annotations",
@@ -425,21 +425,21 @@ def test_json_schema_describes_derived_annotations():
         "minimum": 0.0,
         "maximum": 1.0,
     }
-    assert schema["$defs"]["decomposition"]["properties"]["kind"]["enum"] == [
+    assert schema["$defs"]["node"]["properties"]["kind"]["enum"] == [
         "actor",
         "cognition",
         "emotion",
-        "speech",
+        "quote",
         "behavior",
     ]
-    assert schema["$defs"]["decomposition"]["properties"]["node_origin"] == {
+    assert schema["$defs"]["node"]["properties"]["node_origin"] == {
         "type": "string",
         "enum": ["observed", "support"],
         "default": "observed",
     }
-    assert schema["$defs"]["cognition_annotation"]["properties"]["decomposition_id"] == {
+    assert schema["$defs"]["cognition_annotation"]["properties"]["node_id"] == {
         "anyOf": [
-            {"type": "string", "pattern": "^decomposition-[0-9]+$"},
+            {"type": "string", "pattern": "^node-[0-9]+$"},
             {"type": "null"},
         ],
         "default": None,

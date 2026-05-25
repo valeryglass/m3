@@ -4,7 +4,13 @@
   "title": "CBT Episode",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "date", "source", "observed", "derived"],
+  "required": [
+    "id",
+    "date",
+    "source",
+    "observed",
+    "derived"
+  ],
   "properties": {
     "id": {
       "type": "string",
@@ -25,8 +31,8 @@
         "situation",
         "automatic_thought",
         "emotion",
-        "body",
         "behavior",
+        "physical",
         "short_term_consequence",
         "long_term_consequence"
       ],
@@ -37,10 +43,10 @@
         "trigger": {
           "$ref": "#/$defs/observed_field"
         },
-        "actors": {
+        "actor": {
           "$ref": "#/$defs/observed_field"
         },
-        "speech": {
+        "quote": {
           "$ref": "#/$defs/observed_field"
         },
         "automatic_thought": {
@@ -49,10 +55,10 @@
         "emotion": {
           "$ref": "#/$defs/emotion_field"
         },
-        "body": {
+        "behavior": {
           "$ref": "#/$defs/observed_field"
         },
-        "behavior": {
+        "physical": {
           "$ref": "#/$defs/observed_field"
         },
         "short_term_consequence": {
@@ -67,7 +73,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "decompositions",
+        "nodes",
         "trigger_annotations",
         "actor_annotations",
         "cognition_annotations",
@@ -75,10 +81,10 @@
         "behavior_annotations"
       ],
       "properties": {
-        "decompositions": {
+        "nodes": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/decomposition"
+            "$ref": "#/$defs/node"
           }
         },
         "trigger_annotations": {
@@ -125,7 +131,10 @@
     "observed_field": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["value", "source_quote"],
+      "required": [
+        "value",
+        "source_quote"
+      ],
       "properties": {
         "value": {
           "type": "string"
@@ -138,7 +147,11 @@
     "emotion_item": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["label", "intensity", "source_quote"],
+      "required": [
+        "label",
+        "intensity",
+        "source_quote"
+      ],
       "properties": {
         "label": {
           "$ref": "#/$defs/emotion_label"
@@ -157,7 +170,10 @@
     "emotion_field": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["value", "source_quote"],
+      "required": [
+        "value",
+        "source_quote"
+      ],
       "properties": {
         "value": {
           "type": "string"
@@ -186,14 +202,14 @@
       "enum": [
         "observed.situation",
         "observed.trigger",
-        "observed.actors",
-        "observed.speech",
+        "observed.actor",
+        "observed.quote",
         "observed.behavior",
         "observed.short_term_consequence",
         "observed.long_term_consequence",
         "observed.automatic_thought",
         "observed.emotion",
-        "observed.body"
+        "observed.physical"
       ]
     },
     "emotion_label": {
@@ -209,7 +225,7 @@
         "страх"
       ]
     },
-    "decomposition": {
+    "node": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -223,16 +239,25 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^decomposition-[0-9]+$"
+          "pattern": "^node-[0-9]+$"
         },
         "node_origin": {
           "type": "string",
-          "enum": ["observed", "support"],
+          "enum": [
+            "observed",
+            "support"
+          ],
           "default": "observed"
         },
         "kind": {
           "type": "string",
-          "enum": ["actor", "cognition", "emotion", "speech", "behavior"]
+          "enum": [
+            "actor",
+            "cognition",
+            "emotion",
+            "quote",
+            "behavior"
+          ]
         },
         "text": {
           "type": "string",
@@ -241,8 +266,8 @@
         "source_field": {
           "type": "string",
           "enum": [
-            "observed.actors",
-            "observed.speech",
+            "observed.actor",
+            "observed.quote",
             "observed.automatic_thought",
             "observed.emotion",
             "observed.emotion.items",
@@ -262,22 +287,40 @@
     "trigger_annotation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "type", "source_field", "source_quote", "confidence"],
+      "required": [
+        "id",
+        "type",
+        "source_field",
+        "source_quote",
+        "confidence"
+      ],
       "properties": {
         "id": {
           "type": "string",
           "pattern": "^trigger-annotation-[0-9]+$"
         },
-        "decomposition_id": {
+        "node_id": {
           "anyOf": [
-            {"type": "string", "pattern": "^decomposition-[0-9]+$"},
-            {"type": "null"}
+            {
+              "type": "string",
+              "pattern": "^node-[0-9]+$"
+            },
+            {
+              "type": "null"
+            }
           ],
           "default": null
         },
         "type": {
           "type": "string",
-          "enum": ["external", "internal", "social", "body", "memory", "thought"]
+          "enum": [
+            "external",
+            "internal",
+            "social",
+            "physical",
+            "memory",
+            "thought"
+          ]
         },
         "source_field": {
           "type": "string",
@@ -312,16 +355,27 @@
           "type": "string",
           "pattern": "^actor-annotation-[0-9]+$"
         },
-        "decomposition_id": {
+        "node_id": {
           "anyOf": [
-            {"type": "string", "pattern": "^decomposition-[0-9]+$"},
-            {"type": "null"}
+            {
+              "type": "string",
+              "pattern": "^node-[0-9]+$"
+            },
+            {
+              "type": "null"
+            }
           ],
           "default": null
         },
         "role": {
           "type": "string",
-          "enum": ["self", "other", "group", "institution", "unknown"]
+          "enum": [
+            "self",
+            "other",
+            "group",
+            "institution",
+            "unknown"
+          ]
         },
         "label": {
           "type": "string",
@@ -329,7 +383,11 @@
         },
         "source_field": {
           "type": "string",
-          "enum": ["observed.actors", "observed.speech", "observed.situation"]
+          "enum": [
+            "observed.actor",
+            "observed.quote",
+            "observed.situation"
+          ]
         },
         "source_quote": {
           "type": "string",
@@ -356,10 +414,15 @@
           "type": "string",
           "pattern": "^cognition-annotation-[0-9]+$"
         },
-        "decomposition_id": {
+        "node_id": {
           "anyOf": [
-            {"type": "string", "pattern": "^decomposition-[0-9]+$"},
-            {"type": "null"}
+            {
+              "type": "string",
+              "pattern": "^node-[0-9]+$"
+            },
+            {
+              "type": "null"
+            }
           ],
           "default": null
         },
@@ -409,10 +472,15 @@
           "type": "string",
           "pattern": "^emotion-annotation-[0-9]+$"
         },
-        "decomposition_id": {
+        "node_id": {
           "anyOf": [
-            {"type": "string", "pattern": "^decomposition-[0-9]+$"},
-            {"type": "null"}
+            {
+              "type": "string",
+              "pattern": "^node-[0-9]+$"
+            },
+            {
+              "type": "null"
+            }
           ],
           "default": null
         },
@@ -420,7 +488,10 @@
           "$ref": "#/$defs/emotion_label"
         },
         "intensity": {
-          "type": ["number", "null"],
+          "type": [
+            "number",
+            "null"
+          ],
           "minimum": 0.0,
           "maximum": 1.0
         },
@@ -454,16 +525,27 @@
     "behavior_annotation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "type", "source_field", "source_quote", "confidence"],
+      "required": [
+        "id",
+        "type",
+        "source_field",
+        "source_quote",
+        "confidence"
+      ],
       "properties": {
         "id": {
           "type": "string",
           "pattern": "^behavior-annotation-[0-9]+$"
         },
-        "decomposition_id": {
+        "node_id": {
           "anyOf": [
-            {"type": "string", "pattern": "^decomposition-[0-9]+$"},
-            {"type": "null"}
+            {
+              "type": "string",
+              "pattern": "^node-[0-9]+$"
+            },
+            {
+              "type": "null"
+            }
           ],
           "default": null
         },
@@ -526,11 +608,11 @@
         },
         "from_ref": {
           "type": "string",
-          "pattern": "^(episode|observed\\.(situation|trigger|actors|speech|behavior|short_term_consequence|long_term_consequence|automatic_thought|emotion|body)|decomposition-[0-9]+)$"
+          "pattern": "^(episode|observed\\.(situation|trigger|actor|quote|behavior|short_term_consequence|long_term_consequence|automatic_thought|emotion|physical)|node-[0-9]+)$"
         },
         "to_ref": {
           "type": "string",
-          "pattern": "^(episode|observed\\.(situation|trigger|actors|speech|behavior|short_term_consequence|long_term_consequence|automatic_thought|emotion|body)|decomposition-[0-9]+)$"
+          "pattern": "^(episode|observed\\.(situation|trigger|actor|quote|behavior|short_term_consequence|long_term_consequence|automatic_thought|emotion|physical)|node-[0-9]+)$"
         },
         "source_field": {
           "$ref": "#/$defs/observed_ref_field"

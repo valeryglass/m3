@@ -32,11 +32,27 @@ filled `derived` object.
 
 Return the same episode JSON object with only `derived` updated.
 
+## Target Model Boundary
+
+Think in target graph nodes, but emit only the current schema.
+
+The target model described in `model/graph.md` uses conceptual graph nodes such
+as `SIT`, `TRI`, `ACT`, `COG`, `EMO`, `PHY/physical`, `BEH`, `STC`, `LTC`, and
+aggregate `STA`.
+
+Current episode JSON supports `derived.nodes[]` and `node_id`, but does not yet
+support `physical_annotations` or target-only relations such as `forms_state`,
+`triggered_by`, and `outcome_of`. Use only relation types accepted by
+`model/episode.schema.json`.
+
+`SIT` is graph language for the event projected from `observed.situation`. Do
+not rename or rewrite `observed.situation`.
+
 The derived object contains exactly these lists:
 
 ```json
 {
-  "decompositions": [],
+  "nodes": [],
   "trigger_annotations": [],
   "actor_annotations": [],
   "cognition_annotations": [],
@@ -46,9 +62,9 @@ The derived object contains exactly these lists:
 }
 ```
 
-## Decomposition First
+## Node First
 
-Before annotation, extract atomic decomposition items from packed observed
+Before annotation, extract atomic node items from packed observed
 fields.
 
 Allowed `kind` values:
@@ -56,10 +72,10 @@ Allowed `kind` values:
 - `actor`
 - `cognition`
 - `emotion`
-- `speech`
+- `quote`
 - `behavior`
 
-Every decomposition must set `node_origin`:
+Every node must set `node_origin`:
 
 - `observed`: direct split from observed text or structured observed fields
 - `support`: inferred helper node from compound observed text
@@ -67,17 +83,19 @@ Every decomposition must set `node_origin`:
 Use `support` only when the helper node is clearly grounded in a source quote.
 Skip weak support nodes.
 
-Use decomposition for field-local slicing only:
+Use node for field-local slicing only:
 
-- split many-ish `observed.actors`
-- split exact fragments in `observed.speech`
+- split many-ish `observed.actor`
+- split exact fragments in `observed.quote`
 - split multiple thoughts in `observed.automatic_thought`
 - split `observed.emotion.items`, `observed.emotion.free_text`, or packed
   emotion text
 - split multiple actions in `observed.behavior`
 
-Do not decompose every field in this version. Do not create event, trigger,
-body, or outcome decomposition nodes yet.
+Do not create trigger, physical, or outcome nodes yet.
+
+You may note situation, physical, outcome, or aggregate state candidates while
+reasoning, but do not emit them as unsupported fields in the JSON artifact.
 
 ## Annotation Targets
 
@@ -90,7 +108,7 @@ Allowed `type` values:
 - `external`
 - `internal`
 - `social`
-- `body`
+- `physical`
 - `memory`
 - `thought`
 
@@ -110,7 +128,7 @@ Allowed `role` values:
 - `institution`
 - `unknown`
 
-Use `observed.actors`, `observed.speech`, or `observed.situation`.
+Use `observed.actor`, `observed.quote`, or `observed.situation`.
 
 ### cognition_annotations
 
@@ -128,7 +146,7 @@ Allowed `kind` values:
 - `question`
 
 Keep each cognition short and traceable to the original automatic thought.
-If a matching cognition decomposition exists, set `decomposition_id`.
+If a matching cognition node exists, set `node_id`.
 
 ### emotion_annotations
 
@@ -153,7 +171,7 @@ Include:
 
 Use `observed.emotion.items` when present. Use `observed.emotion.free_text` only
 when it can be mapped without losing traceability.
-If a matching emotion decomposition exists, set `decomposition_id`.
+If a matching emotion node exists, set `node_id`.
 
 ### behavior_annotations
 
@@ -170,11 +188,11 @@ Allowed `type` values:
 - `distract`
 
 Use `observed.behavior` only.
-If a matching behavior decomposition exists, set `decomposition_id`.
+If a matching behavior node exists, set `node_id`.
 
 ## Relations
 
-After decompositions and annotations, create `relations` only when the edge is
+After nodes and annotations, create `relations` only when the edge is
 clear from observed evidence.
 
 Allowed relation `type` values:
@@ -193,7 +211,7 @@ Allowed relation `type` values:
 
 Prefer fewer high-confidence relations over exhaustive graph filling.
 
-Do not create LOD3 extra nodes from situation, trigger, body, or consequences.
+Do not create LOD3 extra nodes from situation, trigger, physical, or consequences.
 
 ## Evidence Rule
 
@@ -201,7 +219,7 @@ Each annotation must preserve this chain:
 
 ```text
 derived annotation
-  -> decomposition when available
+  -> node when available
   -> source_field
   -> source_quote
   -> observed evidence

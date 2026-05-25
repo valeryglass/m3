@@ -14,7 +14,7 @@ from app.schemas.episode import Episode
 
 LEGACY_DERIVED_KEYS = frozenset({"atomic_thoughts", "cognitive_distortions"})
 CURRENT_DERIVED_KEYS = (
-    "decompositions",
+    "nodes",
     "trigger_annotations",
     "actor_annotations",
     "cognition_annotations",
@@ -52,14 +52,17 @@ def empty_derived() -> dict[str, list[dict[str, Any]]]:
 
 def normalize_episode(data: dict[str, Any]) -> tuple[dict[str, Any], bool]:
     normalized = deepcopy(data)
-    changed = _normalize_observed_emotion(normalized)
+    changed = _normalize_observed_keys(normalized)
+    changed = _normalize_observed_emotion(normalized) or changed
     derived = normalized.get("derived")
     if isinstance(derived, dict) and set(derived) == LEGACY_DERIVED_KEYS:
         normalized["derived"] = empty_derived()
         changed = True
     elif isinstance(derived, dict):
+        changed = _normalize_derived_keys(derived) or changed
         changed = _normalize_derived_shell(derived) or changed
-        changed = _normalize_decomposition_origins(derived) or changed
+        changed = _normalize_node_refs(derived) or changed
+        changed = _normalize_node_origins(derived) or changed
     return normalized, changed
 
 
@@ -154,6 +157,26 @@ def _has_current_derived(data: dict[str, Any]) -> bool:
     return isinstance(derived, dict) and all(key in derived for key in CURRENT_DERIVED_KEYS)
 
 
+def _normalize_observed_keys(data: dict[str, Any]) -> bool:
+    observed = data.get("observed")
+    if not isinstance(observed, dict):
+        return False
+    changed = False
+    renames = {
+        "actors": "actor",
+        "speech": "quote",
+        "body": "physical",
+    }
+    for old_key, new_key in renames.items():
+        if old_key in observed and new_key not in observed:
+            observed[new_key] = observed.pop(old_key)
+            changed = True
+        elif old_key in observed:
+            observed.pop(old_key)
+            changed = True
+    return changed
+
+
 def _normalize_observed_emotion(data: dict[str, Any]) -> bool:
     observed = data.get("observed")
     if not isinstance(observed, dict):
@@ -203,17 +226,117 @@ def _normalize_derived_shell(derived: dict[str, Any]) -> bool:
     return True
 
 
-def _normalize_decomposition_origins(derived: dict[str, Any]) -> bool:
-    decompositions = derived.get("decompositions")
-    if not isinstance(decompositions, list):
+def _normalize_derived_keys(derived: dict[str, Any]) -> bool:
+    changed = False
+    if "decompositions" in derived and "nodes" not in derived:
+        derived["nodes"] = derived.pop("decompositions")
+        changed = True
+    elif "decompositions" in derived:
+        derived.pop("decompositions")
+        changed = True
+    return changed
+
+
+def _normalize_node_refs(derived: dict[str, Any]) -> bool:
+    changed = False
+    nodes = derived.get("nodes")
+    if isinstance(nodes, list):
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            changed = _normalize_node_object(node) or changed
+
+    for section in (
+        "trigger_annotations",
+        "actor_annotations",
+        "cognition_annotations",
+        "emotion_annotations",
+        "behavior_annotations",
+    ):
+        items = derived.get(section)
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            if "decomposition_id" in item and "node_id" not in item:
+                item["node_id"] = _node_ref(str(item.pop("decomposition_id")))
+                changed = True
+            elif "decomposition_id" in item:
+                item.pop("decomposition_id")
+                changed = True
+            if section == "trigger_annotations" and item.get("type") == "body":
+                item["type"] = "physical"
+                changed = True
+            changed = _normalize_source_field_container(item) or changed
+
+    relations = derived.get("relations")
+    if isinstance(relations, list):
+        for relation in relations:
+            if not isinstance(relation, dict):
+                continue
+            for key in ("from_ref", "to_ref"):
+                value = relation.get(key)
+                if isinstance(value, str):
+                    normalized = _node_ref(_observed_ref(value))
+                    if normalized != value:
+                        relation[key] = normalized
+                        changed = True
+            changed = _normalize_source_field_container(relation) or changed
+    return changed
+
+
+def _normalize_node_object(node: dict[str, Any]) -> bool:
+    changed = False
+    node_id = node.get("id")
+    if isinstance(node_id, str):
+        normalized_id = _node_ref(node_id)
+        if normalized_id != node_id:
+            node["id"] = normalized_id
+            changed = True
+    if node.get("kind") == "speech":
+        node["kind"] = "quote"
+        changed = True
+    changed = _normalize_source_field_container(node) or changed
+    return changed
+
+
+def _normalize_source_field_container(item: dict[str, Any]) -> bool:
+    value = item.get("source_field")
+    if not isinstance(value, str):
+        return False
+    normalized = _observed_ref(value)
+    if normalized == value:
+        return False
+    item["source_field"] = normalized
+    return True
+
+
+def _observed_ref(value: str) -> str:
+    return {
+        "observed.actors": "observed.actor",
+        "observed.speech": "observed.quote",
+        "observed.body": "observed.physical",
+    }.get(value, value)
+
+
+def _node_ref(value: str) -> str:
+    if value.startswith("decomposition-"):
+        return "node-" + value.removeprefix("decomposition-")
+    return value
+
+
+def _normalize_node_origins(derived: dict[str, Any]) -> bool:
+    nodes = derived.get("nodes")
+    if not isinstance(nodes, list):
         return False
 
     changed = False
-    for decomposition in decompositions:
-        if not isinstance(decomposition, dict):
+    for node in nodes:
+        if not isinstance(node, dict):
             continue
-        if "node_origin" not in decomposition:
-            decomposition["node_origin"] = "observed"
+        if "node_origin" not in node:
+            node["node_origin"] = "observed"
             changed = True
     return changed
 

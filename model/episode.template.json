@@ -15,11 +15,11 @@
       "value": "",
       "source_quote": ""
     },
-    "body": {
+    "behavior": {
       "value": "",
       "source_quote": ""
     },
-    "behavior": {
+    "physical": {
       "value": "",
       "source_quote": ""
     },
@@ -33,7 +33,7 @@
     }
   },
   "derived": {
-    "decompositions": [],
+    "nodes": [],
     "trigger_annotations": [],
     "actor_annotations": [],
     "cognition_annotations": [],

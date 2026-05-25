@@ -63,7 +63,7 @@ Do not save until every observed field has both `value` and `source_quote`:
 - `observed.situation`
 - `observed.automatic_thought`
 - `observed.emotion`
-- `observed.body`
+- `observed.physical`
 - `observed.behavior`
 - `observed.short_term_consequence`
 - `observed.long_term_consequence`
@@ -98,15 +98,18 @@ If the user gives extra information for another field, keep it as context only.
 Do not jump ahead and do not fill future fields from that answer. Update only
 the active target for the current turn.
 
-Use this story-first target sequence:
+Use this target sequence:
 
 1. Situation: what happened, where, when, and with whom.
-2. Behavior: what the user did or avoided.
-3. Short-term consequence: immediate result or relief/cost.
-4. Long-term consequence: later result, unresolved cost, or repeated effect.
+2. Trigger: what specifically started or activated the reaction.
+3. Actor: who was involved.
+4. Quote: exact words, messages, or the absence of quote.
 5. Automatic thought: the immediate thought, image, prediction, or meaning.
 6. Emotion: the named feeling or feelings.
-7. Body: physical sensation or activation.
+7. Behavior: what the user did or avoided.
+8. Physical: physical sensation or activation.
+9. Short-term consequence: immediate result or relief/cost.
+10. Long-term consequence: later result, unresolved cost, or repeated effect.
 
 Keep questions concrete. Do not pressure the user to generalize beyond the
 episode.
@@ -119,7 +122,7 @@ Always save:
 
 ```json
 {
-  "decompositions": [],
+  "nodes": [],
   "trigger_annotations": [],
   "actor_annotations": [],
   "cognition_annotations": [],
