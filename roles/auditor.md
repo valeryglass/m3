@@ -42,7 +42,7 @@ Count:
 - schema-valid files
 - schema-invalid files
 - files with empty derived
-- files with decompositions
+- files with nodes
 - files with annotations
 - files with relations
 - files by source chat id when visible in `source`
@@ -77,7 +77,7 @@ Do not delete or rewrite junk. Only report candidates.
 
 For each file, count:
 
-- `decompositions`
+- `nodes`
 - `trigger_annotations`
 - `actor_annotations`
 - `cognition_annotations`
@@ -88,9 +88,9 @@ For each file, count:
 Report:
 
 - empty derived files
-- files with annotations but no decompositions
-- files with decompositions but no annotations
-- files with decompositions/annotations but no relations
+- files with annotations but no nodes
+- files with nodes but no annotations
+- files with nodes/annotations but no relations
 - files with relation coverage
 
 ## Relation Integrity
@@ -98,7 +98,7 @@ Report:
 Check every relation:
 
 - `from_ref` and `to_ref` are valid refs
-- `decomposition-N` refs exist in the same episode
+- `node-N` refs exist in the same episode
 - observed refs point to fields present in the episode
 - relation has `source_field`, `source_quote`, and numeric `confidence`
 - relation confidence is within `0.0..1.0`
@@ -112,9 +112,9 @@ Check every derived item:
 - has `source_field`
 - has non-empty `source_quote`
 - has numeric `confidence`
-- annotation `decomposition_id`, when present, points to an existing
-  decomposition
-- decomposition `node_origin` is either `observed` or `support`
+- annotation `node_id`, when present, points to an existing
+  node
+- node `node_origin` is either `observed` or `support`
 
 Report orphan annotations and missing provenance.
 
@@ -151,7 +151,7 @@ Use a compact Markdown report:
 
 ## Coverage
 - empty_derived: N
-- with_decompositions: N
+- with_nodes: N
 - with_relations: N
 
 ## Next Actions

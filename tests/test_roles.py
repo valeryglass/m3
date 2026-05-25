@@ -14,7 +14,7 @@ def test_annotator_role_names_all_derived_annotation_lists():
     text = Path("roles/annotator.md").read_text(encoding="utf-8")
 
     for key in (
-        "decompositions",
+        "nodes",
         "trigger_annotations",
         "actor_annotations",
         "cognition_annotations",

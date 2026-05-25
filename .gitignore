@@ -7,6 +7,9 @@ data/episodes/*.json
 data/state/*.json
 data/userlist/*.json
 data/ux-events/*.jsonl
+data/annotation-work/**
+data/backups/**
+data/reports/**
 .env
 
 !raw/
@@ -16,6 +19,9 @@ data/ux-events/*.jsonl
 !data/state/
 !data/userlist/
 !data/ux-events/
+!data/annotation-work/
+!data/backups/
+!data/reports/
 !data/episodes/.gitkeep
 !data/state/.gitkeep
 !data/userlist/.gitkeep
