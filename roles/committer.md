@@ -17,16 +17,20 @@ Use this role when preparing clean Git commits.
 ## Subject Format
 
 ```text
-<type>: <imperative summary>
+<type>(<scope>): <imperative summary>
 ```
 
 Examples:
 
 ```text
-docs: define JSON CBT model engine
-refactor: simplify episode schema
-chore: remove obsolete placeholders
+docs(model): define JSON CBT model engine
+refactor(schema): simplify episode schema
+chore(bot): remove obsolete placeholders
 ```
+
+Use a short lowercase scope such as `bot`, `model`, `report`, `docs`, `schema`,
+or `repo`. If a scope would be forced or misleading, omit it and use
+`<type>: <imperative summary>`.
 
 ## Types
 

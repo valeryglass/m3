@@ -58,3 +58,16 @@ def test_auditor_role_defines_read_only_db_reports():
     ):
         assert section in text
     assert "Stop annotation work if any file is schema-invalid" in text
+
+
+def test_architecture_steward_role_defines_manifest_ownership():
+    text = Path("roles/architecture-steward.md").read_text(encoding="utf-8")
+    agents = Path("AGENTS.md").read_text(encoding="utf-8")
+
+    assert "Role name: `architecture_steward`" in text
+    assert "project.manifest.yaml" in text
+    assert "docs/dashboard.md" in text
+    assert "docs/interfaces/" in text
+    assert "docs/adr/" in text
+    assert "methodology/" in text
+    assert "roles/architecture-steward.md" in agents

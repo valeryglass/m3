@@ -8,10 +8,15 @@ judgment.
 
 ## Project Guardrails
 
+- Treat `project.manifest.yaml` as the structural inventory for modules,
+  interfaces, lifecycle stages, and ownership.
 - Treat `model/episode.schema.json` as the canonical episode data contract.
 - Do not modify `raw/` or `sources/` unless explicitly asked.
 - Preserve the observed vs derived boundary in CBT data.
 - Do not make diagnostic claims.
+- If code changes alter module ownership, interfaces, lifecycle, or data flow,
+  update the manifest and relevant docs in the same change.
+- Use `roles/architecture-steward.md` for architecture-only work.
 - If a changed line does not directly support the request or verification, remove it.
 - Do not create architecture to feel productive. Build only what the task needs.
 

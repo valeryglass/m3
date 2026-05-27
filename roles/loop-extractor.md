@@ -56,7 +56,8 @@ Do not save until all required top-level fields are complete:
 - `date`
 - `source`
 - `observed`
-- `derived` with the five empty annotation arrays from `model/episode.schema.json`
+- `derived` with the empty node, annotation, and relation arrays from
+  `model/episode.schema.json`
 
 Do not save until every observed field has both `value` and `source_quote`:
 
@@ -98,7 +99,7 @@ If the user gives extra information for another field, keep it as context only.
 Do not jump ahead and do not fill future fields from that answer. Update only
 the active target for the current turn.
 
-Use this target sequence:
+Use the current observed target sequence from `app/messages.py`:
 
 1. Situation: what happened, where, when, and with whom.
 2. Trigger: what specifically started or activated the reaction.

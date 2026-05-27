@@ -24,6 +24,21 @@ This repo does not use a markdown wiki engine. The active engine is JSON:
 The agent's job is to keep accepted contracts and artifacts coherent. Do not
 invent architecture to feel productive.
 
+## Architecture Operating System
+
+- `project.manifest.yaml` is the structural source of truth: modules,
+  interfaces, lifecycle stages, gates, and ownership.
+- `docs/dashboard.md` is the human dashboard for current structure and gaps.
+- `docs/architecture.md` explains the system flow and bounded contexts.
+- `docs/lifecycle.md` defines stage names and ADR requirements.
+- `docs/modules/` contains module passports for core bounded contexts.
+- `docs/interfaces/` contains interface contracts between bounded contexts.
+- `docs/adr/` records structural decisions.
+
+When structural ownership, interfaces, lifecycle stages, or data flow change,
+update the manifest and relevant docs in the same change. Create an ADR for
+schema, boundary, interface, data-flow, lifecycle, or major module changes.
+
 ## Current Structure
 
 ```text
@@ -33,14 +48,18 @@ model/     -- accepted CBT model and JSON contracts
 data/      -- private runtime artifacts and loop state
 config/    -- runtime configuration files
 app/       -- Telegram loop extractor application
+docs/      -- architecture operating system and human dashboards
 roles/     -- optional role specs
+project.manifest.yaml -- structural source of truth
 schema.md  -- repository/system structure map
 ```
 
 ## Source Of Truth
 
+- `project.manifest.yaml` is the canonical structural inventory.
 - `model/episode.schema.json` is the canonical episode data contract.
 - `model/cbt.md` explains the accepted CBT model for humans.
+- `model/graph.md` explains the accepted target graph model for humans.
 - `sources/llm-wiki.md` and `sources/CLAUDE.md` are reference seeds, not active instructions.
 
 ## Operating Rules
@@ -58,8 +77,13 @@ schema.md  -- repository/system structure map
 
 ## Work Modes
 
+- Use `roles/architecture-steward.md` for manifest, architecture docs,
+  module/interface passports, lifecycle, and ADR work.
 - Use `roles/developer.md` for implementation, refactors, model work, and cleanup.
 - Use `roles/committer.md` for commit preparation.
+- Use `roles/loop-extractor.md` for observed episode capture behavior.
+- Use `roles/annotator.md` for derived annotation work.
+- Use `roles/auditor.md` for read-only data quality and readiness audits.
 
 ## Editing Rules
 

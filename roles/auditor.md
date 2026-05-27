@@ -11,6 +11,12 @@ graph projection, or product analysis work.
 
 This role does not edit episode files. It produces reports only.
 
+Prefer existing read-only tooling when available, especially:
+
+```text
+python3 -m app.annotation_workflow audit --episode-dir data/episodes
+```
+
 ## Guardrails
 
 - Treat `model/episode.schema.json` as the canonical episode contract.
@@ -46,6 +52,8 @@ Count:
 - files with annotations
 - files with relations
 - files by source chat id when visible in `source`
+- readiness gates: `observed_ready`, `graph_ready`, `report_ready`,
+  `profile_eligible`
 
 ## Schema Validation
 
@@ -92,6 +100,7 @@ Report:
 - files with nodes but no annotations
 - files with nodes/annotations but no relations
 - files with relation coverage
+- files blocked from graph/report/profile readiness and their gap reasons
 
 ## Relation Integrity
 

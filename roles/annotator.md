@@ -169,8 +169,9 @@ Include:
 - `valence`: `-1.0..1.0`
 - `arousal`: `0.0..1.0`
 
-Use `observed.emotion.items` when present. Use `observed.emotion.free_text` only
-when it can be mapped without losing traceability.
+New Telegram episodes usually store emotion as plain `observed.emotion.value`
+and `source_quote`. Legacy episodes may still contain `observed.emotion.items`
+or `observed.emotion.free_text`; use those only when present and traceable.
 If a matching emotion node exists, set `node_id`.
 
 ### behavior_annotations

@@ -1,0 +1,229 @@
+project:
+  name: m3
+  description: Personal CBT-oriented model workspace and Telegram episode extractor.
+  structural_ssot: project.manifest.yaml
+  human_dashboard: docs/dashboard.md
+  architecture_doc: docs/architecture.md
+  lifecycle_doc: docs/lifecycle.md
+  domain_ssot:
+    - model/cbt.md
+    - model/graph.md
+    - model/episode.schema.json
+
+lifecycle_stages:
+  - draft
+  - prototype
+  - experimental
+  - stable
+  - legacy
+  - archived
+
+gates:
+  observed_ready: Required observed episode fields are present.
+  graph_ready: Episode has derived nodes, annotations, and relations.
+  report_ready: Graph data is valid enough for cross-episode analytics.
+  profile_eligible: Episode can contribute to profile-level summaries.
+
+modules:
+  telegram_capture:
+    stage: experimental
+    enabled: true
+    purpose: Collect observed CBT episode frames through Telegram.
+    owned_paths:
+      - app/telegram_bot.py
+      - app/loop_extractor.py
+      - app/messages.py
+      - app/tone_engine.py
+      - config/tone.yaml
+    inputs:
+      - Telegram messages and callbacks
+      - data/state/*.json
+    outputs:
+      - observed episode drafts
+      - data/episodes/*.json
+      - data/ux-events/*.jsonl
+    interfaces:
+      - capture_to_episode
+    capabilities:
+      - ten_step_episode_collection
+      - tone_controlled_prompts
+      - private_runtime_state
+
+  episode_model_storage:
+    stage: experimental
+    enabled: true
+    purpose: Define and persist validated episode artifacts.
+    owned_paths:
+      - model/episode.schema.json
+      - model/episode.example.json
+      - model/episode.template.json
+      - app/schemas/episode.py
+      - app/storage.py
+      - app/derived_normalizer.py
+    inputs:
+      - observed episode fields
+      - derived annotations
+      - legacy episode files
+    outputs:
+      - validated Episode JSON
+      - normalized private episode records
+    interfaces:
+      - capture_to_episode
+      - episode_to_annotation
+    capabilities:
+      - schema_validation
+      - backward_compatible_normalization
+      - evidence_provenance_storage
+
+  annotation_workflow:
+    stage: experimental
+    enabled: true
+    purpose: Audit, export, validate, and apply derived annotations.
+    owned_paths:
+      - app/annotation_workflow.py
+      - app/readiness.py
+      - roles/annotator.md
+      - roles/auditor.md
+    inputs:
+      - validated Episode JSON
+      - annotation proposal files
+    outputs:
+      - derived nodes
+      - derived annotations
+      - derived relations
+      - readiness audit summaries
+    interfaces:
+      - episode_to_annotation
+      - annotation_to_report
+    gates:
+      - observed_ready
+      - graph_ready
+      - report_ready
+      - profile_eligible
+    capabilities:
+      - readiness_audit
+      - annotation_batch_export
+      - proposal_validation
+
+  graph_reporting:
+    stage: experimental
+    enabled: true
+    purpose: Build graph readiness, signature, and HTML reports from derived episodes.
+    owned_paths:
+      - app/graph_report.py
+      - model/graph.md
+      - data/reports/graph/
+    inputs:
+      - graph-ready episodes
+    outputs:
+      - data/reports/graph/*.md
+      - data/reports/graph/graph.html
+    interfaces:
+      - annotation_to_report
+    capabilities:
+      - graph_readiness_summary
+      - signature_counts
+      - source_split_reports
+      - html_graph_output
+
+  profile_brief:
+    stage: experimental
+    enabled: true
+    purpose: Produce evidence-bound CBT pattern briefs from report-ready episodes.
+    owned_paths:
+      - app/profile_brief.py
+      - data/reports/profile/
+    inputs:
+      - report-ready episodes
+      - profile maturity metrics
+    outputs:
+      - data/reports/profile/*.md
+    interfaces:
+      - report_to_profile
+    gates:
+      - profile_eligible
+    capabilities:
+      - profile_maturity_summary
+      - evidence_bound_pattern_brief
+      - source_split_briefs
+
+  ux_analytics:
+    stage: prototype
+    enabled: true
+    purpose: Record and aggregate step-level Telegram UX events.
+    owned_paths:
+      - app/ux_events.py
+      - app/ux_analytics.py
+      - data/ux-events/
+    inputs:
+      - Telegram loop step events
+    outputs:
+      - private JSONL event logs
+      - UX aggregate summaries
+    interfaces:
+      - capture_to_episode
+    capabilities:
+      - append_only_event_log
+      - funnel_summary
+
+  userlist_access:
+    stage: prototype
+    enabled: true
+    purpose: Track approved/waitlisted Telegram users and admin metadata.
+    owned_paths:
+      - app/userlist.py
+      - data/userlist/users.json
+    inputs:
+      - Telegram user profile metadata
+      - admin approval changes
+    outputs:
+      - private userlist records
+      - admin waitlist notifications
+    interfaces:
+      - capture_to_episode
+    capabilities:
+      - approved_user_gate
+      - waitlist_profile_capture
+
+interfaces:
+  capture_to_episode:
+    state: open
+    owner: telegram_capture
+    consumers:
+      - episode_model_storage
+      - ux_analytics
+      - userlist_access
+    contract_doc: docs/interfaces/capture-to-episode.md
+
+  episode_to_annotation:
+    state: open
+    owner: episode_model_storage
+    consumers:
+      - annotation_workflow
+    contract_doc: docs/interfaces/episode-to-annotation.md
+
+  annotation_to_report:
+    state: open
+    owner: annotation_workflow
+    consumers:
+      - graph_reporting
+    contract_doc: docs/interfaces/annotation-to-report.md
+
+  report_to_profile:
+    state: open
+    owner: graph_reporting
+    consumers:
+      - profile_brief
+    contract_doc: docs/interfaces/report-to-profile.md
+
+adr_policy:
+  required_for:
+    - schema changes
+    - module boundary changes
+    - interface contract changes
+    - data flow changes
+    - lifecycle policy changes
+  not_required_for:
+    - small prompt copy edits
+    - local bug fixes inside an existing module
+    - test-only changes that do not alter behavior
