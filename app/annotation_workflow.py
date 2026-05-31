@@ -20,12 +20,18 @@ DEFAULT_EPISODE_DIR = Path("data/episodes")
 DEFAULT_WORK_DIR = Path("data/annotation-work")
 DEFAULT_BACKUP_ROOT = Path("data/backups")
 DEFAULT_BATCH_SIZE = 5
+DEFAULT_QUEUE_PREFIX = "queue"
 ANNOTATION_FIELDS = (
     "trigger_annotations",
     "actor_annotations",
     "cognition_annotations",
     "emotion_annotations",
     "behavior_annotations",
+)
+QUEUE_INSTRUCTIONS = (
+    "Fill only proposal.derived for this episode. Preserve id/date/source/observed. "
+    "Use only model/episode.schema.json fields. Every derived item needs "
+    "source_field, source_quote, and confidence. Skip uncertain annotations."
 )
 
 
@@ -194,6 +200,53 @@ def export_batches(
     )
 
 
+def queue_empty_derived(
+    episode_dir: Path = DEFAULT_EPISODE_DIR,
+    work_dir: Path = DEFAULT_WORK_DIR,
+    *,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    source: str | None = None,
+    prefix: str = DEFAULT_QUEUE_PREFIX,
+) -> ExportSummary:
+    if batch_size < 1:
+        raise ValueError("batch_size must be at least 1")
+
+    records = []
+    for path in _episode_paths(episode_dir):
+        data = _read_json(path)
+        episode = Episode.model_validate(data)
+        if source is not None and episode.source != source:
+            continue
+        readiness = classify_episode_readiness(episode)
+        if "empty_derived" not in readiness.gap_reasons:
+            continue
+        records.append(
+            {
+                "episode_id": episode.id,
+                "path": path.as_posix(),
+                "date": data["date"],
+                "source": data["source"],
+                "gap_reasons": list(readiness.gap_reasons),
+                "observed": data["observed"],
+                "current_derived": data.get("derived", empty_derived()),
+                "instructions": QUEUE_INSTRUCTIONS,
+            }
+        )
+
+    work_dir.mkdir(parents=True, exist_ok=True)
+    output_files: list[str] = []
+    for index, batch in enumerate(_chunks(records, batch_size), start=1):
+        path = work_dir / f"{prefix}-{index:03d}.jsonl"
+        _write_jsonl(path, batch)
+        output_files.append(path.as_posix())
+
+    return ExportSummary(
+        episodes=len(records),
+        batches=len(output_files),
+        files=tuple(output_files),
+    )
+
+
 def validate_proposals(proposal_path: Path) -> ValidationSummary:
     total = valid = 0
     errors: list[str] = []
@@ -266,6 +319,13 @@ def main() -> None:
     export_parser.add_argument("--work-dir", default=str(DEFAULT_WORK_DIR))
     export_parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
 
+    queue_parser = subparsers.add_parser("queue")
+    queue_parser.add_argument("--episode-dir", default=str(DEFAULT_EPISODE_DIR))
+    queue_parser.add_argument("--work-dir", default=str(DEFAULT_WORK_DIR))
+    queue_parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
+    queue_parser.add_argument("--source")
+    queue_parser.add_argument("--prefix", default=DEFAULT_QUEUE_PREFIX)
+
     validate_parser = subparsers.add_parser("validate")
     validate_parser.add_argument("proposal_path")
 
@@ -282,6 +342,14 @@ def main() -> None:
             Path(args.episode_dir),
             Path(args.work_dir),
             batch_size=args.batch_size,
+        )
+    elif args.command == "queue":
+        summary = queue_empty_derived(
+            Path(args.episode_dir),
+            Path(args.work_dir),
+            batch_size=args.batch_size,
+            source=args.source,
+            prefix=args.prefix,
         )
     elif args.command == "validate":
         summary = validate_proposals(Path(args.proposal_path))

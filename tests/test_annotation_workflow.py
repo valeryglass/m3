@@ -4,16 +4,17 @@ from app.annotation_workflow import (
     apply_proposals,
     audit_episode_dir,
     export_batches,
+    queue_empty_derived,
     validate_proposals,
 )
 from app.derived_normalizer import empty_derived
 
 
-def _episode(episode_id="episode-20260430-1", *, derived=None):
+def _episode(episode_id="episode-20260430-1", *, derived=None, source="telegram-chat:123"):
     return {
         "id": episode_id,
         "date": "2026-04-30",
-        "source": "telegram-chat:123",
+        "source": source,
         "observed": {
             "situation": {"value": "Group chat.", "source_quote": "group chat"},
             "automatic_thought": {
@@ -92,6 +93,14 @@ def _write_jsonl(path, records):
     )
 
 
+def _read_jsonl(path):
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
 def test_audit_counts_valid_invalid_and_derived_coverage(tmp_path):
     episode_dir = tmp_path / "episodes"
     episode_dir.mkdir()
@@ -137,6 +146,61 @@ def test_export_writes_batches_without_modifying_episodes(tmp_path):
     first_batch = (work_dir / "batch-001.jsonl").read_text(encoding="utf-8")
     assert '"observed"' in first_batch
     assert '"current_derived"' in first_batch
+
+
+def test_queue_exports_only_empty_derived_with_instructions(tmp_path):
+    episode_dir = tmp_path / "episodes"
+    work_dir = tmp_path / "annotation-work"
+    episode_dir.mkdir()
+    empty_path = episode_dir / "episode-20260430-1.json"
+    ready_path = episode_dir / "episode-20260430-2.json"
+    _write_json(empty_path, _episode())
+    _write_json(ready_path, _episode("episode-20260430-2", derived=_derived()))
+    before = empty_path.read_text(encoding="utf-8")
+
+    summary = queue_empty_derived(episode_dir, work_dir, batch_size=10)
+
+    assert summary.episodes == 1
+    assert summary.batches == 1
+    assert summary.files == ((work_dir / "queue-001.jsonl").as_posix(),)
+    assert empty_path.read_text(encoding="utf-8") == before
+    records = _read_jsonl(work_dir / "queue-001.jsonl")
+    assert len(records) == 1
+    record = records[0]
+    assert record["episode_id"] == "episode-20260430-1"
+    assert record["path"] == empty_path.as_posix()
+    assert record["source"] == "telegram-chat:123"
+    assert record["date"] == "2026-04-30"
+    assert record["gap_reasons"] == ["empty_derived"]
+    assert record["observed"]["emotion"]["value"] == "страх"
+    assert record["current_derived"] == empty_derived()
+    assert "Fill only proposal.derived" in record["instructions"]
+
+
+def test_queue_can_filter_by_source(tmp_path):
+    episode_dir = tmp_path / "episodes"
+    work_dir = tmp_path / "annotation-work"
+    episode_dir.mkdir()
+    _write_json(
+        episode_dir / "episode-20260430-1.json",
+        _episode(source="telegram-chat:123"),
+    )
+    _write_json(
+        episode_dir / "episode-20260430-2.json",
+        _episode("episode-20260430-2", source="telegram-chat:456"),
+    )
+
+    summary = queue_empty_derived(
+        episode_dir,
+        work_dir,
+        batch_size=10,
+        source="telegram-chat:456",
+    )
+
+    assert summary.episodes == 1
+    records = _read_jsonl(work_dir / "queue-001.jsonl")
+    assert records[0]["episode_id"] == "episode-20260430-2"
+    assert records[0]["source"] == "telegram-chat:456"
 
 
 def test_validate_rejects_bad_node_reference(tmp_path):
