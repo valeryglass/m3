@@ -25,16 +25,6 @@ CURRENT_DERIVED_KEYS = (
 PRE_RELATION_DERIVED_KEYS = tuple(
     key for key in CURRENT_DERIVED_KEYS if key != "relations"
 )
-OLD_EMOTION_LABELS = {
-    "нейтральное/смешанное": "нейтраль/мешанные",
-}
-OLD_EMOTION_INTENSITIES = {
-    "low": 0.33,
-    "medium": 0.66,
-    "high": 1.0,
-}
-
-
 @dataclass(frozen=True)
 class EpisodeBatchSummary:
     total: int = 0
@@ -53,13 +43,11 @@ def empty_derived() -> dict[str, list[dict[str, Any]]]:
 def normalize_episode(data: dict[str, Any]) -> tuple[dict[str, Any], bool]:
     normalized = deepcopy(data)
     changed = _normalize_observed_keys(normalized)
-    changed = _normalize_observed_emotion(normalized) or changed
     derived = normalized.get("derived")
     if isinstance(derived, dict) and set(derived) == LEGACY_DERIVED_KEYS:
         normalized["derived"] = empty_derived()
         changed = True
     elif isinstance(derived, dict):
-        changed = _normalize_derived_keys(derived) or changed
         changed = _normalize_derived_shell(derived) or changed
         changed = _normalize_node_refs(derived) or changed
         changed = _normalize_node_origins(derived) or changed
@@ -177,46 +165,6 @@ def _normalize_observed_keys(data: dict[str, Any]) -> bool:
     return changed
 
 
-def _normalize_observed_emotion(data: dict[str, Any]) -> bool:
-    observed = data.get("observed")
-    if not isinstance(observed, dict):
-        return False
-    emotion = observed.get("emotion")
-    if not isinstance(emotion, dict):
-        return False
-    items = emotion.get("items")
-    if not isinstance(items, list):
-        return False
-
-    changed = False
-    parts = []
-    for item in items:
-        if not isinstance(item, dict):
-            return changed
-        label = item.get("label")
-        intensity = item.get("intensity")
-        if label in OLD_EMOTION_LABELS:
-            label = OLD_EMOTION_LABELS[label]
-            item["label"] = label
-            changed = True
-        if isinstance(intensity, str) and intensity in OLD_EMOTION_INTENSITIES:
-            intensity = OLD_EMOTION_INTENSITIES[intensity]
-            item["intensity"] = intensity
-            changed = True
-        if isinstance(label, str) and isinstance(intensity, int | float):
-            source_quote = f"{label}: {_format_intensity(float(intensity))}"
-            if item.get("source_quote") != source_quote:
-                item["source_quote"] = source_quote
-                changed = True
-            parts.append(source_quote)
-
-    if changed and parts and len(parts) == len(items):
-        value = ", ".join(parts)
-        emotion["value"] = value
-        emotion["source_quote"] = value
-    return changed
-
-
 def _normalize_derived_shell(derived: dict[str, Any]) -> bool:
     if "relations" in derived:
         return False
@@ -224,17 +172,6 @@ def _normalize_derived_shell(derived: dict[str, Any]) -> bool:
         return False
     derived["relations"] = []
     return True
-
-
-def _normalize_derived_keys(derived: dict[str, Any]) -> bool:
-    changed = False
-    if "decompositions" in derived and "nodes" not in derived:
-        derived["nodes"] = derived.pop("decompositions")
-        changed = True
-    elif "decompositions" in derived:
-        derived.pop("decompositions")
-        changed = True
-    return changed
 
 
 def _normalize_node_refs(derived: dict[str, Any]) -> bool:
@@ -259,12 +196,6 @@ def _normalize_node_refs(derived: dict[str, Any]) -> bool:
         for item in items:
             if not isinstance(item, dict):
                 continue
-            if "decomposition_id" in item and "node_id" not in item:
-                item["node_id"] = _node_ref(str(item.pop("decomposition_id")))
-                changed = True
-            elif "decomposition_id" in item:
-                item.pop("decomposition_id")
-                changed = True
             if section == "trigger_annotations" and item.get("type") == "body":
                 item["type"] = "physical"
                 changed = True
@@ -278,7 +209,7 @@ def _normalize_node_refs(derived: dict[str, Any]) -> bool:
             for key in ("from_ref", "to_ref"):
                 value = relation.get(key)
                 if isinstance(value, str):
-                    normalized = _node_ref(_observed_ref(value))
+                    normalized = _observed_ref(value)
                     if normalized != value:
                         relation[key] = normalized
                         changed = True
@@ -289,11 +220,6 @@ def _normalize_node_refs(derived: dict[str, Any]) -> bool:
 def _normalize_node_object(node: dict[str, Any]) -> bool:
     changed = False
     node_id = node.get("id")
-    if isinstance(node_id, str):
-        normalized_id = _node_ref(node_id)
-        if normalized_id != node_id:
-            node["id"] = normalized_id
-            changed = True
     if node.get("kind") == "speech":
         node["kind"] = "quote"
         changed = True
@@ -318,12 +244,6 @@ def _observed_ref(value: str) -> str:
         "observed.speech": "observed.quote",
         "observed.body": "observed.physical",
     }.get(value, value)
-
-
-def _node_ref(value: str) -> str:
-    if value.startswith("decomposition-"):
-        return "node-" + value.removeprefix("decomposition-")
-    return value
 
 
 def _normalize_node_origins(derived: dict[str, Any]) -> bool:
@@ -357,10 +277,6 @@ def _write_json(path: Path, data: dict[str, Any]) -> None:
         json.dumps(data, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-
-
-def _format_intensity(intensity: float) -> str:
-    return "1.0" if intensity == 1.0 else str(intensity)
 
 
 def _format_summary(summary: EpisodeBatchSummary) -> str:

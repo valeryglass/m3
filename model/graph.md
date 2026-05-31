@@ -162,8 +162,6 @@ observed.quote                      QUO source
 
 observed.automatic_thought          COG source
 observed.emotion                    EMO source
-observed.emotion.items              EMO structured source
-observed.emotion.free_text          EMO free-text source
 observed.physical                   PHY source
 observed.behavior                   BEH source
 observed.short_term_consequence     STC source

@@ -88,8 +88,7 @@ Use node for field-local slicing only:
 - split many-ish `observed.actor`
 - split exact fragments in `observed.quote`
 - split multiple thoughts in `observed.automatic_thought`
-- split `observed.emotion.items`, `observed.emotion.free_text`, or packed
-  emotion text
+- split packed `observed.emotion` text
 - split multiple actions in `observed.behavior`
 
 Do not create trigger, physical, or outcome nodes yet.
@@ -169,9 +168,7 @@ Include:
 - `valence`: `-1.0..1.0`
 - `arousal`: `0.0..1.0`
 
-New Telegram episodes usually store emotion as plain `observed.emotion.value`
-and `source_quote`. Legacy episodes may still contain `observed.emotion.items`
-or `observed.emotion.free_text`; use those only when present and traceable.
+Use plain `observed.emotion.value` and `source_quote`.
 If a matching emotion node exists, set `node_id`.
 
 ### behavior_annotations

@@ -12,16 +12,8 @@
       "source_quote": "they'll probably think I'm stupid if I ask"
     },
     "emotion": {
-      "value": "страх: 0.66; другое: anxious",
-      "source_quote": "I felt anxious",
-      "items": [
-        {
-          "label": "страх",
-          "intensity": 0.66,
-          "source_quote": "страх: 0.66"
-        }
-      ],
-      "free_text": "anxious"
+      "value": "страх: 0.66; anxious",
+      "source_quote": "I felt anxious"
     },
     "behavior": {
       "value": "Did not ask the question.",
@@ -56,8 +48,8 @@
         "node_origin": "observed",
         "kind": "emotion",
         "text": "страх",
-        "source_field": "observed.emotion.items",
-        "source_quote": "страх: 0.66",
+        "source_field": "observed.emotion",
+        "source_quote": "I felt anxious",
         "confidence": 0.95
       },
       {

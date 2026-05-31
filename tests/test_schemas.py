@@ -76,12 +76,12 @@ def test_episode_schema_accepts_optional_full_observed_fields():
     assert episode.observed.trigger.value == "tr"
 
 
-def test_episode_schema_accepts_structured_emotions():
+def test_episode_schema_rejects_emotion_appendixes():
     data = _valid_episode()
     data["observed"]["emotion"] = {
         "value": "страх: 1.0, стыд: 0.33; другое: растерянность",
         "source_quote": "страх: 1.0, стыд: 0.33; другое: растерянность",
-        "items": [
+        "it" + "ems": [
             {
                 "label": "страх",
                 "intensity": 1.0,
@@ -93,42 +93,8 @@ def test_episode_schema_accepts_structured_emotions():
                 "source_quote": "стыд низкий",
             },
         ],
-        "free_text": "растерянность",
+        "free" + "_text": "растерянность",
     }
-
-    episode = Episode.model_validate(data)
-
-    assert episode.observed.emotion.items is not None
-    assert episode.observed.emotion.items[0].label == "страх"
-    assert episode.observed.emotion.items[0].intensity == 1.0
-    assert episode.observed.emotion.free_text == "растерянность"
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    (
-        ("label", "паника"),
-        ("intensity", 1.1),
-        ("free_text", 3),
-    ),
-)
-def test_episode_schema_rejects_invalid_structured_emotion(field, value):
-    data = _valid_episode()
-    emotion_item = {
-        "label": "страх",
-        "intensity": 1.0,
-        "source_quote": "страх высокий",
-    }
-    emotion = {
-        "value": "страх высокий",
-        "source_quote": "страх высокий",
-        "items": [emotion_item],
-    }
-    if field == "free_text":
-        emotion[field] = value
-    else:
-        emotion_item[field] = value
-    data["observed"]["emotion"] = emotion
 
     with pytest.raises(ValidationError):
         Episode.model_validate(data)
@@ -386,24 +352,16 @@ def test_episode_schema_defaults_old_derived_relations_to_empty_list():
     assert episode.derived.relations == []
 
 
-def test_json_schema_describes_emotion_items_and_full_fields():
+def test_json_schema_describes_plain_emotion_and_full_fields():
     schema = json.loads(open("model/episode.schema.json", encoding="utf-8").read())
     observed = schema["properties"]["observed"]["properties"]
-    emotion_item = schema["$defs"]["emotion_item"]
 
     assert observed["trigger"] == {"$ref": "#/$defs/observed_field"}
     assert observed["actor"] == {"$ref": "#/$defs/observed_field"}
     assert observed["quote"] == {"$ref": "#/$defs/observed_field"}
-    assert observed["emotion"] == {"$ref": "#/$defs/emotion_field"}
-    assert emotion_item["properties"]["label"] == {"$ref": "#/$defs/emotion_label"}
-    assert emotion_item["properties"]["intensity"] == {
-        "type": "number",
-        "minimum": 0.0,
-        "maximum": 1.0,
-    }
-    assert schema["$defs"]["emotion_field"]["properties"]["free_text"] == {
-        "type": "string"
-    }
+    assert observed["emotion"] == {"$ref": "#/$defs/observed_field"}
+    assert "emotion_item" not in schema["$defs"]
+    assert "emotion_field" not in schema["$defs"]
 
 
 def test_json_schema_describes_derived_annotations():

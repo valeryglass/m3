@@ -69,8 +69,6 @@ NodeSourceField = Literal[
     "observed.quote",
     "observed.automatic_thought",
     "observed.emotion",
-    "observed.emotion.items",
-    "observed.emotion.free_text",
     "observed.behavior",
 ]
 
@@ -116,19 +114,6 @@ class ObservedField(BaseModel):
 
     value: str
     source_quote: str
-
-
-class EmotionItem(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    label: EmotionLabel
-    intensity: float = Field(ge=0.0, le=1.0)
-    source_quote: str = Field(min_length=1)
-
-
-class EmotionField(ObservedField):
-    items: list[EmotionItem] | None = None
-    free_text: str | None = None
 
 
 class TriggerAnnotation(BaseModel):
@@ -189,8 +174,6 @@ class EmotionAnnotation(BaseModel):
     arousal: float = Field(ge=0.0, le=1.0)
     source_field: Literal[
         "observed.emotion",
-        "observed.emotion.items",
-        "observed.emotion.free_text",
     ]
     source_quote: str = Field(min_length=1)
     confidence: float = Field(ge=0.0, le=1.0)
@@ -217,7 +200,7 @@ class Observed(BaseModel):
     actor: ObservedField | None = None
     quote: ObservedField | None = None
     automatic_thought: ObservedField
-    emotion: EmotionField
+    emotion: ObservedField
     behavior: ObservedField
     physical: ObservedField
     short_term_consequence: ObservedField

@@ -53,7 +53,7 @@
           "$ref": "#/$defs/observed_field"
         },
         "emotion": {
-          "$ref": "#/$defs/emotion_field"
+          "$ref": "#/$defs/observed_field"
         },
         "behavior": {
           "$ref": "#/$defs/observed_field"
@@ -144,54 +144,6 @@
         }
       }
     },
-    "emotion_item": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "label",
-        "intensity",
-        "source_quote"
-      ],
-      "properties": {
-        "label": {
-          "$ref": "#/$defs/emotion_label"
-        },
-        "intensity": {
-          "type": "number",
-          "minimum": 0.0,
-          "maximum": 1.0
-        },
-        "source_quote": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    },
-    "emotion_field": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "value",
-        "source_quote"
-      ],
-      "properties": {
-        "value": {
-          "type": "string"
-        },
-        "source_quote": {
-          "type": "string"
-        },
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/emotion_item"
-          }
-        },
-        "free_text": {
-          "type": "string"
-        }
-      }
-    },
     "confidence": {
       "type": "number",
       "minimum": 0.0,
@@ -270,8 +222,6 @@
             "observed.quote",
             "observed.automatic_thought",
             "observed.emotion",
-            "observed.emotion.items",
-            "observed.emotion.free_text",
             "observed.behavior"
           ]
         },
@@ -506,12 +456,7 @@
           "maximum": 1.0
         },
         "source_field": {
-          "type": "string",
-          "enum": [
-            "observed.emotion",
-            "observed.emotion.items",
-            "observed.emotion.free_text"
-          ]
+          "const": "observed.emotion"
         },
         "source_quote": {
           "type": "string",
