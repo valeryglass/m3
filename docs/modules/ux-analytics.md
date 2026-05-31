@@ -13,6 +13,7 @@ Record and aggregate step-level Telegram loop UX events.
 
 - append-only private event logs.
 - aggregate UX summaries from the CLI.
+- Markdown and JSON reports under `data/reports/ux/`.
 
 ## Dependencies
 
