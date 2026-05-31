@@ -47,7 +47,6 @@ def test_session_from_dict_normalizes_legacy_target_index():
     assert session.target_index == 4
     assert active_target(session) == "automatic_thought"
     assert session.awaiting_save_confirmation is False
-    assert session.emotion_draft == {}
     assert session.flow_mode == FLOW_UNIFIED
 
 
@@ -107,36 +106,7 @@ def test_session_from_dict_drops_legacy_derived_keys():
     }
 
 
-def test_session_from_dict_restores_emotion_draft():
-    session = LoopSession.from_dict(
-        {
-            "chat_id": 123,
-            "session_id": "session-123",
-            "emotion_draft": {"fear": 2, "bad": 2, "joy": 9},
-            "observed": {},
-        }
-    )
-
-    assert session.emotion_draft == {"fear": 2, "bad": 2}
-    assert session.to_dict()["emotion_draft"] == {"fear": 2, "bad": 2}
-    assert session.emotion_free_text is None
-
-
-def test_session_from_dict_restores_emotion_free_text():
-    session = LoopSession.from_dict(
-        {
-            "chat_id": 123,
-            "session_id": "session-123",
-            "emotion_free_text": "растерянность",
-            "observed": {},
-        }
-    )
-
-    assert session.emotion_free_text == "растерянность"
-    assert session.to_dict()["emotion_free_text"] == "растерянность"
-
-
-def test_emotion_reply_writes_plain_observed_field_and_ignores_legacy_draft():
+def test_emotion_reply_writes_plain_observed_field():
     session = LoopSession(
         chat_id=123,
         target_index=5,
@@ -147,8 +117,6 @@ def test_emotion_reply_writes_plain_observed_field_and_ignores_legacy_draft():
             "quote": {"value": "sp", "source_quote": "sp"},
             "automatic_thought": {"value": "at", "source_quote": "at"},
         },
-        emotion_draft={"fear": 3},
-        emotion_free_text="растерянность",
     )
 
     result = apply_user_reply(session, "страх и растерянность")
@@ -156,8 +124,6 @@ def test_emotion_reply_writes_plain_observed_field_and_ignores_legacy_draft():
     assert result.should_save is False
     assert session.target_index == 6
     assert active_target(session) == "behavior"
-    assert session.emotion_draft == {"fear": 3}
-    assert session.emotion_free_text == "растерянность"
     assert session.observed["emotion"] == {
         "value": "страх и растерянность",
         "source_quote": "страх и растерянность",

@@ -27,8 +27,6 @@ class LoopSession:
     )
     saved_episode_path: str | None = None
     awaiting_save_confirmation: bool = False
-    emotion_draft: dict[str, int] = field(default_factory=dict)
-    emotion_free_text: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "LoopSession":
@@ -47,8 +45,6 @@ class LoopSession:
             awaiting_save_confirmation=bool(
                 data.get("awaiting_save_confirmation", False)
             ),
-            emotion_draft=_normalize_emotion_draft(data.get("emotion_draft", {})),
-            emotion_free_text=_normalize_optional_text(data.get("emotion_free_text")),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -63,8 +59,6 @@ class LoopSession:
             "derived": self.derived,
             "saved_episode_path": self.saved_episode_path,
             "awaiting_save_confirmation": self.awaiting_save_confirmation,
-            "emotion_draft": self.emotion_draft,
-            "emotion_free_text": self.emotion_free_text,
         }
 
 
@@ -176,23 +170,6 @@ def _normalize_observed_keys(observed: dict[str, dict[str, Any]]) -> dict[str, d
         elif old_key in observed:
             observed.pop(old_key)
     return observed
-
-
-def _normalize_emotion_draft(value: Any) -> dict[str, int]:
-    if not isinstance(value, dict):
-        return {}
-    draft: dict[str, int] = {}
-    for key, level in value.items():
-        if isinstance(key, str) and level in (1, 2, 3):
-            draft[key] = int(level)
-    return draft
-
-
-def _normalize_optional_text(value: Any) -> str | None:
-    if not isinstance(value, str):
-        return None
-    text = value.strip()
-    return text or None
 
 
 def _normalize_derived(value: Any) -> dict[str, list[dict[str, Any]]]:

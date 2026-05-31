@@ -519,12 +519,10 @@ def test_text_during_emotion_step_advances_to_behavior(tmp_path):
     assert message.reply_options == [{"parse_mode": "HTML"}]
 
 
-def test_text_during_emotion_step_ignores_legacy_emotion_state(tmp_path):
+def test_text_during_emotion_step_stores_plain_emotion(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = _emotion_step_session()
-    session.emotion_free_text = "растерянность"
-    session.emotion_draft = {"fear": 3}
     storage.save_session(session)
     message = _FakeMessage("смущение")
 
@@ -541,8 +539,6 @@ def test_text_during_emotion_step_ignores_legacy_emotion_state(tmp_path):
     loaded = storage.load_session(123)
     assert loaded is not None
     assert loaded.target_index == 6
-    assert loaded.emotion_free_text == "растерянность"
-    assert loaded.emotion_draft == {"fear": 3}
     assert loaded.observed["emotion"] == {
         "value": "смущение",
         "source_quote": "смущение",
