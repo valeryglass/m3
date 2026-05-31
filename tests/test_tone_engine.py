@@ -230,6 +230,36 @@ def test_session_messages_render_unchanged():
     assert tone.approval_granted() == "Доступ открыт. Отправь /start, чтобы начать."
     assert tone.admin_paused(456) == "Заявка поставлена на паузу для 456"
     assert tone.admin_bad_command("/approve") == "Используй /approve &lt;chat_id&gt;"
+    assert tone.profile_missing() == (
+        "Профиль пока не собран. Нужны сохранённые и обработанные эпизоды."
+    )
+    assert tone.report_failed("broken <data>") == (
+        "Не удалось собрать отчёт: broken &lt;data&gt;"
+    )
+    assert tone.graph_reports_ready(
+        episodes=1,
+        invalid=0,
+        empty_derived=0,
+        graph_ready=1,
+        report_ready=1,
+        profile_eligible=1,
+        graph_path="data/reports/graph/all.md",
+        profile_path="data/reports/cbt-profile/all.md",
+        analytics_path="data/reports/cbt-analytics/all.md",
+        html_path="data/reports/graph/graph.html",
+    ) == (
+        "Отчёты обновлены\n"
+        "episodes: 1\n"
+        "invalid: 0\n"
+        "empty_derived: 0\n"
+        "graph_ready: 1\n"
+        "report_ready: 1\n"
+        "profile_eligible: 1\n\n"
+        "data/reports/graph/all.md\n"
+        "data/reports/cbt-profile/all.md\n"
+        "data/reports/cbt-analytics/all.md\n"
+        "data/reports/graph/graph.html"
+    )
     assert tone.expired_initial_session() == (
         "Прошлая сессия истекла до первого ответа. Отправь /start заново"
     )
@@ -256,6 +286,9 @@ def test_session_messages_render_unchanged():
         "approval_granted",
         "admin_paused",
         "admin_bad_command",
+        "profile_missing",
+        "report_failed",
+        "graph_reports_ready",
         "expired_initial_session",
         "saved_episode",
     }

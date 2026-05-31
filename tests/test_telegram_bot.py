@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -22,8 +23,11 @@ def test_visible_command_menu_excludes_hidden_status():
         "status",
         "cancel",
         "help",
+        "profile",
         "approve",
         "pause",
+        "report_graph",
+        "report_ux",
     )
     assert telegram_bot._visible_command_menu(tone) == (
         {"command": "start", "description": "Начать новый эпизод"},
@@ -104,6 +108,45 @@ def test_send_help_replies_without_creating_session(tmp_path):
         "/cancel — отменить сессию\n"
         "/help — показать команды\n\n"
         "Связь: @mesto3"
+    ]
+    assert message.reply_options == [{"parse_mode": "HTML"}]
+
+
+def test_profile_command_replies_with_current_report(tmp_path):
+    settings = _settings(cbt_profile_dir=tmp_path / "reports" / "cbt-profile")
+    settings.cbt_profile_dir.mkdir(parents=True)
+    (settings.cbt_profile_dir / "telegram-chat-123.md").write_text(
+        "# CBT Profile\n\n- episodes: 2\n",
+        encoding="utf-8",
+    )
+    message = _FakeMessage("/profile")
+
+    _run(
+        telegram_bot._handle_profile_after_authorized(
+            _fake_update(123, message),
+            settings,
+            ToneEngine.default(),
+        )
+    )
+
+    assert message.replies == ["# CBT Profile\n\n- episodes: 2\n"]
+    assert message.reply_options == [{}]
+
+
+def test_profile_command_reports_missing_profile(tmp_path):
+    settings = _settings(cbt_profile_dir=tmp_path / "reports" / "cbt-profile")
+    message = _FakeMessage("/profile")
+
+    _run(
+        telegram_bot._handle_profile_after_authorized(
+            _fake_update(123, message),
+            settings,
+            ToneEngine.default(),
+        )
+    )
+
+    assert message.replies == [
+        "Профиль пока не собран. Нужны сохранённые и обработанные эпизоды."
     ]
     assert message.reply_options == [{"parse_mode": "HTML"}]
 
@@ -360,6 +403,117 @@ def test_non_admin_decision_command_is_rejected(tmp_path):
 
     assert userlist.load() == {}
     assert message.replies == ["Нет доступа"]
+
+
+def test_report_graph_rejects_non_admin(tmp_path):
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("/report_graph")
+
+    authorized = _run(
+        telegram_bot._authorize_admin(
+            _fake_update(456, message),
+            _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123),
+            ToneEngine.default(),
+            ux_events,
+        )
+    )
+
+    assert authorized is False
+    assert message.replies == ["Нет доступа"]
+
+
+def test_report_graph_regenerates_graph_and_profile_reports(tmp_path):
+    settings = _settings(
+        episode_dir=tmp_path / "episodes",
+        graph_report_dir=tmp_path / "reports" / "graph",
+        cbt_profile_dir=tmp_path / "reports" / "cbt-profile",
+        cbt_analytics_dir=tmp_path / "reports" / "cbt-analytics",
+    )
+    settings.episode_dir.mkdir(parents=True)
+    _write_json(settings.episode_dir / "episode-20260503-1.json", _graph_ready_episode())
+    message = _FakeMessage("/report_graph")
+
+    _run(
+        telegram_bot._handle_report_graph_after_admin(
+            _fake_update(123, message),
+            settings,
+            ToneEngine.default(),
+        )
+    )
+
+    assert (settings.graph_report_dir / "all.md").exists()
+    assert (settings.graph_report_dir / "graph.html").exists()
+    assert (settings.cbt_profile_dir / "all.md").exists()
+    assert (settings.cbt_profile_dir / "telegram-chat-123.md").exists()
+    assert (settings.cbt_analytics_dir / "all.md").exists()
+    assert (settings.cbt_analytics_dir / "telegram-chat-123.md").exists()
+    assert message.replies == [
+        "Отчёты обновлены\n"
+        "episodes: 1\n"
+        "invalid: 0\n"
+        "empty_derived: 0\n"
+        "graph_ready: 1\n"
+        "report_ready: 1\n"
+        "profile_eligible: 1\n\n"
+        f"{settings.graph_report_dir / 'all.md'}\n"
+        f"{settings.cbt_profile_dir / 'all.md'}\n"
+        f"{settings.cbt_analytics_dir / 'all.md'}\n"
+        f"{settings.graph_report_dir / 'graph.html'}"
+    ]
+
+
+def test_report_ux_rejects_non_admin(tmp_path):
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("/report_ux")
+
+    authorized = _run(
+        telegram_bot._authorize_admin(
+            _fake_update(456, message),
+            _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123),
+            ToneEngine.default(),
+            ux_events,
+        )
+    )
+
+    assert authorized is False
+    assert message.replies == ["Нет доступа"]
+
+
+def test_report_ux_regenerates_and_replies_markdown(tmp_path):
+    settings = _settings(
+        ux_event_log=tmp_path / "ux-events" / "events.jsonl",
+        ux_report_dir=tmp_path / "reports" / "ux",
+        userlist_path=tmp_path / "userlist" / "users.json",
+    )
+    JsonUserList(settings.userlist_path).upsert_waitlisted(
+        123,
+        "123",
+        now=datetime(2026, 5, 7, 10, 0, tzinfo=timezone.utc),
+        profile={"username": "tester"},
+    )
+    UxEventLog(settings.ux_event_log).append(
+        {
+            "event_type": "session_started",
+            "session_id": "session-123",
+            "user_id": "123",
+            "created_at": "2026-05-07T10:00:00Z",
+        }
+    )
+    message = _FakeMessage("/report_ux")
+
+    _run(
+        telegram_bot._handle_report_ux_after_admin(
+            _fake_update(123, message),
+            settings,
+            ToneEngine.default(),
+        )
+    )
+
+    assert (settings.ux_report_dir / "all.md").exists()
+    assert (settings.ux_report_dir / "all.json").exists()
+    assert message.replies[0].startswith("# UX Analytics\n")
+    assert "- 123 (@tester): 1" in message.replies[0]
+    assert message.reply_options == [{}]
 
 
 def test_admin_decision_requires_chat_id(tmp_path):
@@ -953,12 +1107,141 @@ def _complete_review_session() -> LoopSession:
     )
 
 
+def _write_json(path, data):
+    path.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _graph_ready_episode():
+    return {
+        "id": "episode-20260503-1",
+        "date": "2026-05-03",
+        "source": "telegram-chat:123",
+        "observed": {
+            "situation": {"value": "s", "source_quote": "s"},
+            "trigger": {"value": "tr", "source_quote": "tr"},
+            "actor": {"value": "ac", "source_quote": "ac"},
+            "quote": {"value": "sp", "source_quote": "sp"},
+            "automatic_thought": {"value": "at", "source_quote": "at"},
+            "emotion": {"value": "страх", "source_quote": "страх"},
+            "behavior": {"value": "b", "source_quote": "b"},
+            "physical": {"value": "physical", "source_quote": "physical"},
+            "short_term_consequence": {"value": "st", "source_quote": "st"},
+            "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+        },
+        "derived": {
+            "nodes": [
+                {
+                    "id": "node-1",
+                    "node_origin": "observed",
+                    "kind": "cognition",
+                    "text": "at",
+                    "source_field": "observed.automatic_thought",
+                    "source_quote": "at",
+                    "confidence": 0.9,
+                },
+                {
+                    "id": "node-2",
+                    "node_origin": "observed",
+                    "kind": "emotion",
+                    "text": "страх",
+                    "source_field": "observed.emotion",
+                    "source_quote": "страх",
+                    "confidence": 0.9,
+                },
+                {
+                    "id": "node-3",
+                    "node_origin": "observed",
+                    "kind": "behavior",
+                    "text": "b",
+                    "source_field": "observed.behavior",
+                    "source_quote": "b",
+                    "confidence": 0.9,
+                },
+            ],
+            "trigger_annotations": [
+                {
+                    "id": "trigger-annotation-1",
+                    "type": "social",
+                    "source_field": "observed.trigger",
+                    "source_quote": "tr",
+                    "confidence": 0.9,
+                }
+            ],
+            "actor_annotations": [],
+            "cognition_annotations": [
+                {
+                    "id": "cognition-annotation-1",
+                    "node_id": "node-1",
+                    "text": "at",
+                    "kind": "evaluation",
+                    "source_field": "observed.automatic_thought",
+                    "source_quote": "at",
+                    "confidence": 0.9,
+                }
+            ],
+            "emotion_annotations": [
+                {
+                    "id": "emotion-annotation-1",
+                    "node_id": "node-2",
+                    "label": "страх",
+                    "intensity": 0.5,
+                    "valence": -0.7,
+                    "arousal": 0.8,
+                    "source_field": "observed.emotion",
+                    "source_quote": "страх",
+                    "confidence": 0.9,
+                }
+            ],
+            "behavior_annotations": [
+                {
+                    "id": "behavior-annotation-1",
+                    "node_id": "node-3",
+                    "type": "avoid",
+                    "source_field": "observed.behavior",
+                    "source_quote": "b",
+                    "confidence": 0.9,
+                }
+            ],
+            "relations": [
+                {
+                    "id": "relation-1",
+                    "type": "belongs_to",
+                    "from_ref": "node-1",
+                    "to_ref": "episode",
+                    "source_field": "observed.automatic_thought",
+                    "source_quote": "at",
+                    "confidence": 0.9,
+                }
+            ],
+        },
+    }
+
+
 def _settings(
     admin_chat_ids=frozenset({123}),
     owner_chat_id=123,
+    episode_dir=None,
+    graph_report_dir=None,
+    cbt_profile_dir=None,
+    cbt_analytics_dir=None,
+    ux_report_dir=None,
+    userlist_path=None,
+    ux_event_log=None,
 ):
     return SimpleNamespace(
         initial_session_ttl_sec=600,
         telegram_admin_chat_ids=admin_chat_ids,
         telegram_owner_chat_id=owner_chat_id,
+        episode_dir=episode_dir,
+        graph_report_dir=graph_report_dir,
+        cbt_profile_dir=cbt_profile_dir,
+        cbt_analytics_dir=cbt_analytics_dir,
+        ux_report_dir=ux_report_dir,
+        userlist_path=userlist_path,
+        ux_event_log=ux_event_log,
+        ux_idle_after_sec=7200,
+        report_min_count=2,
     )

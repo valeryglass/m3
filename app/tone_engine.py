@@ -201,6 +201,39 @@ class ToneEngine:
     def admin_bad_command(self, command: str) -> str:
         return SESSION_MESSAGES["admin_bad_command"].format(command=command)
 
+    def profile_missing(self) -> str:
+        return SESSION_MESSAGES["profile_missing"]
+
+    def report_failed(self, error: Exception | str) -> str:
+        return SESSION_MESSAGES["report_failed"].format(error=escape(str(error)))
+
+    def graph_reports_ready(
+        self,
+        *,
+        episodes: int,
+        invalid: int,
+        empty_derived: int,
+        graph_ready: int,
+        report_ready: int,
+        profile_eligible: int,
+        graph_path: str,
+        profile_path: str,
+        analytics_path: str,
+        html_path: str,
+    ) -> str:
+        return SESSION_MESSAGES["graph_reports_ready"].format(
+            episodes=episodes,
+            invalid=invalid,
+            empty_derived=empty_derived,
+            graph_ready=graph_ready,
+            report_ready=report_ready,
+            profile_eligible=profile_eligible,
+            graph_path=escape(graph_path),
+            profile_path=escape(profile_path),
+            analytics_path=escape(analytics_path),
+            html_path=escape(html_path),
+        )
+
     def expired_initial_session(self) -> str:
         return SESSION_MESSAGES["expired_initial_session"]
 

@@ -6,6 +6,15 @@ from app.config import (
     load_settings,
     owner_chat_id_for_settings,
 )
+from app.annotation_workflow import audit_episode_dir
+from app.cbt_analytics import write_cbt_analytics
+from app.cbt_profile import write_cbt_profiles
+from app.graph_report import (
+    build_report,
+    load_episodes,
+    write_graph_html,
+    write_markdown_reports,
+)
 from app.loop_extractor import (
     active_target,
     apply_user_reply,
@@ -18,6 +27,7 @@ from app.loop_extractor import (
 from app.storage import JsonStorage
 from app.tone_engine import load_tone_engine
 from app.userlist import JsonUserList
+from app.ux_analytics import load_user_records, summarize_events, write_reports
 from app.ux_events import (
     UxEventLog,
     base_event,
@@ -82,6 +92,13 @@ def main() -> None:
             return
         await _send_help(update, tone)
 
+    async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
+            return
+        await _handle_profile_after_authorized(update, settings, tone)
+
     async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
             update, settings, tone, ux_events, userlist, context.bot
@@ -115,6 +132,16 @@ def main() -> None:
             update, context.args, settings, tone, ux_events, userlist, "pause", context.bot
         )
 
+    async def report_graph(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _authorize_admin(update, settings, tone, ux_events):
+            return
+        await _handle_report_graph_after_admin(update, settings, tone)
+
+    async def report_ux(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _authorize_admin(update, settings, tone, ux_events):
+            return
+        await _handle_report_ux_after_admin(update, settings, tone)
+
     async def post_init(application) -> None:
         profile = _bot_profile(tone)
         await application.bot.set_my_commands(
@@ -141,8 +168,11 @@ def main() -> None:
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("cancel", cancel))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("profile", profile))
     application.add_handler(CommandHandler("approve", approve))
     application.add_handler(CommandHandler("pause", pause))
+    application.add_handler(CommandHandler("report_graph", report_graph))
+    application.add_handler(CommandHandler("report_ux", report_ux))
     application.add_handler(CallbackQueryHandler(episode_callback, pattern="^episode:"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
     application.run_polling(bootstrap_retries=-1)
@@ -153,10 +183,14 @@ REGISTERED_COMMANDS = (
     "status",
     "cancel",
     "help",
+    "profile",
     "approve",
     "pause",
+    "report_graph",
+    "report_ux",
 )
 VISIBLE_COMMANDS = ("start", "cancel", "help")
+REPORT_REPLY_LIMIT = 3800
 
 
 def _visible_command_menu(tone) -> tuple[dict[str, str], ...]:
@@ -179,6 +213,113 @@ def _bot_profile(tone) -> dict[str, str]:
 async def _send_help(update, tone) -> None:
     if update.message is not None:
         await _reply_text(update, tone.help())
+
+
+async def _handle_profile_after_authorized(update, settings: Settings, tone) -> None:
+    path = _profile_report_path(settings, update.effective_chat.id)
+    if not path.exists():
+        await _reply_text(update, tone.profile_missing())
+        return
+    await _reply_text(
+        update,
+        _trim_report_text(path.read_text(encoding="utf-8")),
+        parse_mode=None,
+    )
+
+
+async def _handle_report_graph_after_admin(update, settings: Settings, tone) -> None:
+    try:
+        summary = _regenerate_graph_and_profile_reports(settings)
+    except Exception as exc:  # pragma: no cover - exact failures depend on data files
+        await _reply_text(update, tone.report_failed(exc))
+        return
+
+    await _reply_text(
+        update,
+        tone.graph_reports_ready(
+            episodes=summary["episodes"],
+            invalid=summary["invalid"],
+            empty_derived=summary["empty_derived"],
+            graph_ready=summary["graph_ready"],
+            report_ready=summary["report_ready"],
+            profile_eligible=summary["profile_eligible"],
+            graph_path=summary["graph_path"],
+            profile_path=summary["profile_path"],
+            analytics_path=summary["analytics_path"],
+            html_path=summary["html_path"],
+        ),
+    )
+
+
+async def _handle_report_ux_after_admin(update, settings: Settings, tone) -> None:
+    try:
+        markdown_path, _ = _regenerate_ux_report(settings)
+        text = markdown_path.read_text(encoding="utf-8")
+    except Exception as exc:  # pragma: no cover - exact failures depend on data files
+        await _reply_text(update, tone.report_failed(exc))
+        return
+
+    await _reply_text(update, _trim_report_text(text), parse_mode=None)
+
+
+def _profile_report_path(settings: Settings, chat_id: int):
+    return settings.cbt_profile_dir / f"telegram-chat-{chat_id}.md"
+
+
+def _regenerate_graph_and_profile_reports(settings: Settings) -> dict[str, int | str]:
+    audit = audit_episode_dir(settings.episode_dir)
+    episodes = load_episodes(settings.episode_dir)
+    report = build_report(episodes)
+    write_markdown_reports(
+        episodes,
+        settings.graph_report_dir,
+        min_count=settings.report_min_count,
+        by_source=True,
+    )
+    html_path = write_graph_html(episodes, settings.graph_report_dir / "graph.html")
+    write_cbt_profiles(
+        episodes,
+        settings.cbt_profile_dir,
+        min_count=settings.report_min_count,
+        by_source=True,
+    )
+    write_cbt_analytics(
+        episodes,
+        settings.cbt_analytics_dir,
+        min_count=settings.report_min_count,
+        by_source=True,
+    )
+
+    return {
+        "episodes": report.total_episodes,
+        "invalid": audit.invalid,
+        "empty_derived": audit.empty_derived,
+        "graph_ready": len(report.graph_ready),
+        "report_ready": sum(1 for item in report.readiness if item.report_ready),
+        "profile_eligible": sum(
+            1 for item in report.readiness if item.profile_eligible
+        ),
+        "graph_path": (settings.graph_report_dir / "all.md").as_posix(),
+        "profile_path": (settings.cbt_profile_dir / "all.md").as_posix(),
+        "analytics_path": (settings.cbt_analytics_dir / "all.md").as_posix(),
+        "html_path": html_path.as_posix(),
+    }
+
+
+def _regenerate_ux_report(settings: Settings):
+    summary = summarize_events(
+        UxEventLog(settings.ux_event_log).read(),
+        idle_after_sec=settings.ux_idle_after_sec,
+        user_records=load_user_records(settings.userlist_path),
+    )
+    return write_reports(summary, settings.ux_report_dir)
+
+
+def _trim_report_text(text: str, limit: int = REPORT_REPLY_LIMIT) -> str:
+    if len(text) <= limit:
+        return text
+    suffix = "\n\n[report trimmed]"
+    return text[: limit - len(suffix)].rstrip() + suffix
 
 
 async def _handle_start_after_authorized(
@@ -571,9 +712,11 @@ async def _notify_approved_user(bot, chat_id: int, tone) -> None:
     )
 
 
-async def _reply_text(update, text: str, *, reply_markup=None):
+async def _reply_text(update, text: str, *, reply_markup=None, parse_mode="HTML"):
     if update.message is not None:
-        kwargs = {"parse_mode": "HTML"}
+        kwargs = {}
+        if parse_mode is not None:
+            kwargs["parse_mode"] = parse_mode
         if reply_markup is not None:
             kwargs["reply_markup"] = reply_markup
         return await update.message.reply_text(
