@@ -174,12 +174,15 @@ def test_graph_report_renders_markdown_summary_and_per_episode():
     assert "- profile_eligible: 2" in text
     assert "## State Snapshots" in text
     assert "- complete: 2" in text
-    assert "## Profile Maturity" in text
-    assert "- quantity: 2" in text
-    assert "- страх: 2 episodes" in text
-    assert "- avoid: 2 episodes" in text
-    assert "- prediction -> avoid: 2 episodes" in text
-    assert "- страх -> avoid: 2 episodes" in text
+    assert "## Profile Maturity" not in text
+    assert "## Top Emotion Signatures" not in text
+    assert "## Top Behavior Signatures" not in text
+    assert "## Top Cognition Signatures" not in text
+    assert "## Trigger + Emotion Signatures" not in text
+    assert "## Cognition + Behavior Signatures" not in text
+    assert "## Emotion + Behavior Signatures" not in text
+    assert "## Relation Type Patterns" in text
+    assert "- belongs_to + leads_to: 2 episodes" in text
     assert (
         "- episode-20260430-1: trigger=social; cognition=prediction; "
         "emotion=страх; behavior=avoid"

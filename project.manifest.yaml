@@ -126,26 +126,48 @@ modules:
       - source_split_reports
       - html_graph_output
 
-  profile_brief:
+  cbt_profile:
     stage: experimental
     enabled: true
-    purpose: Produce evidence-bound CBT pattern briefs from report-ready episodes.
+    purpose: Produce user-facing evidence-bound CBT domain reports from report-ready episodes.
     owned_paths:
-      - app/profile_brief.py
-      - data/reports/profile/
+      - app/cbt_profile.py
+      - data/reports/cbt-profile/
     inputs:
       - report-ready episodes
       - profile maturity metrics
     outputs:
-      - data/reports/profile/*.md
+      - data/reports/cbt-profile/*.md
     interfaces:
       - report_to_profile
     gates:
       - profile_eligible
     capabilities:
       - profile_maturity_summary
-      - evidence_bound_pattern_brief
-      - source_split_briefs
+      - evidence_bound_domain_report
+      - one_week_change_summary
+      - source_split_profiles
+
+  cbt_analytics:
+    stage: experimental
+    enabled: true
+    purpose: Produce internal CBT ranks, contrasts, forks, and timespan analytics.
+    owned_paths:
+      - app/cbt_analytics.py
+      - data/reports/cbt-analytics/
+    inputs:
+      - report-ready episodes
+      - graph signature counters
+    outputs:
+      - data/reports/cbt-analytics/*.md
+    interfaces:
+      - report_to_profile
+    gates:
+      - profile_eligible
+    capabilities:
+      - frequency_ranking
+      - fork_convergence_outcome_analysis
+      - one_week_drift_novelty_stability
 
   ux_analytics:
     stage: prototype
@@ -160,11 +182,14 @@ modules:
     outputs:
       - private JSONL event logs
       - UX aggregate summaries
+      - data/reports/ux/all.md
+      - data/reports/ux/all.json
     interfaces:
       - capture_to_episode
     capabilities:
       - append_only_event_log
       - funnel_summary
+      - saved_ux_reports
 
   userlist_access:
     stage: prototype
@@ -213,7 +238,8 @@ interfaces:
     state: open
     owner: graph_reporting
     consumers:
-      - profile_brief
+      - cbt_profile
+      - cbt_analytics
     contract_doc: docs/interfaces/report-to-profile.md
 
 adr_policy:

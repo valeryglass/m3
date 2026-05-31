@@ -38,6 +38,8 @@ class EpisodeSignature:
     emotions: tuple[str, ...]
     behaviors: tuple[str, ...]
     relation_types: tuple[str, ...]
+    short_term_consequence: str
+    long_term_consequence: str
 
 
 @dataclass(frozen=True)
@@ -84,6 +86,8 @@ def build_signature(episode: Episode) -> EpisodeSignature:
         emotions=_sorted_unique(item.label for item in derived.emotion_annotations),
         behaviors=_sorted_unique(item.type for item in derived.behavior_annotations),
         relation_types=_sorted_unique(item.type for item in derived.relations),
+        short_term_consequence=episode.observed.short_term_consequence.value.strip(),
+        long_term_consequence=episode.observed.long_term_consequence.value.strip(),
     )
 
 
@@ -145,44 +149,8 @@ def render_markdown(report: GraphReport, min_count: int = 2) -> str:
         f"- partial: {report.state_snapshots.partial}",
         f"- average_confidence: {report.state_snapshots.average_confidence:.2f}",
         "",
-        "## Profile Maturity",
-        f"- quantity: {report.profile_maturity.quantity}",
-        f"- diversity: {report.profile_maturity.diversity}",
-        f"- recurrence: {report.profile_maturity.recurrence}",
-        f"- stability: {report.profile_maturity.stability_percent}%",
-        f"- coverage: {report.profile_maturity.coverage_percent}%",
-        f"- freshness: {report.profile_maturity.freshness}",
-        f"- confidence: {report.profile_maturity.confidence_band}",
-        "",
     ]
 
-    lines.extend(_render_counter("## Top Emotion Signatures", report.emotion_signatures, min_count))
-    lines.extend(_render_counter("## Top Behavior Signatures", report.behavior_signatures, min_count))
-    lines.extend(_render_counter("## Top Cognition Signatures", report.cognition_signatures, min_count))
-    lines.extend(
-        _render_counter(
-            "## Trigger + Emotion Signatures",
-            report.trigger_emotion_signatures,
-            min_count,
-            separator=" -> ",
-        )
-    )
-    lines.extend(
-        _render_counter(
-            "## Cognition + Behavior Signatures",
-            report.cognition_behavior_signatures,
-            min_count,
-            separator=" -> ",
-        )
-    )
-    lines.extend(
-        _render_counter(
-            "## Emotion + Behavior Signatures",
-            report.emotion_behavior_signatures,
-            min_count,
-            separator=" -> ",
-        )
-    )
     lines.extend(_render_counter("## Relation Type Patterns", report.relation_type_signatures, min_count))
 
     lines.extend(["## Per Episode"])

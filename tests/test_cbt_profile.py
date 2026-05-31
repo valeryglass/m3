@@ -1,44 +1,47 @@
 import json
 
-from app.profile_brief import render_profile_brief, write_profile_briefs
+from app.cbt_profile import render_cbt_profile, write_cbt_profiles
 from app.graph_report import build_report, load_episodes
 from app.schemas.episode import Episode
 
 
-def test_profile_brief_renders_maturity_patterns_and_gaps():
+def test_domain_report_renders_v02_user_sections_and_hides_rank_dump():
     report = build_report(
         [
             _load_episode(_episode("episode-20260430-1")),
             _load_episode(_episode("episode-20260430-2")),
-            _load_episode(_episode("episode-20260430-3", graph_ready=False)),
+            _load_episode(_episode("episode-20260508-1", behavior_type="approach")),
+            _load_episode(_episode("episode-20260508-2", graph_ready=False)),
         ]
     )
 
-    text = render_profile_brief(report, title="telegram-chat:123", min_count=2)
+    text = render_cbt_profile(report, title="telegram-chat:123", min_count=2)
 
-    assert "# Derived CBT Pattern Brief" in text
+    assert text.startswith("# Domain Report")
     assert "- scope: telegram-chat:123" in text
-    assert "- episodes: 3" in text
-    assert "- profile_eligible: 2" in text
-    assert "## Profile Maturity" in text
-    assert "- quantity: 2" in text
-    assert "## Top Trigger Patterns" in text
-    assert "- social: 2 episodes" in text
-    assert "- страх: 2 episodes" in text
-    assert "- prediction: 2 episodes" in text
-    assert "- avoid: 2 episodes" in text
-    assert "- prediction -> avoid: 2 episodes" in text
+    assert "- timespan_quant: 1week" in text
+    assert "## Observations" in text
+    assert "## Patterns" in text
+    assert "## Exceptions" in text
+    assert "## Changes" in text
+    assert "## Questions" in text
+    assert "## Insights" in text
     assert "## Gaps" in text
-    assert "- episode-20260430-3: empty_derived" in text
+    assert "Repeated loops" in text
+    assert "social -> страх -> avoid" in text
+    assert "Temporal grouping uses fixed 1week buckets." in text
+    assert "- episode-20260508-2: empty_derived" in text
+    assert "### Trigger Frequency" not in text
+    assert "## L0 Descriptive Analytics" not in text
 
 
-def test_profile_brief_writes_all_and_source_reports(tmp_path):
+def test_domain_report_writes_all_and_source_reports(tmp_path):
     episodes = [
         _load_episode(_episode("episode-20260430-1", source="telegram-chat:123")),
         _load_episode(_episode("episode-20260430-2", source="telegram-chat:456")),
     ]
 
-    paths = write_profile_briefs(
+    paths = write_cbt_profiles(
         episodes,
         tmp_path / "profile",
         min_count=1,
@@ -48,7 +51,7 @@ def test_profile_brief_writes_all_and_source_reports(tmp_path):
     names = sorted(path.name for path in paths)
     assert names == ["all.md", "telegram-chat-123.md", "telegram-chat-456.md"]
     assert (tmp_path / "profile" / "all.md").read_text(encoding="utf-8").startswith(
-        "# Derived CBT Pattern Brief"
+        "# Domain Report"
     )
     source_text = (tmp_path / "profile" / "telegram-chat-123.md").read_text(
         encoding="utf-8"
@@ -57,7 +60,7 @@ def test_profile_brief_writes_all_and_source_reports(tmp_path):
     assert "- episodes: 1" in source_text
 
 
-def test_profile_brief_loads_real_episode_files(tmp_path):
+def test_domain_report_loads_real_episode_files(tmp_path):
     path = tmp_path / "episode-20260430-1.json"
     path.write_text(
         json.dumps(_episode("episode-20260430-1"), ensure_ascii=False),
@@ -65,10 +68,10 @@ def test_profile_brief_loads_real_episode_files(tmp_path):
     )
 
     episodes = load_episodes(tmp_path)
-    paths = write_profile_briefs(episodes, tmp_path / "profile", min_count=1)
+    paths = write_cbt_profiles(episodes, tmp_path / "profile", min_count=1)
 
     assert len(paths) == 1
-    assert "Derived CBT Pattern Brief" in paths[0].read_text(encoding="utf-8")
+    assert "Domain Report" in paths[0].read_text(encoding="utf-8")
 
 
 def _load_episode(data):
@@ -80,6 +83,10 @@ def _episode(
     *,
     graph_ready=True,
     source="telegram-chat:123",
+    behavior="Closed the chat.",
+    behavior_type="avoid",
+    stc="Relief.",
+    ltc="Still unresolved.",
 ):
     derived = {
         "nodes": [],
@@ -139,9 +146,9 @@ def _episode(
             "behavior_annotations": [
                 {
                     "id": "behavior-annotation-1",
-                    "type": "avoid",
+                    "type": behavior_type,
                     "source_field": "observed.behavior",
-                    "source_quote": "closed the chat",
+                    "source_quote": behavior,
                     "confidence": 0.9,
                 }
             ],
@@ -161,14 +168,14 @@ def _episode(
                     "from_ref": "node-1",
                     "to_ref": "observed.behavior",
                     "source_field": "observed.behavior",
-                    "source_quote": "closed the chat",
+                    "source_quote": behavior,
                     "confidence": 0.75,
                 },
             ],
         }
     return {
         "id": episode_id,
-        "date": "2026-04-30",
+        "date": f"{episode_id[8:12]}-{episode_id[12:14]}-{episode_id[14:16]}",
         "source": source,
         "observed": {
             "situation": {"value": "Group chat.", "source_quote": "group chat"},
@@ -178,12 +185,9 @@ def _episode(
             },
             "emotion": {"value": "страх", "source_quote": "страх"},
             "physical": {"value": "Tight chest.", "source_quote": "tight chest"},
-            "behavior": {"value": "Closed the chat.", "source_quote": "closed the chat"},
-            "short_term_consequence": {"value": "Relief.", "source_quote": "relief"},
-            "long_term_consequence": {
-                "value": "Still unresolved.",
-                "source_quote": "still unresolved",
-            },
+            "behavior": {"value": behavior, "source_quote": behavior},
+            "short_term_consequence": {"value": stc, "source_quote": stc},
+            "long_term_consequence": {"value": ltc, "source_quote": ltc},
         },
         "derived": derived,
     }

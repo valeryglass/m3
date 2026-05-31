@@ -13,7 +13,7 @@ This file maps the repository/system structure at a high level.
 - `data/episodes/`: private structured JSON episode records.
 - `data/state/`: private in-progress Telegram loop state.
 - `data/ux-events/`: private step-level UX analytics event log.
-- `data/reports/`: private graph and profile report outputs.
+- `data/reports/`: private graph, CBT, and UX report outputs.
 - `config/`: runtime configuration files.
 - `app/`: Telegram loop extractor application.
 - `docs/`: architecture operating system.
@@ -38,18 +38,22 @@ The active engine is JSON contracts plus JSON artifacts.
 - `model/episode.schema.json`: canonical episode data contract.
 - `model/episode.example.json`: valid example artifact.
 - `model/episode.template.json`: fillable artifact shape.
+- `model/cbt-profile.template.md`: v0.2 user-facing domain report shape.
 - `app/schemas/episode.py`: Pydantic mirror of the episode contract.
 - `app/ux_events.py`: append-only UX event writer.
 - `app/ux_analytics.py`: UX event aggregation CLI.
 - `app/tone_engine.py`: runtime user-facing text layer.
 - `app/annotation_workflow.py`: annotation audit/export/validate/apply CLI.
 - `app/graph_report.py`: graph readiness/signature report CLI.
-- `app/profile_brief.py`: evidence-bound profile brief CLI.
+- `app/cbt_profile.py`: user-facing evidence-bound domain report CLI.
+- `app/cbt_analytics.py`: internal CBT analytics/ranking report CLI.
 - `config/tone.yaml`: default tone configuration.
 - `data/episodes/*.json`: private runtime episode records.
 - `data/ux-events/*.jsonl`: private runtime UX event log.
 - `data/reports/graph/`: private graph report outputs.
-- `data/reports/profile/`: private profile brief outputs.
+- `data/reports/cbt-profile/`: private user-facing domain report outputs.
+- `data/reports/cbt-analytics/`: private internal CBT analytics outputs.
+- `data/reports/ux/`: private UX analytics report outputs.
 
 ## Boundaries
 

@@ -20,6 +20,11 @@ class Settings:
     state_dir: Path
     userlist_path: Path
     ux_event_log: Path
+    graph_report_dir: Path
+    cbt_profile_dir: Path
+    cbt_analytics_dir: Path
+    ux_report_dir: Path
+    report_min_count: int
     ux_idle_after_sec: int
     initial_session_ttl_sec: int
     tone_config: Path
@@ -70,6 +75,17 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         state_dir=Path(source.get("M3_STATE_DIR", "data/state")),
         userlist_path=Path(source.get("M3_USERLIST_PATH", "data/userlist/users.json")),
         ux_event_log=Path(source.get("M3_UX_EVENT_LOG", "data/ux-events/events.jsonl")),
+        graph_report_dir=Path(
+            source.get("M3_GRAPH_REPORT_DIR", "data/reports/graph")
+        ),
+        cbt_profile_dir=Path(
+            source.get("M3_CBT_PROFILE_DIR", "data/reports/cbt-profile")
+        ),
+        cbt_analytics_dir=Path(
+            source.get("M3_CBT_ANALYTICS_DIR", "data/reports/cbt-analytics")
+        ),
+        ux_report_dir=Path(source.get("M3_UX_REPORT_DIR", "data/reports/ux")),
+        report_min_count=int(source.get("M3_REPORT_MIN_COUNT", "2")),
         ux_idle_after_sec=int(source.get("M3_UX_IDLE_AFTER_SEC", "7200")),
         initial_session_ttl_sec=int(source.get("M3_INITIAL_SESSION_TTL_SEC", "600")),
         tone_config=Path(source.get("M3_TONE_CONFIG", "config/tone.yaml")),

@@ -9,7 +9,7 @@ human view of the current system state.
 - accepted CBT domain SSOT: `model/`
 - runtime artifacts: `data/`, private and ignored
 - active app surface: Telegram episode capture plus local report CLIs
-- reports: graph reports and profile briefs under `data/reports/`
+- reports: domain profile, CBT analytics, graph, and UX analytics under `data/reports/`
 
 ## Modules
 
@@ -19,7 +19,8 @@ human view of the current system state.
 | `episode_model_storage` | experimental | Define and persist validated episode artifacts. |
 | `annotation_workflow` | experimental | Audit, export, validate, and apply derived annotations. |
 | `graph_reporting` | experimental | Build graph readiness, signature, and HTML reports. |
-| `profile_brief` | experimental | Produce evidence-bound CBT pattern briefs. |
+| `cbt_profile` | experimental | Produce user-facing evidence-bound domain reports. |
+| `cbt_analytics` | experimental | Produce internal CBT ranks and under-the-hood analytics. |
 | `ux_analytics` | prototype | Record and aggregate loop UX events. |
 | `userlist_access` | prototype | Track approved and waitlisted Telegram users. |
 
@@ -30,7 +31,7 @@ human view of the current system state.
 | `capture_to_episode` | open | `telegram_capture` | `episode_model_storage` |
 | `episode_to_annotation` | open | `episode_model_storage` | `annotation_workflow` |
 | `annotation_to_report` | open | `annotation_workflow` | `graph_reporting` |
-| `report_to_profile` | open | `graph_reporting` | `profile_brief` |
+| `report_to_profile` | open | `graph_reporting` | `cbt_profile`, `cbt_analytics` |
 
 ## Readiness Gates
 
