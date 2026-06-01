@@ -19,6 +19,7 @@ The active engine is JSON:
 - `model/*.template.json` provides fillable artifact shapes.
 - `data/episodes/*.json` stores private runtime episode records.
 - `data/ux-events/*.jsonl` stores private runtime UX event records.
+- `data/reports/` stores private generated report artifacts.
 - `config/tone.yaml` configures user-facing loop tone.
 
 The agent's job is to keep accepted contracts and artifacts coherent. Do not
@@ -28,7 +29,6 @@ invent architecture to feel productive.
 
 - `project.manifest.yaml` is the structural source of truth: modules,
   interfaces, lifecycle stages, gates, and ownership.
-- `docs/dashboard.md` is the human dashboard for current structure and gaps.
 - `docs/architecture.md` explains the system flow and bounded contexts.
 - `docs/lifecycle.md` defines stage names and ADR requirements.
 - `docs/modules/` contains module passports for core bounded contexts.
@@ -48,10 +48,9 @@ model/     -- accepted CBT model and JSON contracts
 data/      -- private runtime artifacts and loop state
 config/    -- runtime configuration files
 app/       -- Telegram loop extractor application
-docs/      -- architecture operating system and human dashboards
+docs/      -- architecture operating system
 roles/     -- optional role specs
 project.manifest.yaml -- structural source of truth
-schema.md  -- repository/system structure map
 ```
 
 ## Source Of Truth

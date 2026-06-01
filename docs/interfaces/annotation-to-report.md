@@ -14,7 +14,6 @@ Reporting.
 
 - graph readiness reports.
 - signature reports.
-- local graph HTML.
 
 ## Guarantees
 

@@ -18,7 +18,7 @@ Telegram user
   -> Episode Model + Storage
   -> Annotation Workflow
   -> Graph Reporting
-  -> CBT Profile
+  -> Psy Payload
 ```
 
 Supporting flows:
@@ -47,10 +47,9 @@ Episode Capture -> Userlist / Access Gate
   and legacy normalization.
 - Annotation Workflow owns derived nodes, annotations, relations, and readiness
   gates.
-- Graph Reporting owns graph readiness reports, signature reports, and HTML
-  graph output.
-- CBT Profile owns evidence-bound profile summaries built from report-ready
-  episodes.
+- Graph Reporting owns graph readiness and core graph quality reports.
+- Psy Payload owns domain-boxed loop, pattern, and outcome metrics built from
+  report-ready episodes.
 - UX Analytics owns append-only loop event logs and aggregate UX views.
 - Userlist / Access owns approved-user and waitlist metadata.
 
@@ -61,8 +60,8 @@ Observed data is user-stated or minimally normalized episode evidence.
 Derived data is interpretation over observed evidence. Every derived object must
 include provenance through `source_field`, `source_quote`, and `confidence`.
 
-Reports are downstream summaries. CBT profiles must describe evidence and gaps
-without making diagnostic claims.
+Reports are downstream summaries. Psy payload reports must describe evidence and
+gaps without making diagnostic claims.
 
 ## CBT Domain Boundary
 

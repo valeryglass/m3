@@ -20,6 +20,7 @@ def test_annotator_role_names_all_derived_annotation_lists():
         "cognition_annotations",
         "emotion_annotations",
         "behavior_annotations",
+        "outcome_annotations",
         "relations",
     ):
         assert key in text
@@ -66,7 +67,7 @@ def test_architecture_steward_role_defines_manifest_ownership():
 
     assert "Role name: `architecture_steward`" in text
     assert "project.manifest.yaml" in text
-    assert "docs/dashboard.md" in text
+    assert "docs/architecture.md" in text
     assert "docs/interfaces/" in text
     assert "docs/adr/" in text
     assert "methodology/" in text

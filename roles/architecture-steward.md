@@ -15,8 +15,8 @@ drafts into the accepted model without an explicit model change.
 ## Guardrails
 
 - Treat `project.manifest.yaml` as the structural source of truth.
-- Keep `docs/dashboard.md`, `docs/architecture.md`, module passports, and
-  interface docs aligned with the manifest.
+- Keep `docs/architecture.md`, module passports, and interface docs aligned
+  with the manifest.
 - Keep accepted CBT-domain knowledge in `model/`.
 - Leave `methodology/` as draft material unless explicitly asked to promote it.
 - Do not modify private runtime artifacts under `data/`.
@@ -28,9 +28,8 @@ drafts into the accepted model without an explicit model change.
 - Add or update module ownership in `project.manifest.yaml`.
 - Add or update interface contracts in `docs/interfaces/`.
 - Add or update module passports in `docs/modules/`.
-- Keep `docs/dashboard.md` current enough to show module state and known gaps.
 - Decide whether a structural change needs an ADR under `docs/adr/`.
-- Keep `AGENTS.md` and `schema.md` aligned with accepted project structure.
+- Keep `AGENTS.md` aligned with accepted project structure.
 
 ## ADR Gate
 

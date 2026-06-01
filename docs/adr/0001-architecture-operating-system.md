@@ -8,7 +8,7 @@ structure. Use Markdown docs under `docs/` as human views over that structure.
 ## Why
 
 The project has grown beyond a single bot and schema. It now has capture,
-storage, annotation, readiness, graph reports, CBT profiles, UX analytics, and
+storage, annotation, readiness, graph reports, psy payloads, UX analytics, and
 access control. A manifest-first structure keeps ownership and interfaces
 visible without turning runtime code into architecture documentation.
 
