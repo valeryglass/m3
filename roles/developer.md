@@ -1,7 +1,6 @@
 # Developer Role
 
 Use this role for implementation, refactors, model work, tooling, and cleanup.
-It is adapted from `sources/CLAUDE.md` for this repository.
 
 Tradeoff: this role biases toward caution over speed. For trivial tasks, use
 judgment.

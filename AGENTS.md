@@ -6,13 +6,13 @@ folder.
 
 ## Mental Frame
 
-Use `sources/llm-wiki.md` as conceptual background only. The reusable frame is:
+The reusable frame is:
 
 ```text
 immutable inputs -> accepted contracts -> structured artifacts
 ```
 
-This repo does not use a markdown wiki engine. The active engine is JSON:
+The active engine is JSON:
 
 - `model/*.schema.json` defines machine contracts.
 - `model/*.example.json` shows valid artifacts.
@@ -60,7 +60,6 @@ schema.md  -- repository/system structure map
 - `model/episode.schema.json` is the canonical episode data contract.
 - `model/cbt.md` explains the accepted CBT model for humans.
 - `model/graph.md` explains the accepted target graph model for humans.
-- `sources/llm-wiki.md` and `sources/CLAUDE.md` are reference seeds, not active instructions.
 
 ## Operating Rules
 
