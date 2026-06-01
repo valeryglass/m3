@@ -27,6 +27,7 @@ node_id as the link from annotations to nodes
 
 Do not emit unsupported fields such as `physical_annotations`, `forms_state`,
 `triggered_by`, or `outcome_of` until the schema migration explicitly adds them.
+Outcome nodes and `outcome_annotations` are supported in the current contract.
 
 ## Layers
 
@@ -70,6 +71,7 @@ Episode
         |-- cognition_annotations
         |-- emotion_annotations
         |-- behavior_annotations
+        |-- outcome_annotations
         `-- relations
 ```
 
@@ -149,7 +151,7 @@ STA      aggregate state node
 Current schema support is narrower:
 
 ```text
-derived.nodes[].kind = actor | cognition | emotion | quote | behavior
+derived.nodes[].kind = actor | cognition | emotion | quote | behavior | short_outcome | long_outcome
 ```
 
 Target node sources:
@@ -254,6 +256,25 @@ intensity  0.0..1.0 when available
 ```
 
 This axis is not part of the current episode contract.
+
+## Outcome Annotations
+
+`outcome_annotations` classify the observed consequences without relying on
+report-time keyword guessing.
+
+Stored outcome axes:
+
+```text
+horizon  short_term | long_term
+type     relief | control | avoidance_cost | unresolved | escalation | connection | learning | neutral_mixed
+```
+
+Use:
+
+```text
+observed.short_term_consequence -> short_outcome node -> short_term outcome annotation
+observed.long_term_consequence  -> long_outcome node  -> long_term outcome annotation
+```
 
 ## LOD3 - Future Projection
 

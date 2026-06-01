@@ -9,9 +9,9 @@ Use this role when preparing clean Git commits.
 - Use an imperative subject line.
 - Limit the subject to about 50 characters.
 - Do not end the subject with a period.
-- Add a blank line before the body when a body is needed.
-- Use the body to explain what changed and why.
-- Wrap body lines near 72 characters.
+- Add a blank line before details when details are needed.
+- Use details to explain what changed and why.
+- Wrap detail lines near 72 characters.
 - Use the subject format below.
 
 ## Subject Format

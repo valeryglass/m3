@@ -159,16 +159,6 @@ def _normalize_flow_mode(flow_mode: Any) -> str:
 
 
 def _normalize_observed_keys(observed: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    renames = {
-        "actors": "actor",
-        "speech": "quote",
-        "body": "physical",
-    }
-    for old_key, new_key in renames.items():
-        if old_key in observed and new_key not in observed:
-            observed[new_key] = observed.pop(old_key)
-        elif old_key in observed:
-            observed.pop(old_key)
     return observed
 
 

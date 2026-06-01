@@ -8,6 +8,7 @@ from app.loop_extractor import (
     new_session,
     target_fields,
 )
+from app.derived_normalizer import empty_derived
 
 
 def test_loop_starts_with_situation_and_creation_date():
@@ -95,15 +96,7 @@ def test_session_from_dict_drops_legacy_derived_keys():
         }
     )
 
-    assert session.derived == {
-        "nodes": [],
-        "trigger_annotations": [],
-        "actor_annotations": [],
-        "cognition_annotations": [],
-        "emotion_annotations": [],
-        "behavior_annotations": [],
-        "relations": [],
-    }
+    assert session.derived == empty_derived()
 
 
 def test_emotion_reply_writes_plain_observed_field():
@@ -160,12 +153,4 @@ def test_loop_completes_after_body_without_derived_targets():
     assert result.should_save
     assert active_target(session) == "complete"
     assert completed_observed_count(session) == 10
-    assert session.derived == {
-        "nodes": [],
-        "trigger_annotations": [],
-        "actor_annotations": [],
-        "cognition_annotations": [],
-        "emotion_annotations": [],
-        "behavior_annotations": [],
-        "relations": [],
-    }
+    assert session.derived == empty_derived()

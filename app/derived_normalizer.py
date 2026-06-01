@@ -147,23 +147,7 @@ def _has_current_derived(data: dict[str, Any]) -> bool:
 
 
 def _normalize_observed_keys(data: dict[str, Any]) -> bool:
-    observed = data.get("observed")
-    if not isinstance(observed, dict):
-        return False
-    changed = False
-    renames = {
-        "actors": "actor",
-        "speech": "quote",
-        "body": "physical",
-    }
-    for old_key, new_key in renames.items():
-        if old_key in observed and new_key not in observed:
-            observed[new_key] = observed.pop(old_key)
-            changed = True
-        elif old_key in observed:
-            observed.pop(old_key)
-            changed = True
-    return changed
+    return False
 
 
 def _normalize_derived_shell(derived: dict[str, Any]) -> bool:
@@ -197,9 +181,6 @@ def _normalize_node_refs(derived: dict[str, Any]) -> bool:
         for item in items:
             if not isinstance(item, dict):
                 continue
-            if section == "trigger_annotations" and item.get("type") == "body":
-                item["type"] = "physical"
-                changed = True
             changed = _normalize_source_field_container(item) or changed
 
     relations = derived.get("relations")
@@ -220,10 +201,6 @@ def _normalize_node_refs(derived: dict[str, Any]) -> bool:
 
 def _normalize_node_object(node: dict[str, Any]) -> bool:
     changed = False
-    node_id = node.get("id")
-    if node.get("kind") == "speech":
-        node["kind"] = "quote"
-        changed = True
     changed = _normalize_source_field_container(node) or changed
     return changed
 
@@ -240,11 +217,7 @@ def _normalize_source_field_container(item: dict[str, Any]) -> bool:
 
 
 def _observed_ref(value: str) -> str:
-    return {
-        "observed.actors": "observed.actor",
-        "observed.speech": "observed.quote",
-        "observed.body": "observed.physical",
-    }.get(value, value)
+    return value
 
 
 def _normalize_node_origins(derived: dict[str, Any]) -> bool:
