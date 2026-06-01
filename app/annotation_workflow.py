@@ -27,11 +27,13 @@ ANNOTATION_FIELDS = (
     "cognition_annotations",
     "emotion_annotations",
     "behavior_annotations",
+    "outcome_annotations",
 )
 QUEUE_INSTRUCTIONS = (
     "Fill only proposal.derived for this episode. Preserve id/date/source/observed. "
-    "Use only model/episode.schema.json fields. Every derived item needs "
-    "source_field, source_quote, and confidence. Skip uncertain annotations."
+    "Use only model/episode.schema.json fields, including outcome_annotations "
+    "when short/long consequences are clear. Every derived item needs source_field, "
+    "source_quote, and confidence. Skip uncertain annotations."
 )
 
 
@@ -55,6 +57,7 @@ class AuditSummary:
     cognition_annotations_total: int = 0
     emotion_annotations_total: int = 0
     behavior_annotations_total: int = 0
+    outcome_annotations_total: int = 0
     relations_total: int = 0
     invalid_files: tuple[str, ...] = field(default_factory=tuple)
 
@@ -96,6 +99,7 @@ def audit_episode_dir(episode_dir: Path = DEFAULT_EPISODE_DIR) -> AuditSummary:
         "cognition_annotations_total": 0,
         "emotion_annotations_total": 0,
         "behavior_annotations_total": 0,
+        "outcome_annotations_total": 0,
         "relations_total": 0,
     }
 
@@ -115,6 +119,7 @@ def audit_episode_dir(episode_dir: Path = DEFAULT_EPISODE_DIR) -> AuditSummary:
             derived.cognition_annotations,
             derived.emotion_annotations,
             derived.behavior_annotations,
+            derived.outcome_annotations,
         ]
         if not derived.nodes and not any(annotations) and not derived.relations:
             empty_derived += 1
@@ -142,6 +147,7 @@ def audit_episode_dir(episode_dir: Path = DEFAULT_EPISODE_DIR) -> AuditSummary:
         totals["cognition_annotations_total"] += len(derived.cognition_annotations)
         totals["emotion_annotations_total"] += len(derived.emotion_annotations)
         totals["behavior_annotations_total"] += len(derived.behavior_annotations)
+        totals["outcome_annotations_total"] += len(derived.outcome_annotations)
         totals["relations_total"] += len(derived.relations)
 
     return AuditSummary(

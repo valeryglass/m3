@@ -60,6 +60,24 @@
         "source_field": "observed.behavior",
         "source_quote": "so I closed it and didn't ask",
         "confidence": 0.95
+      },
+      {
+        "id": "node-4",
+        "node_origin": "observed",
+        "kind": "short_outcome",
+        "text": "Immediate relief.",
+        "source_field": "observed.short_term_consequence",
+        "source_quote": "I felt relieved for a moment",
+        "confidence": 0.9
+      },
+      {
+        "id": "node-5",
+        "node_origin": "observed",
+        "kind": "long_outcome",
+        "text": "The question stayed unresolved.",
+        "source_field": "observed.long_term_consequence",
+        "source_quote": "I still didn't know the answer",
+        "confidence": 0.9
       }
     ],
     "trigger_annotations": [
@@ -113,6 +131,26 @@
         "source_field": "observed.behavior",
         "source_quote": "I closed it and didn't ask",
         "confidence": 0.95
+      }
+    ],
+    "outcome_annotations": [
+      {
+        "id": "outcome-annotation-1",
+        "node_id": "node-4",
+        "horizon": "short_term",
+        "type": "relief",
+        "source_field": "observed.short_term_consequence",
+        "source_quote": "I felt relieved for a moment",
+        "confidence": 0.9
+      },
+      {
+        "id": "outcome-annotation-2",
+        "node_id": "node-5",
+        "horizon": "long_term",
+        "type": "unresolved",
+        "source_field": "observed.long_term_consequence",
+        "source_quote": "I still didn't know the answer",
+        "confidence": 0.9
       }
     ],
     "relations": [

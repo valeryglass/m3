@@ -14,6 +14,7 @@ def _empty_derived():
         "cognition_annotations": [],
         "emotion_annotations": [],
         "behavior_annotations": [],
+        "outcome_annotations": [],
         "relations": [],
     }
 
@@ -119,6 +120,24 @@ def test_episode_schema_accepts_derived_annotations():
                 "source_field": "observed.automatic_thought",
                 "source_quote": "they will judge me",
                 "confidence": 0.9,
+            },
+            {
+                "id": "node-2",
+                "node_origin": "observed",
+                "kind": "short_outcome",
+                "text": "Relief.",
+                "source_field": "observed.short_term_consequence",
+                "source_quote": "relieved",
+                "confidence": 0.85,
+            },
+            {
+                "id": "node-3",
+                "node_origin": "observed",
+                "kind": "long_outcome",
+                "text": "Question stayed unresolved.",
+                "source_field": "observed.long_term_consequence",
+                "source_quote": "still did not know",
+                "confidence": 0.85,
             }
         ],
         "trigger_annotations": [
@@ -172,6 +191,26 @@ def test_episode_schema_accepts_derived_annotations():
                 "confidence": 0.95,
             }
         ],
+        "outcome_annotations": [
+            {
+                "id": "outcome-annotation-1",
+                "node_id": "node-2",
+                "horizon": "short_term",
+                "type": "relief",
+                "source_field": "observed.short_term_consequence",
+                "source_quote": "relieved",
+                "confidence": 0.85,
+            },
+            {
+                "id": "outcome-annotation-2",
+                "node_id": "node-3",
+                "horizon": "long_term",
+                "type": "unresolved",
+                "source_field": "observed.long_term_consequence",
+                "source_quote": "still did not know",
+                "confidence": 0.85,
+            },
+        ],
         "relations": [
             {
                 "id": "relation-1",
@@ -200,6 +239,8 @@ def test_episode_schema_accepts_derived_annotations():
     assert episode.derived.nodes[0].node_origin == "observed"
     assert episode.derived.cognition_annotations[0].node_id == "node-1"
     assert episode.derived.emotion_annotations[0].valence == -0.8
+    assert episode.derived.outcome_annotations[0].type == "relief"
+    assert episode.derived.outcome_annotations[1].horizon == "long_term"
     assert episode.derived.relations[0].from_ref == "node-1"
 
 
@@ -225,9 +266,13 @@ def test_episode_schema_rejects_legacy_derived_keys():
         ("behavior_annotations", "type", "run"),
         ("cognition_annotations", "kind", "distortion"),
         ("emotion_annotations", "label", "паника"),
+        ("outcome_annotations", "type", "win"),
+        ("outcome_annotations", "horizon", "later"),
+        ("outcome_annotations", "source_field", "observed.behavior"),
         ("trigger_annotations", "confidence", 1.1),
         ("emotion_annotations", "valence", -1.1),
         ("emotion_annotations", "arousal", 1.1),
+        ("outcome_annotations", "confidence", 1.1),
         ("relations", "type", "causes"),
         ("relations", "from_ref", "observed.money"),
         ("relations", "confidence", 1.1),
@@ -286,6 +331,16 @@ def test_episode_schema_rejects_invalid_annotation_values(section, field, value)
                 "source_field": "observed.behavior",
                 "source_quote": "closed the chat",
                 "confidence": 0.95,
+            }
+        ],
+        "outcome_annotations": [
+            {
+                "id": "outcome-annotation-1",
+                "horizon": "short_term",
+                "type": "relief",
+                "source_field": "observed.short_term_consequence",
+                "source_quote": "relieved",
+                "confidence": 0.8,
             }
         ],
         "relations": [
@@ -352,6 +407,15 @@ def test_episode_schema_defaults_old_derived_relations_to_empty_list():
     assert episode.derived.relations == []
 
 
+def test_episode_schema_defaults_old_derived_outcome_annotations_to_empty_list():
+    data = _valid_episode()
+    data["derived"].pop("outcome_annotations")
+
+    episode = Episode.model_validate(data)
+
+    assert episode.derived.outcome_annotations == []
+
+
 def test_json_schema_describes_plain_emotion_and_full_fields():
     schema = json.loads(open("model/episode.schema.json", encoding="utf-8").read())
     observed = schema["properties"]["observed"]["properties"]
@@ -389,7 +453,11 @@ def test_json_schema_describes_derived_annotations():
         "emotion",
         "quote",
         "behavior",
+        "short_outcome",
+        "long_outcome",
     ]
+    assert "observed.short_term_consequence" in schema["$defs"]["node"]["properties"]["source_field"]["enum"]
+    assert "observed.long_term_consequence" in schema["$defs"]["node"]["properties"]["source_field"]["enum"]
     assert schema["$defs"]["node"]["properties"]["node_origin"] == {
         "type": "string",
         "enum": ["observed", "support"],
@@ -427,6 +495,17 @@ def test_json_schema_describes_derived_annotations():
         "occurs_in",
     ]
     assert "relations" in derived["properties"]
+    assert derived["properties"]["outcome_annotations"]["default"] == []
+    assert schema["$defs"]["outcome_annotation"]["properties"]["type"]["enum"] == [
+        "relief",
+        "control",
+        "avoidance_cost",
+        "unresolved",
+        "escalation",
+        "connection",
+        "learning",
+        "neutral_mixed",
+    ]
 
 
 def test_episode_example_matches_schema_model():

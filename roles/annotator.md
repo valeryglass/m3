@@ -40,10 +40,10 @@ The target model described in `model/graph.md` uses conceptual graph nodes such
 as `SIT`, `TRI`, `ACT`, `COG`, `EMO`, `PHY/physical`, `BEH`, `STC`, `LTC`, and
 aggregate `STA`.
 
-Current episode JSON supports `derived.nodes[]` and `node_id`, but does not yet
-support `physical_annotations` or target-only relations such as `forms_state`,
-`triggered_by`, and `outcome_of`. Use only relation types accepted by
-`model/episode.schema.json`.
+Current episode JSON supports `derived.nodes[]`, `node_id`, and
+`outcome_annotations`, but does not yet support `physical_annotations` or
+target-only relations such as `forms_state`, `triggered_by`, and `outcome_of`.
+Use only relation types accepted by `model/episode.schema.json`.
 
 `SIT` is graph language for the event projected from `observed.situation`. Do
 not rename or rewrite `observed.situation`.
@@ -58,6 +58,7 @@ The derived object contains exactly these lists:
   "cognition_annotations": [],
   "emotion_annotations": [],
   "behavior_annotations": [],
+  "outcome_annotations": [],
   "relations": []
 }
 ```
@@ -74,6 +75,8 @@ Allowed `kind` values:
 - `emotion`
 - `quote`
 - `behavior`
+- `short_outcome`
+- `long_outcome`
 
 Every node must set `node_origin`:
 
@@ -90,11 +93,13 @@ Use node for field-local slicing only:
 - split multiple thoughts in `observed.automatic_thought`
 - split packed `observed.emotion` text
 - split multiple actions in `observed.behavior`
+- split short-term outcome from `observed.short_term_consequence`
+- split long-term outcome from `observed.long_term_consequence`
 
-Do not create trigger, physical, or outcome nodes yet.
+Do not create trigger or physical nodes yet.
 
-You may note situation, physical, outcome, or aggregate state candidates while
-reasoning, but do not emit them as unsupported fields in the JSON artifact.
+You may note situation, physical, or aggregate state candidates while reasoning,
+but do not emit them as unsupported fields in the JSON artifact.
 
 ## Annotation Targets
 
@@ -188,6 +193,30 @@ Allowed `type` values:
 Use `observed.behavior` only.
 If a matching behavior node exists, set `node_id`.
 
+### outcome_annotations
+
+Classify short-term and long-term consequences.
+
+Allowed `horizon` values:
+
+- `short_term`
+- `long_term`
+
+Allowed `type` values:
+
+- `relief`
+- `control`
+- `avoidance_cost`
+- `unresolved`
+- `escalation`
+- `connection`
+- `learning`
+- `neutral_mixed`
+
+Use `observed.short_term_consequence` for short-term outcomes and
+`observed.long_term_consequence` for long-term outcomes. If a matching
+`short_outcome` or `long_outcome` node exists, set `node_id`.
+
 ## Relations
 
 After nodes and annotations, create `relations` only when the edge is
@@ -209,7 +238,7 @@ Allowed relation `type` values:
 
 Prefer fewer high-confidence relations over exhaustive graph filling.
 
-Do not create LOD3 extra nodes from situation, trigger, physical, or consequences.
+Do not create LOD3 extra nodes from situation, trigger, or physical evidence.
 
 ## Evidence Rule
 

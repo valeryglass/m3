@@ -37,6 +37,17 @@ BehaviorType = Literal[
     "compensate",
     "distract",
 ]
+OutcomeHorizon = Literal["short_term", "long_term"]
+OutcomeType = Literal[
+    "relief",
+    "control",
+    "avoidance_cost",
+    "unresolved",
+    "escalation",
+    "connection",
+    "learning",
+    "neutral_mixed",
+]
 NodeOrigin = Literal["observed", "support"]
 RelationType = Literal[
     "belongs_to",
@@ -63,13 +74,23 @@ ObservedRefField = Literal[
     "observed.emotion",
     "observed.physical",
 ]
-NodeKind = Literal["actor", "cognition", "emotion", "quote", "behavior"]
+NodeKind = Literal[
+    "actor",
+    "cognition",
+    "emotion",
+    "quote",
+    "behavior",
+    "short_outcome",
+    "long_outcome",
+]
 NodeSourceField = Literal[
     "observed.actor",
     "observed.quote",
     "observed.automatic_thought",
     "observed.emotion",
     "observed.behavior",
+    "observed.short_term_consequence",
+    "observed.long_term_consequence",
 ]
 
 
@@ -192,6 +213,23 @@ class BehaviorAnnotation(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
 
 
+class OutcomeAnnotation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(pattern=r"^outcome-annotation-[0-9]+$")
+    node_id: str | None = Field(
+        default=None, pattern=r"^node-[0-9]+$"
+    )
+    horizon: OutcomeHorizon
+    type: OutcomeType
+    source_field: Literal[
+        "observed.short_term_consequence",
+        "observed.long_term_consequence",
+    ]
+    source_quote: str = Field(min_length=1)
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
 class Observed(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -216,6 +254,7 @@ class Derived(BaseModel):
     cognition_annotations: list[CognitionAnnotation]
     emotion_annotations: list[EmotionAnnotation]
     behavior_annotations: list[BehaviorAnnotation]
+    outcome_annotations: list[OutcomeAnnotation] = Field(default_factory=list)
     relations: list[GraphRelation] = Field(default_factory=list)
 
 

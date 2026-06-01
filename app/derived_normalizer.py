@@ -20,6 +20,7 @@ CURRENT_DERIVED_KEYS = (
     "cognition_annotations",
     "emotion_annotations",
     "behavior_annotations",
+    "outcome_annotations",
     "relations",
 )
 PRE_RELATION_DERIVED_KEYS = tuple(

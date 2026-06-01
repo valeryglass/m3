@@ -117,6 +117,13 @@
             "$ref": "#/$defs/behavior_annotation"
           }
         },
+        "outcome_annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outcome_annotation"
+          },
+          "default": []
+        },
         "relations": {
           "type": "array",
           "items": {
@@ -208,7 +215,9 @@
             "cognition",
             "emotion",
             "quote",
-            "behavior"
+            "behavior",
+            "short_outcome",
+            "long_outcome"
           ]
         },
         "text": {
@@ -222,7 +231,9 @@
             "observed.quote",
             "observed.automatic_thought",
             "observed.emotion",
-            "observed.behavior"
+            "observed.behavior",
+            "observed.short_term_consequence",
+            "observed.long_term_consequence"
           ]
         },
         "source_quote": {
@@ -508,6 +519,70 @@
         },
         "source_field": {
           "const": "observed.behavior"
+        },
+        "source_quote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
+      }
+    },
+    "outcome_annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "horizon",
+        "type",
+        "source_field",
+        "source_quote",
+        "confidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^outcome-annotation-[0-9]+$"
+        },
+        "node_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^node-[0-9]+$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "horizon": {
+          "type": "string",
+          "enum": [
+            "short_term",
+            "long_term"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "relief",
+            "control",
+            "avoidance_cost",
+            "unresolved",
+            "escalation",
+            "connection",
+            "learning",
+            "neutral_mixed"
+          ]
+        },
+        "source_field": {
+          "type": "string",
+          "enum": [
+            "observed.short_term_consequence",
+            "observed.long_term_consequence"
+          ]
         },
         "source_quote": {
           "type": "string",

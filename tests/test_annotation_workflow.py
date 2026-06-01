@@ -45,6 +45,15 @@ def _derived():
                 "source_field": "observed.automatic_thought",
                 "source_quote": "they will judge me",
                 "confidence": 0.9,
+            },
+            {
+                "id": "node-2",
+                "node_origin": "observed",
+                "kind": "short_outcome",
+                "text": "Relief.",
+                "source_field": "observed.short_term_consequence",
+                "source_quote": "relief",
+                "confidence": 0.85,
             }
         ],
         "trigger_annotations": [],
@@ -62,6 +71,17 @@ def _derived():
         ],
         "emotion_annotations": [],
         "behavior_annotations": [],
+        "outcome_annotations": [
+            {
+                "id": "outcome-annotation-1",
+                "node_id": "node-2",
+                "horizon": "short_term",
+                "type": "relief",
+                "source_field": "observed.short_term_consequence",
+                "source_quote": "relief",
+                "confidence": 0.85,
+            }
+        ],
         "relations": [
             {
                 "id": "relation-1",
@@ -125,7 +145,8 @@ def test_audit_counts_valid_invalid_and_derived_coverage(tmp_path):
     assert summary.report_ready == 1
     assert summary.profile_eligible == 0
     assert summary.gap_reasons == {"empty_derived": 1}
-    assert summary.nodes_total == 1
+    assert summary.nodes_total == 2
+    assert summary.outcome_annotations_total == 1
     assert summary.invalid_files == ("episode-20260430-3.json: JSONDecodeError",)
 
 
@@ -175,6 +196,7 @@ def test_queue_exports_only_empty_derived_with_instructions(tmp_path):
     assert record["observed"]["emotion"]["value"] == "страх"
     assert record["current_derived"] == empty_derived()
     assert "Fill only proposal.derived" in record["instructions"]
+    assert "outcome_annotations" in record["instructions"]
 
 
 def test_queue_can_filter_by_source(tmp_path):
@@ -222,6 +244,27 @@ def test_validate_rejects_bad_node_reference(tmp_path):
     assert summary.valid == 0
     assert summary.invalid == 1
     assert "unknown relation ref: node-99" in summary.errors[0]
+
+
+def test_validate_rejects_bad_outcome_node_reference(tmp_path):
+    episode_dir = tmp_path / "episodes"
+    episode_dir.mkdir()
+    path = episode_dir / "episode-20260430-1.json"
+    _write_json(path, _episode())
+    derived = _derived()
+    derived["outcome_annotations"][0]["node_id"] = "node-99"
+    proposal_path = tmp_path / "proposals.jsonl"
+    _write_jsonl(
+        proposal_path,
+        [{"episode_id": "episode-20260430-1", "path": path.as_posix(), "derived": derived}],
+    )
+
+    summary = validate_proposals(proposal_path)
+
+    assert summary.total == 1
+    assert summary.valid == 0
+    assert summary.invalid == 1
+    assert "unknown node_id: node-99" in summary.errors[0]
 
 
 def test_apply_defaults_to_dry_run_without_writing(tmp_path):

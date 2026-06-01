@@ -13,6 +13,7 @@ ANNOTATION_FIELDS = (
     "cognition_annotations",
     "emotion_annotations",
     "behavior_annotations",
+    "outcome_annotations",
 )
 REQUIRED_OBSERVED_FIELDS = (
     "situation",

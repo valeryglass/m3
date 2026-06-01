@@ -34,6 +34,7 @@ Episode
         |-- cognition_annotations
         |-- emotion_annotations
         |-- behavior_annotations
+        |-- outcome_annotations
         `-- relations
 ```
 
