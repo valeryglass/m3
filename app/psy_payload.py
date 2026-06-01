@@ -11,18 +11,9 @@ from app.schemas.episode import Episode
 
 
 WEEK_QUANT = "1week"
-OUTCOME_KEYWORDS = {
-    "relief": ("relief", "легче", "облегч", "отпуст", "успоко", "сниз", "расслаб"),
-    "control": ("control", "контроль", "реш", "сделал", "сделала", "готов", "ясн", "понят", "поряд"),
-    "avoidance_cost": ("отлож", "избеж", "avoid", "delay", "потом", "вернул", "осталось", "осталась", "не сделал", "не сделала"),
-    "unresolved": ("unresolved", "нереш", "не реш", "ничего", "не измен", "без изменений", "хз", "не знаю"),
-    "escalation": ("хуже", "worse", "плох", "усили", "напряж", "конфликт", "зл", "тревог", "стыд", "разбит"),
-    "connection": ("довер", "близ", "связ", "контакт", "поддерж", "поблагодар", "валид", "connection"),
-    "learning": ("понял", "поняла", "вывод", "инсайт", "опыт", "узнал", "узнала", "науч", "learning"),
-}
 
 
-def render_cbt_analytics(
+def render_psy_payload(
     report: GraphReport,
     *,
     title: str = "All Sources",
@@ -30,12 +21,12 @@ def render_cbt_analytics(
 ) -> str:
     skipped = tuple(item for item in report.readiness if not item.graph_ready)
     lines = [
-        "# CBT Analytics",
+        "# Psy Payload",
         "",
         f"- scope: {title}",
         f"- episodes: {report.total_episodes}",
         f"- report_ready: {sum(1 for item in report.readiness if item.report_ready)}",
-        f"- profile_eligible: {sum(1 for item in report.readiness if item.profile_eligible)}",
+        f"- payload_eligible: {sum(1 for item in report.readiness if item.payload_eligible)}",
         f"- timespan_quant: {WEEK_QUANT}",
         "",
         "## Frequency",
@@ -68,7 +59,7 @@ def render_cbt_analytics(
     return "\n".join(lines).rstrip() + "\n"
 
 
-def write_cbt_analytics(
+def write_psy_payload(
     episodes: list[Episode],
     output_dir: Path,
     *,
@@ -98,14 +89,14 @@ def write_cbt_analytics(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Write internal CBT analytics reports.")
+    parser = argparse.ArgumentParser(description="Write psy payload reports.")
     parser.add_argument("--episode-dir", default="data/episodes")
-    parser.add_argument("--output-dir", default="data/reports/cbt-analytics")
+    parser.add_argument("--output-dir", default="data/reports/psy-payload")
     parser.add_argument("--by-source", action="store_true")
     parser.add_argument("--min-count", type=int, default=2)
     args = parser.parse_args()
 
-    paths = write_cbt_analytics(
+    paths = write_psy_payload(
         load_episodes(Path(args.episode_dir)),
         Path(args.output_dir),
         min_count=args.min_count,
@@ -132,10 +123,10 @@ def loop_counter(report: GraphReport) -> Counter[tuple[str, str, str]]:
 def outcome_counter(report: GraphReport, outcome: str) -> Counter[tuple[str, str]]:
     counter: Counter[tuple[str, str]] = Counter()
     for sig in report.graph_ready:
-        text = sig.short_term_consequence if outcome == "short" else sig.long_term_consequence
-        outcome_type = outcome_type_for(text)
+        outcomes = sig.short_outcomes if outcome == "short" else sig.long_outcomes
         for behavior in sig.behaviors:
-            counter[(behavior, outcome_type)] += 1
+            for outcome_type in outcomes:
+                counter[(behavior, outcome_type)] += 1
     return counter
 
 
@@ -151,9 +142,9 @@ def contrast_counter(report: GraphReport) -> Counter[tuple[str, str]]:
 def convergence_counter(report: GraphReport) -> Counter[tuple[str, str]]:
     counter: Counter[tuple[str, str]] = Counter()
     for sig in report.graph_ready:
-        outcome_type = outcome_type_for(sig.long_term_consequence)
         for trigger in sig.triggers:
-            counter[(trigger, outcome_type)] += 1
+            for outcome_type in sig.long_outcomes:
+                counter[(trigger, outcome_type)] += 1
     return counter
 
 
@@ -262,16 +253,6 @@ def loops_for_signature(sig) -> set[tuple[str, str, str]]:
     }
 
 
-def outcome_type_for(text: str) -> str:
-    normalized = " ".join(text.casefold().split())
-    if not normalized:
-        return "neutral_mixed"
-    for outcome_type, keywords in OUTCOME_KEYWORDS.items():
-        if any(keyword in normalized for keyword in keywords):
-            return outcome_type
-    return "neutral_mixed"
-
-
 def render_behavior_forks(report: GraphReport, min_count: int, *, title: str) -> list[str]:
     items = []
     for context, behaviors in behavior_forks(report).items():
@@ -322,7 +303,7 @@ def safe_filename(value: str) -> str:
 
 def _write_report(path: Path, report: GraphReport, *, title: str, min_count: int) -> Path:
     path.write_text(
-        render_cbt_analytics(report, title=title, min_count=min_count),
+        render_psy_payload(report, title=title, min_count=min_count),
         encoding="utf-8",
     )
     return path

@@ -3,9 +3,7 @@ import json
 from app.graph_report import (
     build_report,
     load_episodes,
-    render_graph_html,
     render_markdown,
-    write_graph_html,
     write_markdown_reports,
 )
 
@@ -171,7 +169,7 @@ def test_graph_report_renders_markdown_summary_and_per_episode():
     assert "- episodes: 2" in text
     assert "- graph_ready: 2" in text
     assert "- report_ready: 2" in text
-    assert "- profile_eligible: 2" in text
+    assert "- payload_eligible: 2" in text
     assert "## State Snapshots" in text
     assert "- complete: 2" in text
     assert "## Profile Maturity" not in text
@@ -224,23 +222,6 @@ def test_graph_report_writes_all_and_source_reports(tmp_path):
         encoding="utf-8"
     )
     assert "- episodes: 1" in source_text
-
-
-def test_graph_report_writes_self_contained_html(tmp_path):
-    episodes = [
-        load_episode(_episode("episode-20260430-1", source="telegram-chat:123")),
-        load_episode(_episode("episode-20260430-2", source="telegram-chat:456")),
-    ]
-
-    path = write_graph_html(episodes, tmp_path / "reports" / "graph.html")
-    text = path.read_text(encoding="utf-8")
-
-    assert "<!doctype html>" in text
-    assert "CBT Graph" in text
-    assert '"nodes"' in text
-    assert "telegram-chat:123" in text
-    assert "https://" not in text
-    assert render_graph_html(episodes).startswith("<!doctype html>")
 
 
 def load_episode(data):

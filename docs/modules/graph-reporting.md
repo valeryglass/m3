@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Build graph readiness reports, repeated signature summaries, and local HTML
-graph output from derived episodes.
+Build graph readiness reports and repeated signature summaries from derived
+episodes.
 
 ## Inputs
 
@@ -14,7 +14,6 @@ graph output from derived episodes.
 ## Outputs
 
 - Markdown reports under `data/reports/graph/`.
-- `data/reports/graph/graph.html`.
 
 ## Dependencies
 

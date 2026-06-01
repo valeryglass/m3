@@ -21,8 +21,7 @@ class Settings:
     userlist_path: Path
     ux_event_log: Path
     graph_report_dir: Path
-    cbt_profile_dir: Path
-    cbt_analytics_dir: Path
+    psy_payload_dir: Path
     ux_report_dir: Path
     report_min_count: int
     ux_idle_after_sec: int
@@ -78,11 +77,8 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         graph_report_dir=Path(
             source.get("M3_GRAPH_REPORT_DIR", "data/reports/graph")
         ),
-        cbt_profile_dir=Path(
-            source.get("M3_CBT_PROFILE_DIR", "data/reports/cbt-profile")
-        ),
-        cbt_analytics_dir=Path(
-            source.get("M3_CBT_ANALYTICS_DIR", "data/reports/cbt-analytics")
+        psy_payload_dir=Path(
+            source.get("M3_PSY_PAYLOAD_DIR", "data/reports/psy-payload")
         ),
         ux_report_dir=Path(source.get("M3_UX_REPORT_DIR", "data/reports/ux")),
         report_min_count=int(source.get("M3_REPORT_MIN_COUNT", "2")),

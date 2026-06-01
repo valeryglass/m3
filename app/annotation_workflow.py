@@ -49,7 +49,7 @@ class AuditSummary:
     observed_ready: int = 0
     graph_ready: int = 0
     report_ready: int = 0
-    profile_eligible: int = 0
+    payload_eligible: int = 0
     gap_reasons: dict[str, int] = field(default_factory=dict)
     nodes_total: int = 0
     trigger_annotations_total: int = 0
@@ -90,7 +90,7 @@ def audit_episode_dir(episode_dir: Path = DEFAULT_EPISODE_DIR) -> AuditSummary:
     invalid_files: list[str] = []
     total = valid = 0
     empty_derived = with_nodes = with_annotations = with_relations = 0
-    observed_ready = graph_ready = report_ready = profile_eligible = 0
+    observed_ready = graph_ready = report_ready = payload_eligible = 0
     gap_reasons: dict[str, int] = {}
     totals = {
         "nodes_total": 0,
@@ -136,8 +136,8 @@ def audit_episode_dir(episode_dir: Path = DEFAULT_EPISODE_DIR) -> AuditSummary:
             graph_ready += 1
         if readiness.report_ready:
             report_ready += 1
-        if readiness.profile_eligible:
-            profile_eligible += 1
+        if readiness.payload_eligible:
+            payload_eligible += 1
         for reason in readiness.gap_reasons:
             gap_reasons[reason] = gap_reasons.get(reason, 0) + 1
 
@@ -161,7 +161,7 @@ def audit_episode_dir(episode_dir: Path = DEFAULT_EPISODE_DIR) -> AuditSummary:
         observed_ready=observed_ready,
         graph_ready=graph_ready,
         report_ready=report_ready,
-        profile_eligible=profile_eligible,
+        payload_eligible=payload_eligible,
         gap_reasons=gap_reasons,
         invalid_files=tuple(invalid_files),
         **totals,

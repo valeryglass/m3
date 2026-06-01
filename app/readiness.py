@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import Counter
 from dataclasses import dataclass
 from statistics import mean
 
@@ -39,7 +38,7 @@ class EpisodeReadiness:
     observed_ready: bool
     graph_ready: bool
     report_ready: bool
-    profile_eligible: bool
+    payload_eligible: bool
     gap_reasons: tuple[str, ...]
 
 
@@ -62,17 +61,6 @@ class StateSnapshotSummary:
     average_confidence: float
 
 
-@dataclass(frozen=True)
-class ProfileMaturity:
-    quantity: int
-    diversity: int
-    recurrence: str
-    stability_percent: int
-    coverage_percent: int
-    freshness: str
-    confidence_band: str
-
-
 def classify_episode_readiness(episode: Episode) -> EpisodeReadiness:
     derived = episode.derived
     annotations_present = any(
@@ -82,7 +70,7 @@ def classify_episode_readiness(episode: Episode) -> EpisodeReadiness:
     graph_ready = bool(derived.nodes) and annotations_present and bool(derived.relations)
     usable_confidence = _has_usable_confidence(episode)
     report_ready = graph_ready and usable_confidence
-    profile_eligible = (
+    payload_eligible = (
         report_ready
         and bool(derived.cognition_annotations)
         and bool(derived.emotion_annotations)
@@ -107,7 +95,7 @@ def classify_episode_readiness(episode: Episode) -> EpisodeReadiness:
         observed_ready=observed_ready,
         graph_ready=graph_ready,
         report_ready=report_ready,
-        profile_eligible=profile_eligible,
+        payload_eligible=payload_eligible,
         gap_reasons=tuple(gaps),
     )
 
@@ -148,31 +136,6 @@ def summarize_state_snapshots(episodes: list[Episode]) -> StateSnapshotSummary:
     )
 
 
-def summarize_profile_maturity(
-    episodes: list[Episode],
-    readiness: tuple[EpisodeReadiness, ...],
-) -> ProfileMaturity:
-    eligible_ids = {item.episode_id for item in readiness if item.profile_eligible}
-    eligible = [episode for episode in episodes if episode.id in eligible_ids]
-    quantity = len(eligible)
-    signatures = Counter(_profile_signature(episode) for episode in eligible)
-    diversity = len(signatures)
-    repeated = sum(count for count in signatures.values() if count > 1)
-    stability_percent = round((repeated / quantity) * 100) if quantity else 0
-    coverage_percent = round((quantity / len(episodes)) * 100) if episodes else 0
-    recurrence = "stable" if repeated >= max(2, quantity // 3) else "emerging"
-
-    return ProfileMaturity(
-        quantity=quantity,
-        diversity=diversity,
-        recurrence=recurrence,
-        stability_percent=stability_percent,
-        coverage_percent=coverage_percent,
-        freshness=_freshness(episodes),
-        confidence_band=_confidence_band(quantity, coverage_percent, stability_percent),
-    )
-
-
 def _observed_ready(episode: Episode) -> bool:
     return all(
         _field_ready(getattr(episode.observed, field, None))
@@ -196,36 +159,3 @@ def _has_usable_confidence(episode: Episode) -> bool:
     for field in ANNOTATION_FIELDS:
         values.extend(item.confidence for item in getattr(derived, field))
     return bool(values) and min(values) >= MIN_USABLE_CONFIDENCE
-
-
-def _profile_signature(episode: Episode) -> tuple[str, ...]:
-    derived = episode.derived
-    return (
-        ",".join(sorted(item.kind for item in derived.cognition_annotations)),
-        ",".join(sorted(item.label for item in derived.emotion_annotations)),
-        ",".join(sorted(item.type for item in derived.behavior_annotations)),
-    )
-
-
-def _freshness(episodes: list[Episode]) -> str:
-    if not episodes:
-        return "none"
-    latest = max(episode.date for episode in episodes)
-    return latest.isoformat()
-
-
-def _confidence_band(quantity: int, coverage: int, stability: int) -> str:
-    score = 0
-    if quantity >= 30:
-        score += 2
-    elif quantity >= 15:
-        score += 1
-    if coverage >= 80:
-        score += 2
-    elif coverage >= 50:
-        score += 1
-    if stability >= 50:
-        score += 2
-    elif stability >= 25:
-        score += 1
-    return ("low", "low-medium", "medium", "medium-high", "high")[min(score, 4)]

@@ -113,10 +113,10 @@ def test_send_help_replies_without_creating_session(tmp_path):
 
 
 def test_profile_command_replies_with_current_report(tmp_path):
-    settings = _settings(cbt_profile_dir=tmp_path / "reports" / "cbt-profile")
-    settings.cbt_profile_dir.mkdir(parents=True)
-    (settings.cbt_profile_dir / "telegram-chat-123.md").write_text(
-        "# CBT Profile\n\n- episodes: 2\n",
+    settings = _settings(psy_payload_dir=tmp_path / "reports" / "psy-payload")
+    settings.psy_payload_dir.mkdir(parents=True)
+    (settings.psy_payload_dir / "telegram-chat-123.md").write_text(
+        "# Psy Payload\n\n- episodes: 2\n",
         encoding="utf-8",
     )
     message = _FakeMessage("/profile")
@@ -129,12 +129,12 @@ def test_profile_command_replies_with_current_report(tmp_path):
         )
     )
 
-    assert message.replies == ["# CBT Profile\n\n- episodes: 2\n"]
+    assert message.replies == ["# Psy Payload\n\n- episodes: 2\n"]
     assert message.reply_options == [{}]
 
 
 def test_profile_command_reports_missing_profile(tmp_path):
-    settings = _settings(cbt_profile_dir=tmp_path / "reports" / "cbt-profile")
+    settings = _settings(psy_payload_dir=tmp_path / "reports" / "psy-payload")
     message = _FakeMessage("/profile")
 
     _run(
@@ -146,7 +146,7 @@ def test_profile_command_reports_missing_profile(tmp_path):
     )
 
     assert message.replies == [
-        "Профиль пока не собран. Нужны сохранённые и обработанные эпизоды."
+        "Psy payload пока не собран. Нужны сохранённые и обработанные эпизоды."
     ]
     assert message.reply_options == [{"parse_mode": "HTML"}]
 
@@ -422,12 +422,11 @@ def test_report_graph_rejects_non_admin(tmp_path):
     assert message.replies == ["Нет доступа"]
 
 
-def test_report_graph_regenerates_graph_and_profile_reports(tmp_path):
+def test_report_graph_regenerates_graph_and_psy_payload_reports(tmp_path):
     settings = _settings(
         episode_dir=tmp_path / "episodes",
         graph_report_dir=tmp_path / "reports" / "graph",
-        cbt_profile_dir=tmp_path / "reports" / "cbt-profile",
-        cbt_analytics_dir=tmp_path / "reports" / "cbt-analytics",
+        psy_payload_dir=tmp_path / "reports" / "psy-payload",
     )
     settings.episode_dir.mkdir(parents=True)
     _write_json(settings.episode_dir / "episode-20260503-1.json", _graph_ready_episode())
@@ -442,11 +441,9 @@ def test_report_graph_regenerates_graph_and_profile_reports(tmp_path):
     )
 
     assert (settings.graph_report_dir / "all.md").exists()
-    assert (settings.graph_report_dir / "graph.html").exists()
-    assert (settings.cbt_profile_dir / "all.md").exists()
-    assert (settings.cbt_profile_dir / "telegram-chat-123.md").exists()
-    assert (settings.cbt_analytics_dir / "all.md").exists()
-    assert (settings.cbt_analytics_dir / "telegram-chat-123.md").exists()
+    assert not any(path.suffix == ".html" for path in settings.graph_report_dir.iterdir())
+    assert (settings.psy_payload_dir / "all.md").exists()
+    assert (settings.psy_payload_dir / "telegram-chat-123.md").exists()
     assert message.replies == [
         "Отчёты обновлены\n"
         "episodes: 1\n"
@@ -454,11 +451,9 @@ def test_report_graph_regenerates_graph_and_profile_reports(tmp_path):
         "empty_derived: 0\n"
         "graph_ready: 1\n"
         "report_ready: 1\n"
-        "profile_eligible: 1\n\n"
+        "payload_eligible: 1\n\n"
         f"{settings.graph_report_dir / 'all.md'}\n"
-        f"{settings.cbt_profile_dir / 'all.md'}\n"
-        f"{settings.cbt_analytics_dir / 'all.md'}\n"
-        f"{settings.graph_report_dir / 'graph.html'}"
+        f"{settings.psy_payload_dir / 'all.md'}"
     ]
 
 
@@ -1225,8 +1220,7 @@ def _settings(
     owner_chat_id=123,
     episode_dir=None,
     graph_report_dir=None,
-    cbt_profile_dir=None,
-    cbt_analytics_dir=None,
+    psy_payload_dir=None,
     ux_report_dir=None,
     userlist_path=None,
     ux_event_log=None,
@@ -1237,8 +1231,7 @@ def _settings(
         telegram_owner_chat_id=owner_chat_id,
         episode_dir=episode_dir,
         graph_report_dir=graph_report_dir,
-        cbt_profile_dir=cbt_profile_dir,
-        cbt_analytics_dir=cbt_analytics_dir,
+        psy_payload_dir=psy_payload_dir,
         ux_report_dir=ux_report_dir,
         userlist_path=userlist_path,
         ux_event_log=ux_event_log,

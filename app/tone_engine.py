@@ -52,7 +52,7 @@ DEFAULT_TONE_CONFIG: dict[str, Any] = {
             "moralizing",
             "diagnosis",
             "personality_typing",
-            "motivational_speech",
+            "motivation_monologue",
             "overexplaining",
         ],
     }
@@ -215,11 +215,9 @@ class ToneEngine:
         empty_derived: int,
         graph_ready: int,
         report_ready: int,
-        profile_eligible: int,
+        payload_eligible: int,
         graph_path: str,
-        profile_path: str,
-        analytics_path: str,
-        html_path: str,
+        payload_path: str,
     ) -> str:
         return SESSION_MESSAGES["graph_reports_ready"].format(
             episodes=episodes,
@@ -227,11 +225,9 @@ class ToneEngine:
             empty_derived=empty_derived,
             graph_ready=graph_ready,
             report_ready=report_ready,
-            profile_eligible=profile_eligible,
+            payload_eligible=payload_eligible,
             graph_path=escape(graph_path),
-            profile_path=escape(profile_path),
-            analytics_path=escape(analytics_path),
-            html_path=escape(html_path),
+            payload_path=escape(payload_path),
         )
 
     def expired_initial_session(self) -> str:

@@ -2,7 +2,6 @@ project:
   name: m3
   description: Personal CBT-oriented model workspace and Telegram episode extractor.
   structural_ssot: project.manifest.yaml
-  human_dashboard: docs/dashboard.md
   architecture_doc: docs/architecture.md
   lifecycle_doc: docs/lifecycle.md
   domain_ssot:
@@ -22,7 +21,7 @@ gates:
   observed_ready: Required observed episode fields are present.
   graph_ready: Episode has derived nodes, annotations, and relations.
   report_ready: Graph data is valid enough for cross-episode analytics.
-  profile_eligible: Episode can contribute to profile-level summaries.
+  payload_eligible: Episode can contribute to payload-level summaries.
 
 modules:
   telegram_capture:
@@ -99,7 +98,7 @@ modules:
       - observed_ready
       - graph_ready
       - report_ready
-      - profile_eligible
+      - payload_eligible
     capabilities:
       - readiness_audit
       - annotation_batch_export
@@ -108,7 +107,7 @@ modules:
   graph_reporting:
     stage: experimental
     enabled: true
-    purpose: Build graph readiness, signature, and HTML reports from derived episodes.
+    purpose: Build graph readiness and core graph quality reports from derived episodes.
     owned_paths:
       - app/graph_report.py
       - model/graph.md
@@ -117,53 +116,29 @@ modules:
       - graph-ready episodes
     outputs:
       - data/reports/graph/*.md
-      - data/reports/graph/graph.html
     interfaces:
       - annotation_to_report
     capabilities:
       - graph_readiness_summary
       - signature_counts
       - source_split_reports
-      - html_graph_output
 
-  cbt_profile:
+  psy_payload:
     stage: experimental
     enabled: true
-    purpose: Produce user-facing evidence-bound CBT domain reports from report-ready episodes.
+    purpose: Produce domain-boxed loop, pattern, and outcome metrics from report-ready episodes.
     owned_paths:
-      - app/cbt_profile.py
-      - data/reports/cbt-profile/
-    inputs:
-      - report-ready episodes
-      - profile maturity metrics
-    outputs:
-      - data/reports/cbt-profile/*.md
-    interfaces:
-      - report_to_profile
-    gates:
-      - profile_eligible
-    capabilities:
-      - profile_maturity_summary
-      - evidence_bound_domain_report
-      - one_week_change_summary
-      - source_split_profiles
-
-  cbt_analytics:
-    stage: experimental
-    enabled: true
-    purpose: Produce internal CBT ranks, contrasts, forks, and timespan analytics.
-    owned_paths:
-      - app/cbt_analytics.py
-      - data/reports/cbt-analytics/
+      - app/psy_payload.py
+      - data/reports/psy-payload/
     inputs:
       - report-ready episodes
       - graph signature counters
     outputs:
-      - data/reports/cbt-analytics/*.md
+      - data/reports/psy-payload/*.md
     interfaces:
-      - report_to_profile
+      - report_to_payload
     gates:
-      - profile_eligible
+      - payload_eligible
     capabilities:
       - frequency_ranking
       - fork_convergence_outcome_analysis
@@ -234,13 +209,12 @@ interfaces:
       - graph_reporting
     contract_doc: docs/interfaces/annotation-to-report.md
 
-  report_to_profile:
+  report_to_payload:
     state: open
     owner: graph_reporting
     consumers:
-      - cbt_profile
-      - cbt_analytics
-    contract_doc: docs/interfaces/report-to-profile.md
+      - psy_payload
+    contract_doc: docs/interfaces/report-to-payload.md
 
 adr_policy:
   required_for:

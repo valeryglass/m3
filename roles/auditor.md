@@ -53,7 +53,7 @@ Count:
 - files with relations
 - files by source chat id when visible in `source`
 - readiness gates: `observed_ready`, `graph_ready`, `report_ready`,
-  `profile_eligible`
+  `payload_eligible`
 
 ## Schema Validation
 
@@ -91,6 +91,7 @@ For each file, count:
 - `cognition_annotations`
 - `emotion_annotations`
 - `behavior_annotations`
+- `outcome_annotations`
 - `relations`
 
 Report:

@@ -143,7 +143,7 @@ def test_audit_counts_valid_invalid_and_derived_coverage(tmp_path):
     assert summary.observed_ready == 2
     assert summary.graph_ready == 1
     assert summary.report_ready == 1
-    assert summary.profile_eligible == 0
+    assert summary.payload_eligible == 0
     assert summary.gap_reasons == {"empty_derived": 1}
     assert summary.nodes_total == 2
     assert summary.outcome_annotations_total == 1
