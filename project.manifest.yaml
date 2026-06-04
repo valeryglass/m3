@@ -33,6 +33,7 @@ modules:
       - app/loop_extractor.py
       - app/messages.py
       - app/tone_engine.py
+      - app/user_report.py
       - config/tone.yaml
     inputs:
       - Telegram messages and callbacks
@@ -46,6 +47,7 @@ modules:
     capabilities:
       - ten_step_episode_collection
       - tone_controlled_prompts
+      - user_profile_report_rendering
       - private_runtime_state
 
   episode_model_storage:
