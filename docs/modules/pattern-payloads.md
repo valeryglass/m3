@@ -1,9 +1,9 @@
-# Psy Payload
+# Pattern Payloads
 
 ## Purpose
 
-Produce domain-boxed loop, pattern, frequency, fork, outcome, and one-week
-change metrics from report-ready episodes.
+Produce renderer-neutral pattern payloads from report-ready graph signatures.
+This module keeps machine payloads separate from user-facing report text.
 
 ## Inputs
 
@@ -12,13 +12,14 @@ change metrics from report-ready episodes.
 
 ## Outputs
 
-- Markdown payload reports under `data/reports/psy-payload/`.
 - Renderer-neutral map payload JSON artifacts under `data/reports/map-payload/`.
 - Standalone map payload HTML previews under `data/reports/map-payload/`.
 
 ## Dependencies
 
 - Graph Reporting for derived episode signatures.
+- Shared pattern metrics for loops, forks, recurrence, novelty, rarity, and
+  surprise markers.
 - Readiness gates for report inclusion.
 
 ## Interfaces

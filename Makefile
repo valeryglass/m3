@@ -2,7 +2,6 @@ PYTHON ?= python3
 BOT_MODULE := app.telegram_bot
 EPISODE_DIR ?= data/episodes
 GRAPH_REPORT_DIR ?= data/reports/graph
-PSY_PAYLOAD_DIR ?= data/reports/psy-payload
 MAP_PAYLOAD_DIR ?= data/reports/map-payload
 UX_REPORT_DIR ?= data/reports/ux
 ANNOTATION_WORK_DIR ?= data/annotation-work
@@ -13,7 +12,7 @@ REPORT_MIN_COUNT ?= 2
 MAP_SOURCE ?= telegram-chat:327002663
 MAP_SOURCE_SAFE ?= $(subst :,-,$(subst /,-,$(MAP_SOURCE)))
 
-.PHONY: bot bot-pid bot-stop bot-kill bot-restart normalize-episodes audit report-graph report-psy-payload report-map-payload report-map-html report-ux reports analytics-ux analytics annotation-audit annotation-queue annotation-validate annotation-apply annotation-apply-write annotation-refresh-reports
+.PHONY: bot bot-pid bot-stop bot-kill bot-restart normalize-episodes audit report-graph report-map-payload report-map-html report-ux reports analytics-ux analytics annotation-audit annotation-queue annotation-validate annotation-apply annotation-apply-write annotation-refresh-reports
 
 bot:
 	$(PYTHON) -m $(BOT_MODULE)
@@ -66,9 +65,6 @@ annotation-apply-write:
 report-graph:
 	$(PYTHON) -m app.graph_report --episode-dir $(EPISODE_DIR) --output-dir $(GRAPH_REPORT_DIR) --by-source --min-count $(REPORT_MIN_COUNT)
 
-report-psy-payload:
-	$(PYTHON) -m app.psy_payload --episode-dir $(EPISODE_DIR) --output-dir $(PSY_PAYLOAD_DIR) --by-source --min-count $(REPORT_MIN_COUNT)
-
 report-map-payload:
 	$(PYTHON) -m app.map_payload --episode-dir $(EPISODE_DIR) --source $(MAP_SOURCE) --output $(MAP_PAYLOAD_DIR)/$(MAP_SOURCE_SAFE).json
 
@@ -78,7 +74,7 @@ report-map-html:
 report-ux:
 	$(PYTHON) -m app.ux_analytics --output-dir $(UX_REPORT_DIR)
 
-reports: normalize-episodes audit report-graph report-psy-payload report-ux
+reports: normalize-episodes audit report-graph report-ux
 
 annotation-refresh-reports: reports
 

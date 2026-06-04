@@ -280,7 +280,7 @@ SESSION_MESSAGES = {
     "admin_paused": "Заявка поставлена на паузу для {chat_id}",
     "admin_bad_command": "Используй {command} &lt;chat_id&gt;",
     "profile_missing": (
-        "Psy payload пока не собран. Нужны сохранённые и обработанные эпизоды."
+        "Профиль пока не собран. Нужны сохранённые и обработанные эпизоды."
     ),
     "report_failed": "Не удалось собрать отчёт: {error}",
     "graph_reports_ready": (
@@ -291,8 +291,7 @@ SESSION_MESSAGES = {
         "graph_ready: {graph_ready}\n"
         "report_ready: {report_ready}\n"
         "payload_eligible: {payload_eligible}\n\n"
-        "{graph_path}\n"
-        "{payload_path}"
+        "{graph_path}"
     ),
     "expired_initial_session": (
         "Прошлая сессия истекла до первого ответа. Отправь /start заново"

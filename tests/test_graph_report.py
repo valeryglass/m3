@@ -170,8 +170,7 @@ def test_graph_report_renders_markdown_summary_and_per_episode():
     assert "- graph_ready: 2" in text
     assert "- report_ready: 2" in text
     assert "- payload_eligible: 2" in text
-    assert "## State Snapshots" in text
-    assert "- complete: 2" in text
+    assert "## State Snapshots" not in text
     assert "## Profile Maturity" not in text
     assert "## Top Emotion Signatures" not in text
     assert "## Top Behavior Signatures" not in text

@@ -8,7 +8,7 @@ from app.config import (
 )
 from app.graph_report import build_report, load_episodes
 from app.report_runner import (
-    regenerate_graph_and_payload_reports,
+    regenerate_graph_reports,
     regenerate_ux_report,
 )
 from app.user_report import render_details, render_summary
@@ -270,7 +270,7 @@ def _build_chat_profile_report(settings: Settings, chat_id: int):
 
 async def _handle_report_graph_after_admin(update, settings: Settings, tone) -> None:
     try:
-        summary = regenerate_graph_and_payload_reports(settings)
+        summary = regenerate_graph_reports(settings)
     except Exception as exc:  # pragma: no cover - exact failures depend on data files
         await _reply_text(update, tone.report_failed(exc))
         return
@@ -285,7 +285,6 @@ async def _handle_report_graph_after_admin(update, settings: Settings, tone) -> 
             report_ready=summary["report_ready"],
             payload_eligible=summary["payload_eligible"],
             graph_path=summary["graph_path"],
-            payload_path=summary["payload_path"],
         ),
     )
 

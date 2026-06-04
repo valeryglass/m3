@@ -84,7 +84,6 @@ modules:
       - app/annotation_workflow.py
       - app/readiness.py
       - roles/annotator.md
-      - roles/auditor.md
     inputs:
       - validated Episode JSON
       - annotation proposal files
@@ -125,21 +124,19 @@ modules:
       - signature_counts
       - source_split_reports
 
-  psy_payload:
+  pattern_payloads:
     stage: experimental
     enabled: true
-    purpose: Produce domain-boxed loop, pattern, and outcome metrics from report-ready episodes.
+    purpose: Produce renderer-neutral pattern payloads from report-ready episodes.
     owned_paths:
-      - app/psy_payload.py
+      - app/pattern_metrics.py
       - app/map_payload.py
       - app/map_payload_html.py
-      - data/reports/psy-payload/
       - data/reports/map-payload/
     inputs:
       - report-ready episodes
       - graph signature counters
     outputs:
-      - data/reports/psy-payload/*.md
       - data/reports/map-payload/*.json
       - data/reports/map-payload/*.html
     interfaces:
@@ -222,7 +219,7 @@ interfaces:
     state: open
     owner: graph_reporting
     consumers:
-      - psy_payload
+      - pattern_payloads
     contract_doc: docs/interfaces/report-to-payload.md
 
 adr_policy:

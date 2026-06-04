@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from app.graph_report import GraphReport, build_report, load_episodes
-from app.psy_payload import (
+from app.pattern_metrics import (
     WEEK_QUANT,
     loops_for_signature,
     novelty_counter,

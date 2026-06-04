@@ -2,7 +2,7 @@
 
 ## Decision
 
-Add a renderer-neutral map payload JSON artifact under Psy Payload. The
+Add a renderer-neutral map payload JSON artifact under Pattern Payloads. The
 compiler builds one-source map payloads from graph signatures and writes private
 runtime JSON artifacts under `data/reports/map-payload/`.
 

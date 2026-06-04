@@ -231,7 +231,7 @@ def test_session_messages_render_unchanged():
     assert tone.admin_paused(456) == "Заявка поставлена на паузу для 456"
     assert tone.admin_bad_command("/approve") == "Используй /approve &lt;chat_id&gt;"
     assert tone.profile_missing() == (
-        "Psy payload пока не собран. Нужны сохранённые и обработанные эпизоды."
+        "Профиль пока не собран. Нужны сохранённые и обработанные эпизоды."
     )
     assert tone.report_failed("broken <data>") == (
         "Не удалось собрать отчёт: broken &lt;data&gt;"
@@ -244,7 +244,6 @@ def test_session_messages_render_unchanged():
         report_ready=1,
         payload_eligible=1,
         graph_path="data/reports/graph/all.md",
-        payload_path="data/reports/psy-payload/all.md",
     ) == (
         "Отчёты обновлены\n"
         "episodes: 1\n"
@@ -253,8 +252,7 @@ def test_session_messages_render_unchanged():
         "graph_ready: 1\n"
         "report_ready: 1\n"
         "payload_eligible: 1\n\n"
-        "data/reports/graph/all.md\n"
-        "data/reports/psy-payload/all.md"
+        "data/reports/graph/all.md"
     )
     assert tone.expired_initial_session() == (
         "Прошлая сессия истекла до первого ответа. Отправь /start заново"

@@ -217,7 +217,6 @@ class ToneEngine:
         report_ready: int,
         payload_eligible: int,
         graph_path: str,
-        payload_path: str,
     ) -> str:
         return SESSION_MESSAGES["graph_reports_ready"].format(
             episodes=episodes,
@@ -227,7 +226,6 @@ class ToneEngine:
             report_ready=report_ready,
             payload_eligible=payload_eligible,
             graph_path=escape(graph_path),
-            payload_path=escape(payload_path),
         )
 
     def expired_initial_session(self) -> str:

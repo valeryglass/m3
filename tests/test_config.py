@@ -21,7 +21,6 @@ def test_load_settings_uses_default_data_paths():
     assert str(settings.userlist_path) == "data/userlist/users.json"
     assert str(settings.ux_event_log) == "data/ux-events/events.jsonl"
     assert str(settings.graph_report_dir) == "data/reports/graph"
-    assert str(settings.psy_payload_dir) == "data/reports/psy-payload"
     assert str(settings.ux_report_dir) == "data/reports/ux"
     assert settings.report_min_count == 2
     assert settings.ux_idle_after_sec == 7200
@@ -51,7 +50,6 @@ def test_load_settings_allows_overrides():
             "M3_TONE_CONFIG": "/tmp/tone.yaml",
             "M3_USERLIST_PATH": "/tmp/users.json",
             "M3_GRAPH_REPORT_DIR": "/tmp/graph",
-            "M3_PSY_PAYLOAD_DIR": "/tmp/psy-payload",
             "M3_UX_REPORT_DIR": "/tmp/ux",
             "M3_REPORT_MIN_COUNT": "3",
             "M3_TELEGRAM_ADMIN_CHAT_IDS": "225672,327002663",
@@ -65,7 +63,6 @@ def test_load_settings_allows_overrides():
     assert str(settings.tone_config) == "/tmp/tone.yaml"
     assert str(settings.userlist_path) == "/tmp/users.json"
     assert str(settings.graph_report_dir) == "/tmp/graph"
-    assert str(settings.psy_payload_dir) == "/tmp/psy-payload"
     assert str(settings.ux_report_dir) == "/tmp/ux"
     assert settings.report_min_count == 3
     assert settings.telegram_admin_chat_ids == frozenset({225672, 327002663})

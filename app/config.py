@@ -21,7 +21,6 @@ class Settings:
     userlist_path: Path
     ux_event_log: Path
     graph_report_dir: Path
-    psy_payload_dir: Path
     ux_report_dir: Path
     report_min_count: int
     ux_idle_after_sec: int
@@ -76,9 +75,6 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         ux_event_log=Path(source.get("M3_UX_EVENT_LOG", "data/ux-events/events.jsonl")),
         graph_report_dir=Path(
             source.get("M3_GRAPH_REPORT_DIR", "data/reports/graph")
-        ),
-        psy_payload_dir=Path(
-            source.get("M3_PSY_PAYLOAD_DIR", "data/reports/psy-payload")
         ),
         ux_report_dir=Path(source.get("M3_UX_REPORT_DIR", "data/reports/ux")),
         report_min_count=int(source.get("M3_REPORT_MIN_COUNT", "2")),

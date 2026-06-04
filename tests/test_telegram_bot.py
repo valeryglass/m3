@@ -195,7 +195,7 @@ def test_profile_command_reports_missing_profile(tmp_path):
     )
 
     assert message.replies == [
-        "Psy payload пока не собран. Нужны сохранённые и обработанные эпизоды."
+        "Профиль пока не собран. Нужны сохранённые и обработанные эпизоды."
     ]
     assert message.reply_options == [{"parse_mode": "HTML"}]
 
@@ -471,11 +471,10 @@ def test_report_graph_rejects_non_admin(tmp_path):
     assert message.replies == ["Нет доступа"]
 
 
-def test_report_graph_regenerates_graph_and_psy_payload_reports(tmp_path):
+def test_report_graph_regenerates_graph_reports(tmp_path):
     settings = _settings(
         episode_dir=tmp_path / "episodes",
         graph_report_dir=tmp_path / "reports" / "graph",
-        psy_payload_dir=tmp_path / "reports" / "psy-payload",
     )
     settings.episode_dir.mkdir(parents=True)
     _write_json(settings.episode_dir / "episode-20260503-1.json", _graph_ready_episode())
@@ -491,8 +490,6 @@ def test_report_graph_regenerates_graph_and_psy_payload_reports(tmp_path):
 
     assert (settings.graph_report_dir / "all.md").exists()
     assert not any(path.suffix == ".html" for path in settings.graph_report_dir.iterdir())
-    assert (settings.psy_payload_dir / "all.md").exists()
-    assert (settings.psy_payload_dir / "telegram-chat-123.md").exists()
     assert message.replies == [
         "Отчёты обновлены\n"
         "episodes: 1\n"
@@ -501,8 +498,7 @@ def test_report_graph_regenerates_graph_and_psy_payload_reports(tmp_path):
         "graph_ready: 1\n"
         "report_ready: 1\n"
         "payload_eligible: 1\n\n"
-        f"{settings.graph_report_dir / 'all.md'}\n"
-        f"{settings.psy_payload_dir / 'all.md'}"
+        f"{settings.graph_report_dir / 'all.md'}"
     ]
 
 
@@ -1275,7 +1271,6 @@ def _settings(
     owner_chat_id=123,
     episode_dir=None,
     graph_report_dir=None,
-    psy_payload_dir=None,
     ux_report_dir=None,
     userlist_path=None,
     ux_event_log=None,
@@ -1286,7 +1281,6 @@ def _settings(
         telegram_owner_chat_id=owner_chat_id,
         episode_dir=episode_dir,
         graph_report_dir=graph_report_dir,
-        psy_payload_dir=psy_payload_dir,
         ux_report_dir=ux_report_dir,
         userlist_path=userlist_path,
         ux_event_log=ux_event_log,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from statistics import mean
 
 from app.schemas.episode import Episode
 
@@ -23,12 +22,6 @@ REQUIRED_OBSERVED_FIELDS = (
     "short_term_consequence",
     "long_term_consequence",
 )
-STATE_SNAPSHOT_FIELDS = (
-    ("cognitive", "automatic_thought"),
-    ("emotional", "emotion"),
-    ("physiological", "physical"),
-    ("behavioral", "behavior"),
-)
 MIN_USABLE_CONFIDENCE = 0.5
 
 
@@ -40,25 +33,6 @@ class EpisodeReadiness:
     report_ready: bool
     payload_eligible: bool
     gap_reasons: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class StateSnapshot:
-    episode_id: str
-    kind: str
-    cognitive: bool
-    emotional: bool
-    physiological: bool
-    behavioral: bool
-    confidence: float
-
-
-@dataclass(frozen=True)
-class StateSnapshotSummary:
-    total: int
-    complete: int
-    partial: int
-    average_confidence: float
 
 
 def classify_episode_readiness(episode: Episode) -> EpisodeReadiness:
@@ -97,42 +71,6 @@ def classify_episode_readiness(episode: Episode) -> EpisodeReadiness:
         report_ready=report_ready,
         payload_eligible=payload_eligible,
         gap_reasons=tuple(gaps),
-    )
-
-
-def build_state_snapshot(episode: Episode) -> StateSnapshot:
-    availability = {
-        name: _field_ready(getattr(episode.observed, field_name, None))
-        for name, field_name in STATE_SNAPSHOT_FIELDS
-    }
-    confidence = round(sum(1 for value in availability.values() if value) / 4, 2)
-    return StateSnapshot(
-        episode_id=episode.id,
-        kind="activated_main_state",
-        cognitive=availability["cognitive"],
-        emotional=availability["emotional"],
-        physiological=availability["physiological"],
-        behavioral=availability["behavioral"],
-        confidence=confidence,
-    )
-
-
-def summarize_state_snapshots(episodes: list[Episode]) -> StateSnapshotSummary:
-    snapshots = [build_state_snapshot(episode) for episode in episodes]
-    if not snapshots:
-        return StateSnapshotSummary(
-            total=0,
-            complete=0,
-            partial=0,
-            average_confidence=0.0,
-        )
-    complete = sum(1 for item in snapshots if item.confidence == 1.0)
-    partial = sum(1 for item in snapshots if 0.0 < item.confidence < 1.0)
-    return StateSnapshotSummary(
-        total=len(snapshots),
-        complete=complete,
-        partial=partial,
-        average_confidence=round(mean(item.confidence for item in snapshots), 2),
     )
 
 

@@ -10,9 +10,7 @@ from pathlib import Path
 
 from app.readiness import (
     EpisodeReadiness,
-    StateSnapshotSummary,
     classify_episode_readiness,
-    summarize_state_snapshots,
 )
 from app.schemas.episode import Episode
 
@@ -47,7 +45,6 @@ class GraphReport:
     total_episodes: int
     graph_ready: tuple[EpisodeSignature, ...]
     readiness: tuple[EpisodeReadiness, ...]
-    state_snapshots: StateSnapshotSummary
     emotion_signatures: Counter[tuple[str, ...]]
     behavior_signatures: Counter[tuple[str, ...]]
     cognition_signatures: Counter[tuple[str, ...]]
@@ -111,7 +108,6 @@ def build_report(episodes: list[Episode]) -> GraphReport:
         total_episodes=len(episodes),
         graph_ready=signatures,
         readiness=readiness,
-        state_snapshots=summarize_state_snapshots(episodes),
         emotion_signatures=_count_tuple_signatures(sig.emotions for sig in signatures),
         behavior_signatures=_count_tuple_signatures(sig.behaviors for sig in signatures),
         cognition_signatures=_count_tuple_signatures(sig.cognitions for sig in signatures),
@@ -150,12 +146,6 @@ def render_markdown(report: GraphReport, min_count: int = 2) -> str:
         f"- report_ready: {sum(1 for item in report.readiness if item.report_ready)}",
         f"- payload_eligible: {sum(1 for item in report.readiness if item.payload_eligible)}",
         f"- skipped: {len(skipped)}",
-        "",
-        "## State Snapshots",
-        f"- total: {report.state_snapshots.total}",
-        f"- complete: {report.state_snapshots.complete}",
-        f"- partial: {report.state_snapshots.partial}",
-        f"- average_confidence: {report.state_snapshots.average_confidence:.2f}",
         "",
     ]
 

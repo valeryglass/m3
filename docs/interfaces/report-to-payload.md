@@ -3,7 +3,7 @@
 ## Contract
 
 Graph Reporting provides report-ready episode summaries and signature counters
-to Psy Payload.
+to Pattern Payloads.
 
 ## Input
 
@@ -12,13 +12,12 @@ to Psy Payload.
 
 ## Output
 
-- technical domain payload Markdown.
 - renderer-neutral map payload JSON.
 
 ## Guarantees
 
-- payload reports include gaps when episodes are not graph-ready.
-- payload reports avoid diagnostic claims and stable trait claims.
+- payloads include provenance for graph-ready and skipped episodes.
+- payloads avoid diagnostic claims and stable trait claims.
 - timespan analytics use fixed 1-week buckets.
 - map payloads expose graph-derived semantics and provenance without choosing a
   final visual renderer.
@@ -26,4 +25,4 @@ to Psy Payload.
 ## Ownership
 
 - producer: `graph_reporting`
-- consumer: `psy_payload`
+- consumer: `pattern_payloads`

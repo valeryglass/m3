@@ -18,7 +18,7 @@ Telegram user
   -> Episode Model + Storage
   -> Annotation Workflow
   -> Graph Reporting
-  -> Psy Payload
+  -> Pattern Payloads
 ```
 
 Supporting flows:
@@ -31,12 +31,12 @@ Episode Capture -> Userlist / Access Gate
 ## Layers
 
 - `raw/`: immutable user materials and private inputs.
-- `sources/`: immutable methodology/reference seeds.
+- `sources/`: immutable reference/source seeds.
 - `model/`: accepted CBT domain model and JSON contracts.
 - `app/`: runtime code and local CLIs.
 - `config/`: runtime configuration.
 - `data/`: private runtime artifacts, ignored by Git.
-- `docs/`: architecture operating system for humans.
+- `docs/`: architecture operating system and methodology drafts for humans.
 - `roles/`: role prompts and task behavior specs.
 
 ## Bounded Contexts
@@ -48,8 +48,8 @@ Episode Capture -> Userlist / Access Gate
 - Annotation Workflow owns derived nodes, annotations, relations, and readiness
   gates.
 - Graph Reporting owns graph readiness and core graph quality reports.
-- Psy Payload owns domain-boxed loop, pattern, and outcome metrics built from
-  report-ready episodes.
+- Pattern Payloads owns renderer-neutral map payloads built from report-ready
+  graph signatures.
 - UX Analytics owns append-only loop event logs and aggregate UX views.
 - Userlist / Access owns approved-user and waitlist metadata.
 
@@ -60,7 +60,7 @@ Observed data is user-stated or minimally normalized episode evidence.
 Derived data is interpretation over observed evidence. Every derived object must
 include provenance through `source_field`, `source_quote`, and `confidence`.
 
-Reports are downstream summaries. Psy payload reports must describe evidence and
+Reports and payloads are downstream summaries. They must describe evidence and
 gaps without making diagnostic claims.
 
 ## CBT Domain Boundary
@@ -71,5 +71,6 @@ Accepted CBT model knowledge lives in `model/`, especially:
 - `model/graph.md`
 - `model/episode.schema.json`
 
-Draft domain ideas can live locally under `methodology/`, but they are not part
-of the accepted model until promoted into `model/` through an explicit change.
+Draft domain ideas can live locally under `docs/methodology/`, but they are not
+part of the accepted model until promoted into `model/` through an explicit
+change.
