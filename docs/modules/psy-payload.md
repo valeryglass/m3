@@ -13,6 +13,7 @@ change metrics from report-ready episodes.
 ## Outputs
 
 - Markdown payload reports under `data/reports/psy-payload/`.
+- Renderer-neutral map payload JSON artifacts under `data/reports/map-payload/`.
 
 ## Dependencies
 
@@ -29,3 +30,7 @@ change metrics from report-ready episodes.
 
 The payload is technical domain analytics, not diagnosis, profile
 interpretation, or therapeutic advice.
+
+`app/map_payload.py` derives one-source map compiler payload JSON from graph
+signatures for future SVG, voxel, canvas, or other renderers. The payload
+contains semantic entities and links only; renderers derive their own geometry.

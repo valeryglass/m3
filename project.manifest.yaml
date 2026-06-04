@@ -129,12 +129,15 @@ modules:
     purpose: Produce domain-boxed loop, pattern, and outcome metrics from report-ready episodes.
     owned_paths:
       - app/psy_payload.py
+      - app/map_payload.py
       - data/reports/psy-payload/
+      - data/reports/map-payload/
     inputs:
       - report-ready episodes
       - graph signature counters
     outputs:
       - data/reports/psy-payload/*.md
+      - data/reports/map-payload/*.json
     interfaces:
       - report_to_payload
     gates:
@@ -143,6 +146,7 @@ modules:
       - frequency_ranking
       - fork_convergence_outcome_analysis
       - one_week_drift_novelty_stability
+      - backend_map_payload
 
   ux_analytics:
     stage: prototype

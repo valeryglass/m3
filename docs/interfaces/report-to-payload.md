@@ -13,12 +13,15 @@ to Psy Payload.
 ## Output
 
 - technical domain payload Markdown.
+- renderer-neutral map payload JSON.
 
 ## Guarantees
 
 - payload reports include gaps when episodes are not graph-ready.
 - payload reports avoid diagnostic claims and stable trait claims.
 - timespan analytics use fixed 1-week buckets.
+- map payloads expose graph-derived semantics and provenance without choosing a
+  final visual renderer.
 
 ## Ownership
 
