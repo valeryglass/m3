@@ -130,6 +130,7 @@ modules:
     owned_paths:
       - app/psy_payload.py
       - app/map_payload.py
+      - app/map_payload_html.py
       - data/reports/psy-payload/
       - data/reports/map-payload/
     inputs:
@@ -138,6 +139,7 @@ modules:
     outputs:
       - data/reports/psy-payload/*.md
       - data/reports/map-payload/*.json
+      - data/reports/map-payload/*.html
     interfaces:
       - report_to_payload
     gates:
@@ -147,6 +149,7 @@ modules:
       - fork_convergence_outcome_analysis
       - one_week_drift_novelty_stability
       - backend_map_payload
+      - map_payload_html_preview
 
   ux_analytics:
     stage: prototype

@@ -13,7 +13,7 @@ REPORT_MIN_COUNT ?= 2
 MAP_SOURCE ?= telegram-chat:327002663
 MAP_SOURCE_SAFE ?= $(subst :,-,$(subst /,-,$(MAP_SOURCE)))
 
-.PHONY: bot bot-pid bot-stop bot-kill bot-restart normalize-episodes audit report-graph report-psy-payload report-map-payload report-ux reports analytics-ux analytics annotation-audit annotation-queue annotation-validate annotation-apply annotation-apply-write annotation-refresh-reports
+.PHONY: bot bot-pid bot-stop bot-kill bot-restart normalize-episodes audit report-graph report-psy-payload report-map-payload report-map-html report-ux reports analytics-ux analytics annotation-audit annotation-queue annotation-validate annotation-apply annotation-apply-write annotation-refresh-reports
 
 bot:
 	$(PYTHON) -m $(BOT_MODULE)
@@ -71,6 +71,9 @@ report-psy-payload:
 
 report-map-payload:
 	$(PYTHON) -m app.map_payload --episode-dir $(EPISODE_DIR) --source $(MAP_SOURCE) --output $(MAP_PAYLOAD_DIR)/$(MAP_SOURCE_SAFE).json
+
+report-map-html:
+	$(PYTHON) -m app.map_payload_html --input $(MAP_PAYLOAD_DIR)/$(MAP_SOURCE_SAFE).json --output $(MAP_PAYLOAD_DIR)/$(MAP_SOURCE_SAFE).html
 
 report-ux:
 	$(PYTHON) -m app.ux_analytics --output-dir $(UX_REPORT_DIR)

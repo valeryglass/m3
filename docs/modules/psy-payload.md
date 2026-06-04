@@ -14,6 +14,7 @@ change metrics from report-ready episodes.
 
 - Markdown payload reports under `data/reports/psy-payload/`.
 - Renderer-neutral map payload JSON artifacts under `data/reports/map-payload/`.
+- Standalone map payload HTML previews under `data/reports/map-payload/`.
 
 ## Dependencies
 
@@ -34,3 +35,6 @@ interpretation, or therapeutic advice.
 `app/map_payload.py` derives one-source map compiler payload JSON from graph
 signatures for future SVG, voxel, canvas, or other renderers. The payload
 contains semantic entities and links only; renderers derive their own geometry.
+
+`app/map_payload_html.py` renders standalone HTML previews from map payload JSON.
+It is a preview surface over the payload contract, not a second compiler.
