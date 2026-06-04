@@ -7,16 +7,22 @@ Personal CBT-oriented knowledge system maintained with Codex.
 The project has working layers:
 
 - `raw/`: immutable user texts, thoughts, logs, and artifacts.
-- `sources/`: immutable methodology and reference sources.
+- `sources/`: immutable reference/source materials.
 - `model/`: accepted CBT model and JSON contracts.
 - `data/episodes/`: private structured JSON episode records.
-- `data/state/`: private in-progress Telegram loop state.
+- `data/state/`: private active Telegram session state.
 - `data/userlist/`: private alpha waitlist and approval records.
 - `data/ux-events/`: private step-level UX analytics event log.
 - `config/`: runtime configuration files.
 - `app/`: runnable Telegram loop extractor app.
+- `docs/`: architecture operating system and methodology drafts.
 - `roles/`: optional Codex role specs for specific tasks.
-- `schema.md`: repository/system structure map.
+- `project.manifest.yaml`: structural source of truth for modules,
+  interfaces, lifecycle gates, and ownership.
+
+`docs/methodology/` is for draft methodology notes. Drafts are not accepted
+model knowledge until they are promoted into `model/` through an explicit
+change.
 
 ## Current Focus
 

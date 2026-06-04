@@ -45,22 +45,6 @@ def test_graph_model_explains_true_support_nodes():
     assert "not part of the current episode contract" in text
 
 
-def test_auditor_role_defines_read_only_db_reports():
-    text = Path("roles/auditor.md").read_text(encoding="utf-8")
-
-    assert "Role name: `auditor`" in text
-    assert "This role does not edit episode files" in text
-    for section in (
-        "schema_validation",
-        "observed_quality",
-        "derived_coverage",
-        "relation_integrity",
-        "junk_candidates",
-    ):
-        assert section in text
-    assert "Stop annotation work if any file is schema-invalid" in text
-
-
 def test_architecture_steward_role_defines_manifest_ownership():
     text = Path("roles/architecture-steward.md").read_text(encoding="utf-8")
     agents = Path("AGENTS.md").read_text(encoding="utf-8")
@@ -70,5 +54,5 @@ def test_architecture_steward_role_defines_manifest_ownership():
     assert "docs/architecture.md" in text
     assert "docs/interfaces/" in text
     assert "docs/adr/" in text
-    assert "methodology/" in text
+    assert "docs/methodology/" in text
     assert "roles/architecture-steward.md" in agents

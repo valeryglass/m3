@@ -18,7 +18,8 @@ drafts into the accepted model without an explicit model change.
 - Keep `docs/architecture.md`, module passports, and interface docs aligned
   with the manifest.
 - Keep accepted CBT-domain knowledge in `model/`.
-- Leave `methodology/` as draft material unless explicitly asked to promote it.
+- Leave `docs/methodology/` as draft material unless explicitly asked to
+  promote it.
 - Do not modify private runtime artifacts under `data/`.
 - Do not make diagnostic claims.
 - Prefer small structural updates over broad documentation rewrites.

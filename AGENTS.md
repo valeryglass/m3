@@ -43,12 +43,12 @@ schema, boundary, interface, data-flow, lifecycle, or major module changes.
 
 ```text
 raw/       -- immutable user texts, thoughts, logs, and artifacts
-sources/   -- immutable methodology/reference sources
+sources/   -- immutable reference/source materials
 model/     -- accepted CBT model and JSON contracts
 data/      -- private runtime artifacts and loop state
 config/    -- runtime configuration files
 app/       -- Telegram loop extractor application
-docs/      -- architecture operating system
+docs/      -- architecture operating system and methodology drafts
 roles/     -- optional role specs
 project.manifest.yaml -- structural source of truth
 ```
@@ -81,7 +81,6 @@ project.manifest.yaml -- structural source of truth
 - Use `roles/committer.md` for commit preparation.
 - Use `roles/loop-extractor.md` for observed episode capture behavior.
 - Use `roles/annotator.md` for derived annotation work.
-- Use `roles/auditor.md` for read-only data quality and readiness audits.
 
 ## Editing Rules
 
