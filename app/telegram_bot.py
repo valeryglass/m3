@@ -6,11 +6,12 @@ from app.config import (
     load_settings,
     owner_chat_id_for_settings,
 )
+from app.graph_report import build_report, load_episodes
 from app.report_runner import (
-    profile_report_path,
     regenerate_graph_and_payload_reports,
     regenerate_ux_report,
 )
+from app.user_report import render_details, render_summary
 from app.loop_extractor import (
     active_target,
     apply_user_reply,
@@ -117,6 +118,13 @@ def main() -> None:
             update, storage, ux_events, tone
         )
 
+    async def profile_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
+            return
+        await _handle_profile_callback_after_authorized(update, settings, tone)
+
     async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _handle_admin_decision(
             update, context.args, settings, tone, ux_events, userlist, "approve", context.bot
@@ -169,6 +177,7 @@ def main() -> None:
     application.add_handler(CommandHandler("report_graph", report_graph))
     application.add_handler(CommandHandler("report_ux", report_ux))
     application.add_handler(CallbackQueryHandler(episode_callback, pattern="^episode:"))
+    application.add_handler(CallbackQueryHandler(profile_callback, pattern="^profile:"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
     application.run_polling(bootstrap_retries=-1)
 
@@ -211,15 +220,52 @@ async def _send_help(update, tone) -> None:
 
 
 async def _handle_profile_after_authorized(update, settings: Settings, tone) -> None:
-    path = profile_report_path(settings, update.effective_chat.id)
-    if not path.exists():
+    report = _build_chat_profile_report(settings, update.effective_chat.id)
+    if report is None:
         await _reply_text(update, tone.profile_missing())
         return
     await _reply_text(
         update,
-        _trim_report_text(path.read_text(encoding="utf-8")),
+        render_summary(report),
+        reply_markup=_profile_details_reply_markup(),
         parse_mode=None,
     )
+
+
+async def _handle_profile_callback_after_authorized(update, settings: Settings, tone) -> None:
+    query = getattr(update, "callback_query", None)
+    if query is not None:
+        await query.answer()
+    data = getattr(query, "data", "") if query is not None else ""
+    if data != "profile:details":
+        return
+
+    report = _build_chat_profile_report(settings, update.effective_chat.id)
+    if report is None:
+        await _reply_to_callback(query, tone.profile_missing(), parse_mode=None)
+        return
+    await _reply_to_callback(
+        query,
+        _trim_report_text(render_details(report)),
+        parse_mode=None,
+    )
+
+
+def _build_chat_profile_report(settings: Settings, chat_id: int):
+    if settings.episode_dir is None or not settings.episode_dir.exists():
+        return None
+    source = f"telegram-chat:{chat_id}"
+    episodes = [
+        episode
+        for episode in load_episodes(settings.episode_dir)
+        if episode.source == source
+    ]
+    if not episodes:
+        return None
+    report = build_report(episodes)
+    if not report.graph_ready or not any(item.report_ready for item in report.readiness):
+        return None
+    return report
 
 
 async def _handle_report_graph_after_admin(update, settings: Settings, tone) -> None:
@@ -448,10 +494,14 @@ async def _handle_episode_callback_after_authorized(
         )
 
 
-async def _reply_to_callback(query, text: str, *, reply_markup=None) -> None:
+async def _reply_to_callback(
+    query, text: str, *, reply_markup=None, parse_mode="HTML"
+) -> None:
     message = getattr(query, "message", None) if query is not None else None
     if message is not None:
-        kwargs = {"parse_mode": "HTML"}
+        kwargs = {}
+        if parse_mode is not None:
+            kwargs["parse_mode"] = parse_mode
         if reply_markup is not None:
             kwargs["reply_markup"] = reply_markup
         await message.reply_text(text, **kwargs)
@@ -469,6 +519,16 @@ def _review_reply_markup():
                 InlineKeyboardButton("Отменить", callback_data="episode:cancel"),
             ]
         ]
+    )
+
+
+def _profile_details_reply_markup():
+    try:
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    except ImportError:  # pragma: no cover - runtime dependency guard
+        return None
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton("Подробнее", callback_data="profile:details")]]
     )
 
 

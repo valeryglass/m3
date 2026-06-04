@@ -11,6 +11,15 @@ from app.userlist import APPROVED, PAUSED, WAITLISTED, JsonUserList
 from app.ux_events import UxEventLog, format_utc
 
 
+INTERNAL_PROFILE_TERMS = (
+    "payload",
+    "graph_ready",
+    "profile_eligible",
+    "annotation",
+    "signature",
+)
+
+
 def test_telegram_bot_module_imports_without_contacting_telegram():
     assert callable(telegram_bot.main)
 
@@ -113,12 +122,9 @@ def test_send_help_replies_without_creating_session(tmp_path):
 
 
 def test_profile_command_replies_with_current_report(tmp_path):
-    settings = _settings(psy_payload_dir=tmp_path / "reports" / "psy-payload")
-    settings.psy_payload_dir.mkdir(parents=True)
-    (settings.psy_payload_dir / "telegram-chat-123.md").write_text(
-        "# Psy Payload\n\n- episodes: 2\n",
-        encoding="utf-8",
-    )
+    settings = _settings(episode_dir=tmp_path / "episodes")
+    settings.episode_dir.mkdir(parents=True)
+    _write_json(settings.episode_dir / "episode-20260503-1.json", _graph_ready_episode())
     message = _FakeMessage("/profile")
 
     _run(
@@ -129,12 +135,55 @@ def test_profile_command_replies_with_current_report(tmp_path):
         )
     )
 
-    assert message.replies == ["# Psy Payload\n\n- episodes: 2\n"]
-    assert message.reply_options == [{}]
+    assert len(message.replies) == 1
+    assert message.replies[0].startswith("Короткий отчет")
+    assert "В выборке: 1 эпизод" in message.replies[0]
+    assert "контакт с людьми" in message.replies[0]
+    assert "дистанцироваться" in message.replies[0]
+    _assert_no_internal_profile_terms(message.replies[0])
+    assert "parse_mode" not in message.reply_options[0]
+    reply_markup = message.reply_options[0]["reply_markup"]
+    assert reply_markup.inline_keyboard[0][0].text == "Подробнее"
+    assert reply_markup.inline_keyboard[0][0].callback_data == "profile:details"
+
+
+def test_profile_details_callback_sends_detailed_report(tmp_path):
+    settings = _settings(episode_dir=tmp_path / "episodes")
+    settings.episode_dir.mkdir(parents=True)
+    _write_json(settings.episode_dir / "episode-20260503-1.json", _graph_ready_episode())
+    callback = _FakeCallbackQuery("profile:details")
+
+    _run(
+        telegram_bot._handle_profile_callback_after_authorized(
+            _fake_callback_update(123, callback),
+            settings,
+            ToneEngine.default(),
+        )
+    )
+
+    assert callback.answered is True
+    assert callback.edits == []
+    assert len(callback.message.replies) == 1
+    assert callback.message.replies[0].startswith("Подробный отчет")
+    _assert_no_internal_profile_terms(callback.message.replies[0])
+    assert callback.message.reply_options == [{}]
 
 
 def test_profile_command_reports_missing_profile(tmp_path):
-    settings = _settings(psy_payload_dir=tmp_path / "reports" / "psy-payload")
+    settings = _settings(episode_dir=tmp_path / "episodes")
+    settings.episode_dir.mkdir(parents=True)
+    episode = _graph_ready_episode()
+    episode["derived"] = {
+        "nodes": [],
+        "trigger_annotations": [],
+        "actor_annotations": [],
+        "cognition_annotations": [],
+        "emotion_annotations": [],
+        "behavior_annotations": [],
+        "outcome_annotations": [],
+        "relations": [],
+    }
+    _write_json(settings.episode_dir / "episode-20260503-1.json", episode)
     message = _FakeMessage("/profile")
 
     _run(
@@ -1045,6 +1094,12 @@ class _FakeCallbackQuery:
 
 def _run(coro):
     return asyncio.run(coro)
+
+
+def _assert_no_internal_profile_terms(text: str) -> None:
+    lowered = text.lower()
+    for term in INTERNAL_PROFILE_TERMS:
+        assert term not in lowered
 
 
 def _fake_update(chat_id: int, message: _FakeMessage):

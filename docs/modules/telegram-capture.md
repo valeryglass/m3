@@ -21,6 +21,7 @@ through the episode storage boundary.
 ## Dependencies
 
 - Episode Model + Storage for validation and persistence.
+- Graph Reporting for user-facing `/profile` summaries over processed episodes.
 - Userlist / Access for approved-user checks.
 - UX Analytics for loop event logging.
 
@@ -33,3 +34,7 @@ through the episode storage boundary.
 `experimental`
 
 The flow is usable, but prompt copy and frame order can still evolve.
+
+`/profile` renders a plain-language summary and details view from graph report
+data for the current Telegram chat. Regular users should not receive raw
+technical payload Markdown through this command.
