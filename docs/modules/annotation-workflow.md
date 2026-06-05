@@ -2,20 +2,22 @@
 
 ## Purpose
 
-Transform validated episodes into derived nodes, annotations, relations, and
-readiness summaries.
+Transform validated episodes into selected derived nodes, annotations,
+relations, annotation runs, and readiness summaries.
 
 ## Inputs
 
 - validated Episode JSON.
 - annotation proposal batches.
+- annotation-run manifests and rows.
 - accepted CBT and graph model docs.
 
 ## Outputs
 
-- derived graph nodes.
+- selected derived graph nodes.
 - typed annotations.
 - relations.
+- versioned annotation-run records.
 - audit and readiness summaries.
 
 ## Dependencies
@@ -34,3 +36,6 @@ readiness summaries.
 
 The workflow is operational, but taxonomy and graph projection can still change
 through explicit model/schema work.
+
+Annotation runs are versioned derived interpretations of observed episodes.
+They are analytical inputs, not replacements for observed episode source data.

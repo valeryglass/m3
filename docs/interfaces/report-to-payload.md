@@ -2,8 +2,8 @@
 
 ## Contract
 
-Graph Reporting provides report-ready episode summaries and signature counters
-to Pattern Payloads.
+Graph Reporting provides computed graph-view summaries and signature counters to
+Pattern Payloads.
 
 ## Input
 
@@ -18,6 +18,7 @@ to Pattern Payloads.
 
 - payloads include provenance for graph-ready and skipped episodes.
 - payloads avoid diagnostic claims and stable trait claims.
+- payloads are computed exports, not canonical source artifacts.
 - timespan analytics use fixed 1-week buckets.
 - map payloads expose graph-derived semantics and provenance without choosing a
   final visual renderer.

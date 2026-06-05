@@ -3,6 +3,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
+from app.schemas.annotation_run import AnnotationRunManifest, AnnotationRunRow
 from app.schemas.episode import Episode
 
 
@@ -520,3 +521,31 @@ def test_episode_template_uses_current_derived_keys():
     data = json.loads(open("model/episode.template.json", encoding="utf-8").read())
 
     assert data["derived"] == _empty_derived()
+
+
+def test_annotation_run_manifest_schema_accepts_valid_manifest():
+    manifest = AnnotationRunManifest.model_validate(
+        {
+            "annotation_run_id": "run-20260605-1",
+            "schema_version": "episode.v1",
+            "taxonomy_version": "taxonomy.v1",
+            "prompt_version": "prompt.v1",
+            "created_at": "2026-06-05T12:00:00Z",
+            "source_episode_count": 1,
+        }
+    )
+
+    assert manifest.annotation_run_id == "run-20260605-1"
+    assert manifest.source_episode_count == 1
+
+
+def test_annotation_run_row_schema_accepts_episode_derived_contract():
+    row = AnnotationRunRow.model_validate(
+        {
+            "episode_id": "episode-20260430-1",
+            "derived": _empty_derived(),
+        }
+    )
+
+    assert row.episode_id == "episode-20260430-1"
+    assert row.derived.nodes == []

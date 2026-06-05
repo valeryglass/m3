@@ -240,6 +240,7 @@ def test_session_messages_render_unchanged():
         episodes=1,
         invalid=0,
         empty_derived=0,
+        annotation_ready=1,
         graph_ready=1,
         report_ready=1,
         payload_eligible=1,
@@ -249,6 +250,7 @@ def test_session_messages_render_unchanged():
         "episodes: 1\n"
         "invalid: 0\n"
         "empty_derived: 0\n"
+        "annotation_ready: 1\n"
         "graph_ready: 1\n"
         "report_ready: 1\n"
         "payload_eligible: 1\n\n"

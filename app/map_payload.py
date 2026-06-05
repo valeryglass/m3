@@ -137,6 +137,7 @@ def write_map_payload(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Write renderer-neutral map payload JSON.")
     parser.add_argument("--episode-dir", default="data/episodes")
+    parser.add_argument("--annotation-run-dir")
     parser.add_argument("--source", required=True)
     parser.add_argument("--output")
     args = parser.parse_args()
@@ -147,7 +148,12 @@ def main() -> None:
         else Path("data/reports/map-payload") / f"{safe_filename(args.source)}.json"
     )
     path = write_map_payload(
-        load_episodes(Path(args.episode_dir)),
+        load_episodes(
+            Path(args.episode_dir),
+            annotation_run_dir=Path(args.annotation_run_dir)
+            if args.annotation_run_dir
+            else None,
+        ),
         output,
         source=args.source,
     )

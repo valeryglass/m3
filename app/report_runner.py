@@ -24,6 +24,7 @@ def regenerate_graph_reports(settings: Settings) -> dict[str, int | str]:
         "episodes": report.total_episodes,
         "invalid": audit.invalid,
         "empty_derived": audit.empty_derived,
+        "annotation_ready": audit.annotation_ready,
         "graph_ready": len(report.graph_ready),
         "report_ready": sum(1 for item in report.readiness if item.report_ready),
         "payload_eligible": sum(

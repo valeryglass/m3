@@ -2,17 +2,20 @@
 
 ## Purpose
 
-Own the persisted Episode contract and local storage behavior.
+Own the persisted Episode contract, local storage behavior, and compatibility
+loading for analytics.
 
 ## Inputs
 
 - observed episode fields from capture.
-- derived annotation payloads from workflow tooling.
+- selected derived annotation payloads from workflow tooling.
 - legacy private episode records that need normalization.
+- optional annotation-run records for analytics loading.
 
 ## Outputs
 
 - validated Episode JSON.
+- analytics-ready Episode objects for current report code.
 - normalized private episode files.
 - schema and template artifacts for humans and tools.
 
@@ -32,3 +35,7 @@ Own the persisted Episode contract and local storage behavior.
 
 The contract is active and tested, but schema evolution remains possible during
 alpha.
+
+Current alpha episode files may still include embedded `derived` annotations.
+The analytics loader treats those as a legacy fallback and can overlay selected
+annotation-run data without rewriting episode files.

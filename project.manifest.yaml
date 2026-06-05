@@ -19,7 +19,8 @@ lifecycle_stages:
 
 gates:
   observed_ready: Required observed episode fields are present.
-  graph_ready: Episode has derived nodes, annotations, and relations.
+  annotation_ready: Selected derived annotations have nodes and at least one annotation.
+  graph_ready: Selected derived annotations have graph material and relations.
   report_ready: Graph data is valid enough for cross-episode analytics.
   payload_eligible: Episode can contribute to payload-level summaries.
 
@@ -61,12 +62,14 @@ modules:
       - app/schemas/episode.py
       - app/storage.py
       - app/derived_normalizer.py
+      - app/analytics_loader.py
     inputs:
       - observed episode fields
       - derived annotations
       - legacy episode files
     outputs:
       - validated Episode JSON
+      - analytics-ready Episode objects
       - normalized private episode records
     interfaces:
       - capture_to_episode
@@ -82,21 +85,26 @@ modules:
     purpose: Audit, export, validate, and apply derived annotations.
     owned_paths:
       - app/annotation_workflow.py
+      - app/annotation_runs.py
       - app/readiness.py
+      - app/schemas/annotation_run.py
       - roles/annotator.md
     inputs:
       - validated Episode JSON
       - annotation proposal files
+      - annotation-run records
     outputs:
       - derived nodes
       - derived annotations
       - derived relations
+      - data/annotation-runs/
       - readiness audit summaries
     interfaces:
       - episode_to_annotation
       - annotation_to_report
     gates:
       - observed_ready
+      - annotation_ready
       - graph_ready
       - report_ready
       - payload_eligible

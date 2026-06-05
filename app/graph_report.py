@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 from collections import Counter
 from dataclasses import dataclass
 from itertools import groupby
 from pathlib import Path
 
+from app.analytics_loader import load_analytics_episodes
 from app.readiness import (
     EpisodeReadiness,
     classify_episode_readiness,
@@ -60,12 +60,14 @@ class GraphReport:
         )
 
 
-def load_episodes(episode_dir: Path) -> list[Episode]:
-    episodes = []
-    for path in sorted(episode_dir.glob("episode-*.json")):
-        data = json.loads(path.read_text(encoding="utf-8"))
-        episodes.append(Episode.model_validate(data))
-    return episodes
+def load_episodes(
+    episode_dir: Path,
+    annotation_run_dir: Path | None = None,
+) -> list[Episode]:
+    return load_analytics_episodes(
+        episode_dir,
+        annotation_run_dir=annotation_run_dir,
+    )
 
 
 def is_graph_ready(episode: Episode) -> bool:
@@ -142,6 +144,7 @@ def render_markdown(report: GraphReport, min_count: int = 2) -> str:
         "",
         "## Summary",
         f"- episodes: {report.total_episodes}",
+        f"- annotation_ready: {sum(1 for item in report.readiness if item.annotation_ready)}",
         f"- graph_ready: {len(report.graph_ready)}",
         f"- report_ready: {sum(1 for item in report.readiness if item.report_ready)}",
         f"- payload_eligible: {sum(1 for item in report.readiness if item.payload_eligible)}",
@@ -224,13 +227,22 @@ def main() -> None:
         help="Directory for Markdown report files. Prints to stdout when omitted.",
     )
     parser.add_argument(
+        "--annotation-run-dir",
+        help="Optional annotation-run directory with manifest.json and annotations.jsonl.",
+    )
+    parser.add_argument(
         "--by-source",
         action="store_true",
         help="When writing files, also create one report per episode source.",
     )
     args = parser.parse_args()
 
-    episodes = load_episodes(Path(args.episode_dir))
+    episodes = load_episodes(
+        Path(args.episode_dir),
+        annotation_run_dir=Path(args.annotation_run_dir)
+        if args.annotation_run_dir
+        else None,
+    )
     if args.output_dir:
         written = write_markdown_reports(
             episodes,

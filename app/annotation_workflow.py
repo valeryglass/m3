@@ -47,6 +47,7 @@ class AuditSummary:
     with_annotations: int = 0
     with_relations: int = 0
     observed_ready: int = 0
+    annotation_ready: int = 0
     graph_ready: int = 0
     report_ready: int = 0
     payload_eligible: int = 0
@@ -90,7 +91,7 @@ def audit_episode_dir(episode_dir: Path = DEFAULT_EPISODE_DIR) -> AuditSummary:
     invalid_files: list[str] = []
     total = valid = 0
     empty_derived = with_nodes = with_annotations = with_relations = 0
-    observed_ready = graph_ready = report_ready = payload_eligible = 0
+    observed_ready = annotation_ready = graph_ready = report_ready = payload_eligible = 0
     gap_reasons: dict[str, int] = {}
     totals = {
         "nodes_total": 0,
@@ -132,6 +133,8 @@ def audit_episode_dir(episode_dir: Path = DEFAULT_EPISODE_DIR) -> AuditSummary:
         readiness = classify_episode_readiness(episode)
         if readiness.observed_ready:
             observed_ready += 1
+        if readiness.annotation_ready:
+            annotation_ready += 1
         if readiness.graph_ready:
             graph_ready += 1
         if readiness.report_ready:
@@ -159,6 +162,7 @@ def audit_episode_dir(episode_dir: Path = DEFAULT_EPISODE_DIR) -> AuditSummary:
         with_annotations=with_annotations,
         with_relations=with_relations,
         observed_ready=observed_ready,
+        annotation_ready=annotation_ready,
         graph_ready=graph_ready,
         report_ready=report_ready,
         payload_eligible=payload_eligible,
@@ -188,7 +192,7 @@ def export_batches(
                 "date": data["date"],
                 "source": data["source"],
                 "observed": data["observed"],
-                "current_derived": data.get("derived", empty_derived()),
+                "selected_derived": data.get("derived", empty_derived()),
             }
         )
 
@@ -234,7 +238,7 @@ def queue_empty_derived(
                 "source": data["source"],
                 "gap_reasons": list(readiness.gap_reasons),
                 "observed": data["observed"],
-                "current_derived": data.get("derived", empty_derived()),
+                "selected_derived": data.get("derived", empty_derived()),
                 "instructions": QUEUE_INSTRUCTIONS,
             }
         )

@@ -29,6 +29,7 @@ MIN_USABLE_CONFIDENCE = 0.5
 class EpisodeReadiness:
     episode_id: str
     observed_ready: bool
+    annotation_ready: bool
     graph_ready: bool
     report_ready: bool
     payload_eligible: bool
@@ -41,7 +42,8 @@ def classify_episode_readiness(episode: Episode) -> EpisodeReadiness:
         getattr(derived, field) for field in ANNOTATION_FIELDS
     )
     observed_ready = _observed_ready(episode)
-    graph_ready = bool(derived.nodes) and annotations_present and bool(derived.relations)
+    annotation_ready = bool(derived.nodes) and annotations_present
+    graph_ready = annotation_ready and bool(derived.relations)
     usable_confidence = _has_usable_confidence(episode)
     report_ready = graph_ready and usable_confidence
     payload_eligible = (
@@ -67,6 +69,7 @@ def classify_episode_readiness(episode: Episode) -> EpisodeReadiness:
     return EpisodeReadiness(
         episode_id=episode.id,
         observed_ready=observed_ready,
+        annotation_ready=annotation_ready,
         graph_ready=graph_ready,
         report_ready=report_ready,
         payload_eligible=payload_eligible,

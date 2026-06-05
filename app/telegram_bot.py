@@ -281,6 +281,7 @@ async def _handle_report_graph_after_admin(update, settings: Settings, tone) -> 
             episodes=summary["episodes"],
             invalid=summary["invalid"],
             empty_derived=summary["empty_derived"],
+            annotation_ready=summary["annotation_ready"],
             graph_ready=summary["graph_ready"],
             report_ready=summary["report_ready"],
             payload_eligible=summary["payload_eligible"],

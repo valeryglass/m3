@@ -141,6 +141,7 @@ def test_audit_counts_valid_invalid_and_derived_coverage(tmp_path):
     assert summary.with_annotations == 1
     assert summary.with_relations == 1
     assert summary.observed_ready == 2
+    assert summary.annotation_ready == 1
     assert summary.graph_ready == 1
     assert summary.report_ready == 1
     assert summary.payload_eligible == 0
@@ -166,7 +167,7 @@ def test_export_writes_batches_without_modifying_episodes(tmp_path):
     assert path.read_text(encoding="utf-8") == before
     first_batch = (work_dir / "batch-001.jsonl").read_text(encoding="utf-8")
     assert '"observed"' in first_batch
-    assert '"current_derived"' in first_batch
+    assert '"selected_derived"' in first_batch
 
 
 def test_queue_exports_only_empty_derived_with_instructions(tmp_path):
@@ -194,7 +195,7 @@ def test_queue_exports_only_empty_derived_with_instructions(tmp_path):
     assert record["date"] == "2026-04-30"
     assert record["gap_reasons"] == ["empty_derived"]
     assert record["observed"]["emotion"]["value"] == "страх"
-    assert record["current_derived"] == empty_derived()
+    assert record["selected_derived"] == empty_derived()
     assert "Fill only proposal.derived" in record["instructions"]
     assert "outcome_annotations" in record["instructions"]
 

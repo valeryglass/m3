@@ -8,7 +8,9 @@ data/state/*.json
 data/userlist/*.json
 data/ux-events/*.jsonl
 data/annotation-work/**
+data/annotation-runs/**
 data/backups/**
+data/exports/**
 data/reports/**
 .env
 
@@ -20,12 +22,16 @@ data/reports/**
 !data/userlist/
 !data/ux-events/
 !data/annotation-work/
+!data/annotation-runs/
 !data/backups/
+!data/exports/
 !data/reports/
 !data/episodes/.gitkeep
 !data/state/.gitkeep
 !data/userlist/.gitkeep
 !data/ux-events/.gitkeep
+!data/annotation-runs/.gitkeep
+!data/exports/.gitkeep
 
 # Ignore user-local Obsidian workspace state.
 .obsidian/workspace.json

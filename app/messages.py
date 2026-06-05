@@ -288,6 +288,7 @@ SESSION_MESSAGES = {
         "episodes: {episodes}\n"
         "invalid: {invalid}\n"
         "empty_derived: {empty_derived}\n"
+        "annotation_ready: {annotation_ready}\n"
         "graph_ready: {graph_ready}\n"
         "report_ready: {report_ready}\n"
         "payload_eligible: {payload_eligible}\n\n"

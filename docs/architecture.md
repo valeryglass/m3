@@ -17,6 +17,7 @@ Telegram user
   -> Episode Capture
   -> Episode Model + Storage
   -> Annotation Workflow
+  -> Annotation Run
   -> Graph Reporting
   -> Pattern Payloads
 ```
@@ -45,9 +46,9 @@ Episode Capture -> Userlist / Access Gate
   drafts.
 - Episode Model + Storage owns the JSON contract, Pydantic mirror, persistence,
   and legacy normalization.
-- Annotation Workflow owns derived nodes, annotations, relations, and readiness
+- Annotation Workflow owns versioned selected derived annotations and readiness
   gates.
-- Graph Reporting owns graph readiness and core graph quality reports.
+- Graph Reporting owns computed graph views and core graph quality reports.
 - Pattern Payloads owns renderer-neutral map payloads built from report-ready
   graph signatures.
 - UX Analytics owns append-only loop event logs and aggregate UX views.
@@ -60,8 +61,20 @@ Observed data is user-stated or minimally normalized episode evidence.
 Derived data is interpretation over observed evidence. Every derived object must
 include provenance through `source_field`, `source_quote`, and `confidence`.
 
-Reports and payloads are downstream summaries. They must describe evidence and
-gaps without making diagnostic claims.
+The project keeps these boundaries explicit:
+
+```text
+episode != annotation
+annotation != graph
+graph != report
+report != source of truth
+```
+
+Episodes are observed source artifacts. Annotation runs are versioned selected
+interpretations of episodes. `GraphReport` is the current computed graph view
+built from episodes plus selected annotations. Reports and payloads are
+downstream exports. They must describe evidence and gaps without making
+diagnostic claims.
 
 ## CBT Domain Boundary
 

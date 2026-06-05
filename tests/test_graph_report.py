@@ -135,7 +135,9 @@ def test_graph_report_skips_non_graph_ready_episodes():
     assert report.total_episodes == 2
     assert [item.episode_id for item in report.graph_ready] == ["episode-20260430-1"]
     assert report.skipped == ("episode-20260430-2",)
+    assert report.readiness[0].annotation_ready is True
     assert report.readiness[0].graph_ready is True
+    assert report.readiness[1].annotation_ready is False
     assert report.readiness[1].gap_reasons == ("empty_derived",)
 
 
@@ -167,6 +169,7 @@ def test_graph_report_renders_markdown_summary_and_per_episode():
 
     assert "# Graph Report" in text
     assert "- episodes: 2" in text
+    assert "- annotation_ready: 2" in text
     assert "- graph_ready: 2" in text
     assert "- report_ready: 2" in text
     assert "- payload_eligible: 2" in text
@@ -199,6 +202,46 @@ def test_graph_report_loads_episode_files_from_directory(tmp_path):
     assert episodes[0].id == "episode-20260430-1"
 
 
+def test_graph_report_loads_annotation_run_format(tmp_path):
+    episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
+    episode_dir.mkdir()
+    (episode_dir / "episode-20260430-1.json").write_text(
+        json.dumps(_observed_only_episode("episode-20260430-1"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    run_dir.mkdir(parents=True)
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "annotation_run_id": "run-test",
+                "schema_version": "episode.v1",
+                "taxonomy_version": "taxonomy.v1",
+                "prompt_version": "prompt.v1",
+                "created_at": "2026-05-01T00:00:00Z",
+                "source_episode_count": 1,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "annotations.jsonl").write_text(
+        json.dumps(
+            {"episode_id": "episode-20260430-1", "derived": _episode("x")["derived"]},
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = build_report(load_episodes(episode_dir, annotation_run_dir=run_dir))
+
+    assert report.total_episodes == 1
+    assert report.readiness[0].annotation_ready is True
+    assert report.readiness[0].graph_ready is True
+    assert report.graph_ready[0].episode_id == "episode-20260430-1"
+
+
 def test_graph_report_writes_all_and_source_reports(tmp_path):
     episodes = [
         load_episode(_episode("episode-20260430-1", source="telegram-chat:123")),
@@ -227,3 +270,11 @@ def load_episode(data):
     from app.schemas.episode import Episode
 
     return Episode.model_validate(data)
+
+
+def _observed_only_episode(episode_id):
+    data = _episode(episode_id)
+    data["episode_id"] = data.pop("id")
+    data["metadata"] = {"capture_version": "test"}
+    data.pop("derived")
+    return data
