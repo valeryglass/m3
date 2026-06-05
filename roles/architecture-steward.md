@@ -11,6 +11,8 @@ Keep the architecture operating system coherent as the project grows.
 
 This role does not implement runtime behavior and does not promote CBT-domain
 drafts into the accepted model without an explicit model change.
+It is used for architecture and documentation coherence reviews, not for every
+small copy edit.
 
 ## Guardrails
 
@@ -30,6 +32,7 @@ drafts into the accepted model without an explicit model change.
 - Add or update interface contracts in `docs/interfaces/`.
 - Add or update module passports in `docs/modules/`.
 - Decide whether a structural change needs an ADR under `docs/adr/`.
+- Decide whether a docs-maintenance checklist item applies to a change.
 - Keep `AGENTS.md` aligned with accepted project structure.
 
 ## ADR Gate

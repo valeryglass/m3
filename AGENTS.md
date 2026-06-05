@@ -34,10 +34,13 @@ invent architecture to feel productive.
 - `docs/modules/` contains module passports for core bounded contexts.
 - `docs/interfaces/` contains interface contracts between bounded contexts.
 - `docs/adr/` records structural decisions.
+- `docs/workflows/` contains repeatable maintenance checklists.
 
 When structural ownership, interfaces, lifecycle stages, or data flow change,
 update the manifest and relevant docs in the same change. Create an ADR for
 schema, boundary, interface, data-flow, lifecycle, or major module changes.
+After implementation, run `docs/workflows/docs-maintenance.md` when touched
+files affect architecture, interfaces, user-facing behavior, or report surfaces.
 
 ## Current Structure
 
