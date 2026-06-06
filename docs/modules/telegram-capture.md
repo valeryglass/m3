@@ -15,7 +15,7 @@ through the episode storage boundary.
 ## Outputs
 
 - observed episode fields.
-- completed private episode files under `data/episodes/`.
+- completed private observed source episode files under `data/episodes/`.
 - private UX event records under `data/ux-events/`.
 
 ## Dependencies
@@ -34,6 +34,9 @@ through the episode storage boundary.
 `experimental`
 
 The flow is usable, but prompt copy and frame order can still evolve.
+
+Episode files are observed source artifacts. Telegram capture does not persist
+top-level `derived` or `current_derived`.
 
 `/profile` renders a plain-language summary and details view from graph report
 data for the current Telegram chat. Regular users should not receive raw

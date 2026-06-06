@@ -7,7 +7,7 @@ relations, annotation runs, and readiness summaries.
 
 ## Inputs
 
-- validated Episode JSON.
+- validated observed source Episode JSON.
 - annotation proposal batches.
 - annotation-run manifests and rows.
 - accepted CBT and graph model docs.
@@ -36,6 +36,10 @@ relations, annotation runs, and readiness summaries.
 
 The workflow is operational, but taxonomy and graph projection can still change
 through explicit model/schema work.
+
+Episode files are observed source artifacts. Annotation-runs are durable derived
+graph artifacts. Analytics loaders hydrate runtime `Episode.derived` from the
+selected annotation-run or compatibility fallback.
 
 Annotation runs are versioned derived interpretations of observed episodes.
 They are analytical inputs, not replacements for observed episode source data.

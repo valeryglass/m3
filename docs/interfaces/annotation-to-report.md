@@ -7,8 +7,8 @@ which computes graph views on demand.
 
 ## Input
 
-- observed episodes with selected derived nodes, annotations, and relations.
-- optional annotation-run selected annotations.
+- observed source episodes.
+- selected annotation-run derived nodes, annotations, and relations.
 - readiness classifications.
 
 ## Output
@@ -21,6 +21,8 @@ which computes graph views on demand.
 
 - non-ready episodes are reported as gaps instead of silently promoted.
 - reports aggregate derived annotations without changing episode data.
+- analytics loaders hydrate runtime `Episode.derived` from the selected
+  annotation-run or compatibility fallback.
 - report outputs remain private runtime artifacts under `data/reports/`.
 - reports and payloads are projections, not source-of-truth data.
 

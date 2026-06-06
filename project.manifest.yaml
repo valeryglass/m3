@@ -41,7 +41,7 @@ modules:
       - data/state/*.json
     outputs:
       - observed episode drafts
-      - data/episodes/*.json
+      - observed source episode files
       - data/ux-events/*.jsonl
     interfaces:
       - capture_to_episode
@@ -54,7 +54,7 @@ modules:
   episode_model_storage:
     stage: experimental
     enabled: true
-    purpose: Define and persist validated episode artifacts.
+    purpose: Define and persist observed source episode artifacts.
     owned_paths:
       - model/episode.schema.json
       - model/episode.example.json
@@ -63,19 +63,22 @@ modules:
       - app/storage.py
       - app/derived_normalizer.py
       - app/analytics_loader.py
+      - app/annotation_migration.py
     inputs:
       - observed episode fields
-      - derived annotations
+      - selected annotation-run data for analytics hydration
       - legacy episode files
     outputs:
-      - validated Episode JSON
-      - analytics-ready Episode objects
-      - normalized private episode records
+      - validated observed source Episode JSON
+      - analytics-ready Episode objects with hydrated derived data
+      - normalized private legacy episode records
     interfaces:
       - capture_to_episode
       - episode_to_annotation
     capabilities:
       - schema_validation
+      - observed_only_episode_persistence
+      - annotation_run_hydration
       - backward_compatible_normalization
       - evidence_provenance_storage
 
@@ -90,7 +93,7 @@ modules:
       - app/schemas/annotation_run.py
       - roles/annotator.md
     inputs:
-      - validated Episode JSON
+      - validated observed source Episode JSON
       - annotation proposal files
       - annotation-run records
     outputs:
@@ -116,13 +119,13 @@ modules:
   graph_reporting:
     stage: experimental
     enabled: true
-    purpose: Build graph readiness and core graph quality reports from derived episodes.
+    purpose: Build graph readiness and core graph quality reports from hydrated episodes.
     owned_paths:
       - app/graph_report.py
       - model/graph.md
       - data/reports/graph/
     inputs:
-      - graph-ready episodes
+      - hydrated graph-ready episodes
     outputs:
       - data/reports/graph/*.md
     interfaces:

@@ -1,21 +1,23 @@
 # Annotator Role
 
-Use this role for filling the derived annotation layer of one existing CBT
-episode JSON artifact.
+Use this role for filling the derived annotation layer for one existing CBT
+episode. New durable derived graph artifacts should be stored as annotation-run
+rows; embedded episode `derived` is a legacy compatibility path.
 
 Role name: `annotator`
 
 ## Purpose
 
-Read one schema-valid episode and return the same episode with `derived`
-annotations filled from observed evidence.
+Read one schema-valid observed source episode and return a derived payload, or
+legacy episode JSON with `derived` annotations filled from observed evidence.
 
 This role does not collect new user data. It does not modify `observed`.
 
 ## Guardrails
 
 - Treat `model/episode.schema.json` as the canonical output contract.
-- Preserve all top-level fields except `derived`.
+- Preserve all observed source fields. In legacy embedded mode, preserve all
+  top-level fields except `derived`.
 - Never change `id`, `date`, `source`, or `observed`.
 - Do not diagnose, moralize, or infer stable traits.
 - Every annotation must cite `source_field`, `source_quote`, and numeric
@@ -25,12 +27,13 @@ This role does not collect new user data. It does not modify `observed`.
 
 ## Input
 
-One episode JSON object with completed observed fields and an empty or partially
-filled `derived` object.
+One episode JSON object with completed observed fields, plus an empty or
+partially filled `derived` object when working in legacy embedded mode.
 
 ## Output
 
-Return the same episode JSON object with only `derived` updated.
+Return an annotation-run row derived payload when possible. In legacy embedded
+mode, return the same episode JSON object with only `derived` updated.
 
 ## Target Model Boundary
 

@@ -5,8 +5,13 @@
 Separate the project concepts of observed episodes, selected derived
 annotations, computed graph views, and rendered exports.
 
-The first implementation keeps existing episode files valid, including embedded
-`derived`, and adds annotation-run loading as an additional analytics source.
+The first implementation kept existing episode files valid, including embedded
+`derived`, and added annotation-run loading as an additional analytics source.
+
+After the strip-derived migration, observed-only episode persistence became the
+default. Episode files are observed source artifacts. Annotation-runs are
+durable derived graph artifacts. Analytics loaders hydrate runtime
+`Episode.derived` from the selected annotation-run or compatibility fallback.
 
 ```text
 episode != annotation
@@ -38,7 +43,7 @@ Negative:
 - compatibility loading must support old and new layouts during migration
 - existing `Episode` objects still carry selected derived annotations for
   current code paths
-- full schema migration is deferred
+- embedded derived remains readable for legacy compatibility
 
 ## Policy
 

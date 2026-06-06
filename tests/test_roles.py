@@ -6,7 +6,9 @@ def test_loop_extractor_role_uses_current_derived_contract():
 
     assert "atomic_thoughts" not in text
     assert "cognitive_distortions" not in text
-    assert "trigger_annotations" in text
+    assert "observed source episode" in text
+    assert "must not persist top-level `derived`" in text
+    assert "Annotation-runs are durable derived graph artifacts" in text
     assert "roles/annotator.md" in text
 
 

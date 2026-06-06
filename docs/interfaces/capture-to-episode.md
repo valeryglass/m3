@@ -19,8 +19,11 @@ Model + Storage for validation and persistence.
 ## Guarantees
 
 - observed fields remain user-stated or minimally normalized.
-- derived data remains empty at Telegram save time.
+- saved episode files are observed source artifacts.
+- Telegram save does not persist top-level `derived` or `current_derived`.
 - saved episodes must validate against the schema.
+- analytics loaders hydrate runtime `Episode.derived` from the selected
+  annotation-run or compatibility fallback.
 
 ## Ownership
 
