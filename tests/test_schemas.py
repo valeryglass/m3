@@ -62,6 +62,16 @@ def test_episode_schema_accepts_valid_episode():
     assert episode.derived.cognition_annotations == []
 
 
+def test_episode_schema_accepts_observed_only_episode():
+    data = _valid_episode()
+    data.pop("derived")
+
+    episode = Episode.model_validate(data)
+
+    assert episode.derived.nodes == []
+    assert episode.derived.relations == []
+
+
 def test_episode_schema_accepts_optional_full_observed_fields():
     data = _valid_episode()
     data["observed"].update(
@@ -433,6 +443,8 @@ def test_json_schema_describes_derived_annotations():
     schema = json.loads(open("model/episode.schema.json", encoding="utf-8").read())
     derived = schema["properties"]["derived"]
 
+    assert "derived" not in schema["required"]
+    assert derived["default"] == _empty_derived()
     assert derived["required"] == [
         "nodes",
         "trigger_annotations",

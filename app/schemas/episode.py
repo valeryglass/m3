@@ -258,6 +258,19 @@ class Derived(BaseModel):
     relations: list[GraphRelation] = Field(default_factory=list)
 
 
+def empty_derived_model() -> Derived:
+    return Derived(
+        nodes=[],
+        trigger_annotations=[],
+        actor_annotations=[],
+        cognition_annotations=[],
+        emotion_annotations=[],
+        behavior_annotations=[],
+        outcome_annotations=[],
+        relations=[],
+    )
+
+
 class Episode(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -265,4 +278,4 @@ class Episode(BaseModel):
     date: date
     source: str = Field(min_length=1)
     observed: Observed
-    derived: Derived
+    derived: Derived = Field(default_factory=empty_derived_model)
