@@ -13,6 +13,7 @@ The project has working layers:
 - `data/state/`: private active Telegram session state.
 - `data/userlist/`: private alpha waitlist and approval records.
 - `data/ux-events/`: private step-level UX analytics event log.
+- `data/reports/`: optional private debug/export snapshots.
 - `config/`: runtime configuration files.
 - `app/`: runnable Telegram loop extractor app.
 - `docs/`: architecture operating system and methodology drafts.
@@ -33,6 +34,14 @@ runs-first derived annotations.
 are observed source artifacts. Annotation-runs are durable derived graph
 artifacts. Analytics loaders hydrate runtime `Episode.derived` from the selected
 annotation-run or compatibility fallback.
+
+Reports are computed projections, not active storage. Normal bot/profile/admin
+paths build summaries on demand from observed episodes plus the selected/latest
+annotation-run. Markdown reports are optional debug exports.
+
+`app.graph_report` without `--output-dir` prints the Markdown summary only and
+must not write report files. Markdown export happens only when `--output-dir`
+is explicitly passed.
 
 ## Telegram Loop Extractor
 
@@ -67,3 +76,5 @@ The Telegram loop records private step-level UX events without raw answer text.
 ```bash
 python -m app.ux_analytics
 ```
+
+`app.ux_analytics` writes files only when `--output-dir` is explicitly passed.

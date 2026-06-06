@@ -71,7 +71,7 @@ modules:
     outputs:
       - validated observed source Episode JSON
       - analytics-ready Episode objects with hydrated derived data
-      - normalized private legacy episode records
+      - normalized private legacy episode records from migration/compat tools
     interfaces:
       - capture_to_episode
       - episode_to_annotation
@@ -79,22 +79,21 @@ modules:
       - schema_validation
       - observed_only_episode_persistence
       - annotation_run_hydration
-      - backward_compatible_normalization
+      - migration_compatible_normalization
       - evidence_provenance_storage
 
-  annotation_workflow:
+  annotation_runs:
     stage: experimental
     enabled: true
-    purpose: Audit, export, validate, and apply derived annotations.
+    purpose: Manage durable annotation-run records and read-only readiness audits.
     owned_paths:
-      - app/annotation_workflow.py
+      - app/annotation_audit.py
       - app/annotation_runs.py
       - app/readiness.py
       - app/schemas/annotation_run.py
       - roles/annotator.md
     inputs:
       - validated observed source Episode JSON
-      - annotation proposal files
       - annotation-run records
     outputs:
       - derived nodes
@@ -113,21 +112,21 @@ modules:
       - payload_eligible
     capabilities:
       - readiness_audit
-      - annotation_batch_export
-      - proposal_validation
+      - annotation_run_loading
+      - selected_derived_validation
 
   graph_reporting:
     stage: experimental
     enabled: true
-    purpose: Build graph readiness and core graph quality reports from hydrated episodes.
+    purpose: Build on-demand graph views and optional Markdown debug exports from hydrated episodes.
     owned_paths:
       - app/graph_report.py
       - model/graph.md
-      - data/reports/graph/
     inputs:
       - hydrated graph-ready episodes
     outputs:
-      - data/reports/graph/*.md
+      - computed GraphReport views
+      - optional Markdown debug exports
     interfaces:
       - annotation_to_report
     capabilities:
@@ -148,8 +147,8 @@ modules:
       - report-ready episodes
       - graph signature counters
     outputs:
-      - data/reports/map-payload/*.json
-      - data/reports/map-payload/*.html
+      - explicit map payload JSON exports
+      - explicit map HTML preview exports
     interfaces:
       - report_to_payload
     gates:
@@ -164,7 +163,7 @@ modules:
   ux_analytics:
     stage: prototype
     enabled: true
-    purpose: Record and aggregate step-level Telegram UX events.
+    purpose: Record and aggregate step-level Telegram UX events on demand.
     owned_paths:
       - app/ux_events.py
       - app/ux_analytics.py
@@ -174,8 +173,7 @@ modules:
     outputs:
       - private JSONL event logs
       - UX aggregate summaries
-      - data/reports/ux/all.md
-      - data/reports/ux/all.json
+      - optional UX debug exports
     interfaces:
       - capture_to_episode
     capabilities:
@@ -216,12 +214,12 @@ interfaces:
     state: open
     owner: episode_model_storage
     consumers:
-      - annotation_workflow
+      - annotation_runs
     contract_doc: docs/interfaces/episode-to-annotation.md
 
   annotation_to_report:
     state: open
-    owner: annotation_workflow
+    owner: annotation_runs
     consumers:
       - graph_reporting
     contract_doc: docs/interfaces/annotation-to-report.md

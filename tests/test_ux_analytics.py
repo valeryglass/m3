@@ -4,6 +4,7 @@ import json
 
 from app.ux_analytics import (
     load_user_records,
+    main,
     render_markdown,
     summarize_events,
     write_reports,
@@ -193,6 +194,68 @@ def test_load_user_records_reads_userlist_labels(tmp_path):
     )
 
     assert load_user_records(path)["123"]["username"] == "test_user"
+
+
+def test_ux_analytics_cli_without_output_dir_prints_without_writing(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    event_log = tmp_path / "events.jsonl"
+    userlist = tmp_path / "users.json"
+    event_log.write_text(
+        json.dumps(
+            base_event(
+                "session_started",
+                "session-1",
+                "123",
+                created_at=_dt(12, 0),
+            ),
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    userlist.write_text('{"users": {}}', encoding="utf-8")
+    monkeypatch.setenv("M3_UX_EVENT_LOG", str(event_log))
+    monkeypatch.setattr("sys.argv", ["ux_analytics", "--userlist", str(userlist)])
+
+    main()
+
+    assert json.loads(capsys.readouterr().out)["sessions_started"] == 1
+    assert not (tmp_path / "reports").exists()
+
+
+def test_ux_analytics_cli_writes_only_with_explicit_output_dir(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    event_log = tmp_path / "events.jsonl"
+    userlist = tmp_path / "users.json"
+    output_dir = tmp_path / "reports" / "ux"
+    event_log.write_text("", encoding="utf-8")
+    userlist.write_text('{"users": {}}', encoding="utf-8")
+    monkeypatch.setenv("M3_UX_EVENT_LOG", str(event_log))
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "ux_analytics",
+            "--userlist",
+            str(userlist),
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    main()
+
+    assert capsys.readouterr().out.splitlines() == [
+        str(output_dir / "all.md"),
+        str(output_dir / "all.json"),
+    ]
+    assert (output_dir / "all.md").exists()
+    assert (output_dir / "all.json").exists()
 
 
 def _dt(hour: int, minute: int) -> datetime:

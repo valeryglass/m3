@@ -14,11 +14,11 @@ summaries from observed episodes plus selected annotations.
 ## Outputs
 
 - computed `GraphReport` objects.
-- Markdown debug exports under `data/reports/graph/`.
+- optional Markdown debug exports.
 
 ## Dependencies
 
-- Annotation Workflow for derived graph data.
+- Annotation Runs for derived graph data.
 - Readiness gates for report inclusion.
 
 ## Interfaces
@@ -33,3 +33,7 @@ Report shapes are useful locally, but not yet frozen as stable public outputs.
 
 `GraphReport` is the current in-memory computed GraphView. It is built on
 demand and is not a stored source-of-truth artifact.
+
+`app.graph_report` without `--output-dir` prints Markdown only and must not
+write report files. Markdown export happens only when `--output-dir` is
+explicitly passed.

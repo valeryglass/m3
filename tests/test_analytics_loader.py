@@ -2,7 +2,12 @@ import json
 
 import pytest
 
-from app.analytics_loader import load_analytics_episodes
+from app.analytics_loader import (
+    annotation_coverage,
+    annotation_coverage_for_episode_ids,
+    load_analytics_episodes,
+    require_full_coverage,
+)
 from app.derived_normalizer import empty_derived
 
 
@@ -182,6 +187,63 @@ def test_missing_annotation_row_uses_empty_derived(tmp_path):
     episodes = load_analytics_episodes(episode_dir, annotation_run_dir=run_dir)
 
     assert episodes[0].derived.model_dump(mode="json") == empty_derived()
+
+
+def test_annotation_coverage_reports_full_and_partial_runs(tmp_path):
+    episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
+    episode_dir.mkdir()
+    _write_json(episode_dir / "episode-20260430-1.json", _observed_only_episode())
+    _write_json(
+        episode_dir / "episode-20260430-2.json",
+        _observed_only_episode() | {"episode_id": "episode-20260430-2"},
+    )
+    _write_annotation_run(run_dir, [_annotation_row("episode-20260430-1", _derived())])
+
+    coverage = annotation_coverage(episode_dir, annotation_run_dir=run_dir)
+
+    assert coverage.observed_count == 2
+    assert coverage.annotation_row_count == 1
+    assert coverage.annotated_count == 1
+    assert coverage.pending_count == 1
+    assert coverage.pending_episode_ids == ("episode-20260430-2",)
+    assert coverage.coverage == "partial"
+
+    with pytest.raises(ValueError, match="coverage is partial"):
+        require_full_coverage(coverage)
+
+
+def test_annotation_coverage_can_count_subset_while_validating_full_run(tmp_path):
+    episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
+    episode_dir.mkdir()
+    _write_json(episode_dir / "episode-20260430-1.json", _observed_only_episode())
+    _write_json(
+        episode_dir / "episode-20260430-2.json",
+        _observed_only_episode() | {"episode_id": "episode-20260430-2"},
+    )
+    _write_annotation_run(
+        run_dir,
+        [
+            _annotation_row("episode-20260430-1", _derived()),
+            _annotation_row("episode-20260430-2", _derived()),
+        ],
+    )
+
+    coverage = annotation_coverage(
+        episode_dir,
+        annotation_run_dir=run_dir,
+    )
+    scoped = annotation_coverage_for_episode_ids(
+        {"episode-20260430-1"},
+        annotation_run_dir=run_dir,
+        known_episode_ids={"episode-20260430-1", "episode-20260430-2"},
+    )
+
+    assert coverage.coverage == "full"
+    assert scoped.observed_count == 1
+    assert scoped.annotated_count == 1
+    assert scoped.pending_count == 0
 
 
 def test_missing_annotation_row_does_not_fall_back_to_embedded_derived(tmp_path):

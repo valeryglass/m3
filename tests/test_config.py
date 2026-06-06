@@ -20,8 +20,6 @@ def test_load_settings_uses_default_data_paths():
     assert str(settings.state_dir) == "data/state"
     assert str(settings.userlist_path) == "data/userlist/users.json"
     assert str(settings.ux_event_log) == "data/ux-events/events.jsonl"
-    assert str(settings.graph_report_dir) == "data/reports/graph"
-    assert str(settings.ux_report_dir) == "data/reports/ux"
     assert settings.annotation_run_dir is None
     assert str(settings.annotation_run_root) == "data/annotation-runs"
     assert settings.report_min_count == 2
@@ -51,8 +49,6 @@ def test_load_settings_allows_overrides():
             "M3_INITIAL_SESSION_TTL_SEC": "30",
             "M3_TONE_CONFIG": "/tmp/tone.yaml",
             "M3_USERLIST_PATH": "/tmp/users.json",
-            "M3_GRAPH_REPORT_DIR": "/tmp/graph",
-            "M3_UX_REPORT_DIR": "/tmp/ux",
             "M3_ANNOTATION_RUN_DIR": "/tmp/run-selected",
             "M3_ANNOTATION_RUN_ROOT": "/tmp/runs",
             "M3_REPORT_MIN_COUNT": "3",
@@ -66,8 +62,6 @@ def test_load_settings_allows_overrides():
     assert settings.initial_session_ttl_sec == 30
     assert str(settings.tone_config) == "/tmp/tone.yaml"
     assert str(settings.userlist_path) == "/tmp/users.json"
-    assert str(settings.graph_report_dir) == "/tmp/graph"
-    assert str(settings.ux_report_dir) == "/tmp/ux"
     assert str(settings.annotation_run_dir) == "/tmp/run-selected"
     assert str(settings.annotation_run_root) == "/tmp/runs"
     assert settings.report_min_count == 3

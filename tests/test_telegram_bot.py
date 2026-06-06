@@ -158,6 +158,10 @@ def test_profile_command_uses_latest_annotation_run(tmp_path):
     episode = _graph_ready_episode()
     derived = episode.pop("derived")
     _write_json(settings.episode_dir / "episode-20260503-1.json", episode)
+    pending = _graph_ready_episode()
+    pending["id"] = "episode-20260503-2"
+    pending.pop("derived")
+    _write_json(settings.episode_dir / "episode-20260503-2.json", pending)
     _write_annotation_run(
         run_dir,
         {"episode_id": "episode-20260503-1", "derived": derived},
@@ -174,7 +178,8 @@ def test_profile_command_uses_latest_annotation_run(tmp_path):
 
     assert len(message.replies) == 1
     assert message.replies[0].startswith("Короткий отчет")
-    assert "В выборке: 1 эпизод" in message.replies[0]
+    assert "В выборке: 2 эпизода" in message.replies[0]
+    assert "Учтено 1 из 2 эпизодов; 1 ждут обработки." in message.replies[0]
 
 
 def test_profile_details_callback_sends_detailed_report(tmp_path):
@@ -501,10 +506,9 @@ def test_report_graph_rejects_non_admin(tmp_path):
     assert message.replies == ["Нет доступа"]
 
 
-def test_report_graph_regenerates_graph_reports(tmp_path):
+def test_report_graph_builds_summary_without_writing_reports(tmp_path):
     settings = _settings(
         episode_dir=tmp_path / "episodes",
-        graph_report_dir=tmp_path / "reports" / "graph",
     )
     settings.episode_dir.mkdir(parents=True)
     _write_json(settings.episode_dir / "episode-20260503-1.json", _graph_ready_episode())
@@ -518,18 +522,17 @@ def test_report_graph_regenerates_graph_reports(tmp_path):
         )
     )
 
-    assert (settings.graph_report_dir / "all.md").exists()
-    assert not any(path.suffix == ".html" for path in settings.graph_report_dir.iterdir())
+    assert not (tmp_path / "reports").exists()
     assert message.replies == [
-        "Отчёты обновлены\n"
+        "Отчёт собран\n"
         "episodes: 1\n"
+        "coverage: 1/1 annotated (full); pending: 0\n"
         "invalid: 0\n"
         "empty_derived: 0\n"
         "annotation_ready: 1\n"
         "graph_ready: 1\n"
         "report_ready: 1\n"
-        "payload_eligible: 1\n\n"
-        f"{settings.graph_report_dir / 'all.md'}"
+        "payload_eligible: 1"
     ]
 
 
@@ -553,7 +556,6 @@ def test_report_ux_rejects_non_admin(tmp_path):
 def test_report_ux_regenerates_and_replies_markdown(tmp_path):
     settings = _settings(
         ux_event_log=tmp_path / "ux-events" / "events.jsonl",
-        ux_report_dir=tmp_path / "reports" / "ux",
         userlist_path=tmp_path / "userlist" / "users.json",
     )
     JsonUserList(settings.userlist_path).upsert_waitlisted(
@@ -580,8 +582,7 @@ def test_report_ux_regenerates_and_replies_markdown(tmp_path):
         )
     )
 
-    assert (settings.ux_report_dir / "all.md").exists()
-    assert (settings.ux_report_dir / "all.json").exists()
+    assert not (tmp_path / "reports").exists()
     assert message.replies[0].startswith("# UX Analytics\n")
     assert "- 123 (@tester): 1" in message.replies[0]
     assert message.reply_options == [{}]
@@ -1323,8 +1324,6 @@ def _settings(
     admin_chat_ids=frozenset({123}),
     owner_chat_id=123,
     episode_dir=None,
-    graph_report_dir=None,
-    ux_report_dir=None,
     userlist_path=None,
     ux_event_log=None,
     annotation_run_dir=None,
@@ -1335,8 +1334,6 @@ def _settings(
         telegram_admin_chat_ids=admin_chat_ids,
         telegram_owner_chat_id=owner_chat_id,
         episode_dir=episode_dir,
-        graph_report_dir=graph_report_dir,
-        ux_report_dir=ux_report_dir,
         userlist_path=userlist_path,
         ux_event_log=ux_event_log,
         annotation_run_dir=annotation_run_dir,

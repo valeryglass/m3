@@ -7,7 +7,12 @@ from dataclasses import dataclass
 from itertools import groupby
 from pathlib import Path
 
-from app.analytics_loader import load_analytics_episodes
+from app.analytics_loader import (
+    AnnotationCoverage,
+    annotation_coverage,
+    load_analytics_episodes,
+    require_full_coverage,
+)
 from app.readiness import (
     EpisodeReadiness,
     classify_episode_readiness,
@@ -43,6 +48,7 @@ class EpisodeSignature:
 @dataclass(frozen=True)
 class GraphReport:
     total_episodes: int
+    coverage: AnnotationCoverage
     graph_ready: tuple[EpisodeSignature, ...]
     readiness: tuple[EpisodeReadiness, ...]
     emotion_signatures: Counter[tuple[str, ...]]
@@ -101,7 +107,20 @@ def build_signature(episode: Episode) -> EpisodeSignature:
     )
 
 
-def build_report(episodes: list[Episode]) -> GraphReport:
+def build_report(
+    episodes: list[Episode],
+    *,
+    coverage: AnnotationCoverage | None = None,
+) -> GraphReport:
+    if coverage is None:
+        coverage = AnnotationCoverage(
+            observed_count=len(episodes),
+            annotation_row_count=0,
+            annotated_count=len(episodes),
+            pending_count=0,
+            pending_episode_ids=(),
+            coverage="full",
+        )
     readiness = tuple(classify_episode_readiness(episode) for episode in episodes)
     graph_ready_ids = {item.episode_id for item in readiness if item.graph_ready}
     signatures = tuple(
@@ -110,6 +129,7 @@ def build_report(episodes: list[Episode]) -> GraphReport:
 
     return GraphReport(
         total_episodes=len(episodes),
+        coverage=coverage,
         graph_ready=signatures,
         readiness=readiness,
         emotion_signatures=_count_tuple_signatures(sig.emotions for sig in signatures),
@@ -150,6 +170,10 @@ def render_markdown(report: GraphReport, min_count: int = 2) -> str:
         f"- graph_ready: {len(report.graph_ready)}",
         f"- report_ready: {sum(1 for item in report.readiness if item.report_ready)}",
         f"- payload_eligible: {sum(1 for item in report.readiness if item.payload_eligible)}",
+        "- coverage: "
+        f"{report.coverage.annotated_count}/{report.coverage.observed_count} "
+        f"annotated episodes ({report.coverage.coverage}); "
+        f"pending: {report.coverage.pending_count}",
         f"- skipped: {len(skipped)}",
         "",
     ]
@@ -186,12 +210,13 @@ def write_markdown_reports(
     *,
     min_count: int = 2,
     by_source: bool = False,
+    coverage: AnnotationCoverage | None = None,
 ) -> tuple[Path, ...]:
     output_dir.mkdir(parents=True, exist_ok=True)
     written = [
         _write_report(
             output_dir / "all.md",
-            build_report(episodes),
+            build_report(episodes, coverage=coverage),
             min_count=min_count,
         )
     ]
@@ -237,8 +262,21 @@ def main() -> None:
         action="store_true",
         help="When writing files, also create one report per episode source.",
     )
+    parser.add_argument(
+        "--require-full-coverage",
+        action="store_true",
+        help="Fail when the selected annotation-run has missing episode rows.",
+    )
     args = parser.parse_args()
 
+    coverage = annotation_coverage(
+        Path(args.episode_dir),
+        annotation_run_dir=Path(args.annotation_run_dir)
+        if args.annotation_run_dir
+        else None,
+    )
+    if args.require_full_coverage:
+        require_full_coverage(coverage)
     episodes = load_episodes(
         Path(args.episode_dir),
         annotation_run_dir=Path(args.annotation_run_dir)
@@ -251,11 +289,18 @@ def main() -> None:
             Path(args.output_dir),
             min_count=args.min_count,
             by_source=args.by_source,
+            coverage=coverage,
         )
         for path in written:
             print(path.as_posix())
     else:
-        print(render_markdown(build_report(episodes), min_count=args.min_count), end="")
+        print(
+            render_markdown(
+                build_report(episodes, coverage=coverage),
+                min_count=args.min_count,
+            ),
+            end="",
+        )
 
 
 def _sorted_unique(values) -> tuple[str, ...]:

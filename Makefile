@@ -1,18 +1,14 @@
 PYTHON ?= python3
 BOT_MODULE := app.telegram_bot
 EPISODE_DIR ?= data/episodes
-GRAPH_REPORT_DIR ?= data/reports/graph
+GRAPH_REPORT_EXPORT_DIR ?= data/reports/graph
 MAP_PAYLOAD_DIR ?= data/reports/map-payload
-UX_REPORT_DIR ?= data/reports/ux
-ANNOTATION_WORK_DIR ?= data/annotation-work
-ANNOTATION_BATCH_SIZE ?= 5
-ANNOTATION_SOURCE ?=
-PROPOSAL ?= data/annotation-work/proposal.jsonl
+UX_REPORT_EXPORT_DIR ?= data/reports/ux
 REPORT_MIN_COUNT ?= 2
 MAP_SOURCE ?= telegram-chat:327002663
 MAP_SOURCE_SAFE ?= $(subst :,-,$(subst /,-,$(MAP_SOURCE)))
 
-.PHONY: bot bot-pid bot-stop bot-kill bot-restart normalize-episodes audit report-graph report-map-payload report-map-html report-ux reports analytics-ux analytics annotation-audit annotation-queue annotation-validate annotation-apply annotation-apply-write annotation-refresh-reports
+.PHONY: bot bot-pid bot-stop bot-kill bot-restart legacy-normalize-episodes-write audit export-graph-report report-map-payload report-map-html export-ux-report export-debug-reports analytics-ux analytics
 
 bot:
 	$(PYTHON) -m $(BOT_MODULE)
@@ -41,29 +37,14 @@ bot-kill:
 bot-restart: bot-stop
 	$(PYTHON) -m $(BOT_MODULE)
 
-normalize-episodes:
+legacy-normalize-episodes-write:
 	$(PYTHON) -m app.derived_normalizer $(EPISODE_DIR) --write
 
 audit:
-	$(PYTHON) -m app.annotation_workflow audit --episode-dir $(EPISODE_DIR)
+	$(PYTHON) -m app.annotation_audit --episode-dir $(EPISODE_DIR)
 
-annotation-audit:
-	$(PYTHON) -m app.annotation_workflow audit --episode-dir $(EPISODE_DIR)
-
-annotation-queue:
-	$(PYTHON) -m app.annotation_workflow queue --episode-dir $(EPISODE_DIR) --work-dir $(ANNOTATION_WORK_DIR) --batch-size $(ANNOTATION_BATCH_SIZE) $(if $(ANNOTATION_SOURCE),--source $(ANNOTATION_SOURCE),)
-
-annotation-validate:
-	$(PYTHON) -m app.annotation_workflow validate $(PROPOSAL)
-
-annotation-apply:
-	$(PYTHON) -m app.annotation_workflow apply $(PROPOSAL)
-
-annotation-apply-write:
-	$(PYTHON) -m app.annotation_workflow apply $(PROPOSAL) --write
-
-report-graph:
-	$(PYTHON) -m app.graph_report --episode-dir $(EPISODE_DIR) --output-dir $(GRAPH_REPORT_DIR) --by-source --min-count $(REPORT_MIN_COUNT)
+export-graph-report:
+	$(PYTHON) -m app.graph_report --episode-dir $(EPISODE_DIR) --output-dir $(GRAPH_REPORT_EXPORT_DIR) --by-source --min-count $(REPORT_MIN_COUNT)
 
 report-map-payload:
 	$(PYTHON) -m app.map_payload --episode-dir $(EPISODE_DIR) --source $(MAP_SOURCE) --output $(MAP_PAYLOAD_DIR)/$(MAP_SOURCE_SAFE).json
@@ -71,12 +52,10 @@ report-map-payload:
 report-map-html:
 	$(PYTHON) -m app.map_payload_html --input $(MAP_PAYLOAD_DIR)/$(MAP_SOURCE_SAFE).json --output $(MAP_PAYLOAD_DIR)/$(MAP_SOURCE_SAFE).html
 
-report-ux:
-	$(PYTHON) -m app.ux_analytics --output-dir $(UX_REPORT_DIR)
+export-ux-report:
+	$(PYTHON) -m app.ux_analytics --output-dir $(UX_REPORT_EXPORT_DIR)
 
-reports: normalize-episodes audit report-graph report-ux
-
-annotation-refresh-reports: reports
+export-debug-reports: audit export-graph-report export-ux-report
 
 analytics-ux:
 	$(PYTHON) -m app.ux_analytics

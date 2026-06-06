@@ -2,7 +2,7 @@
 
 ## Contract
 
-Annotation Workflow provides selected derived annotations to Graph Reporting,
+Annotation Runs provides selected derived annotations to Graph Reporting,
 which computes graph views on demand.
 
 ## Input
@@ -14,8 +14,8 @@ which computes graph views on demand.
 ## Output
 
 - computed graph views.
-- graph readiness reports.
-- signature reports.
+- graph readiness summaries.
+- optional Markdown debug exports.
 
 ## Guarantees
 
@@ -23,10 +23,10 @@ which computes graph views on demand.
 - reports aggregate derived annotations without changing episode data.
 - analytics loaders hydrate runtime `Episode.derived` from the selected
   annotation-run or compatibility fallback.
-- report outputs remain private runtime artifacts under `data/reports/`.
+- report files are optional private debug/export snapshots only.
 - reports and payloads are projections, not source-of-truth data.
 
 ## Ownership
 
-- producer: `annotation_workflow`
+- producer: `annotation_runs`
 - consumer: `graph_reporting`

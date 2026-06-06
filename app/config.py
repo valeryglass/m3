@@ -20,8 +20,6 @@ class Settings:
     state_dir: Path
     userlist_path: Path
     ux_event_log: Path
-    graph_report_dir: Path
-    ux_report_dir: Path
     annotation_run_dir: Path | None
     annotation_run_root: Path
     report_min_count: int
@@ -75,10 +73,6 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         state_dir=Path(source.get("M3_STATE_DIR", "data/state")),
         userlist_path=Path(source.get("M3_USERLIST_PATH", "data/userlist/users.json")),
         ux_event_log=Path(source.get("M3_UX_EVENT_LOG", "data/ux-events/events.jsonl")),
-        graph_report_dir=Path(
-            source.get("M3_GRAPH_REPORT_DIR", "data/reports/graph")
-        ),
-        ux_report_dir=Path(source.get("M3_UX_REPORT_DIR", "data/reports/ux")),
         annotation_run_dir=(
             Path(source["M3_ANNOTATION_RUN_DIR"])
             if source.get("M3_ANNOTATION_RUN_DIR", "").strip()

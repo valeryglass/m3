@@ -3,7 +3,7 @@
 ## Contract
 
 Episode Model + Storage provides validated observed source episode JSON to
-Annotation Workflow.
+Annotation Runs.
 
 ## Input
 
@@ -12,21 +12,23 @@ Annotation Workflow.
 
 ## Output
 
-- annotation proposal batches.
 - durable annotation-run rows containing derived nodes, annotations, and
-  relations after validation/apply.
+  relations.
+- readiness audit summaries over selected derived annotations.
 
 ## Guarantees
 
-- annotation work must preserve the observed vs derived boundary.
+- annotation-run derived payloads must preserve the observed vs derived boundary.
 - every derived item must include `source_field`, `source_quote`, and
   `confidence`.
 - unsupported schema fields must not be emitted.
 - annotation-runs are durable derived graph artifacts.
 - analytics loaders hydrate runtime `Episode.derived` from the selected
   annotation-run or compatibility fallback.
+- legacy embedded-derived episode files remain readable as fallback and
+  migration input, not as the active derived storage layer.
 
 ## Ownership
 
 - producer: `episode_model_storage`
-- consumer: `annotation_workflow`
+- consumer: `annotation_runs`

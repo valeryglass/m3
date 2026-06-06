@@ -211,23 +211,29 @@ class ToneEngine:
         self,
         *,
         episodes: int,
+        observed_count: int,
+        annotated_count: int,
+        pending_count: int,
+        coverage: str,
         invalid: int,
         empty_derived: int,
         annotation_ready: int,
         graph_ready: int,
         report_ready: int,
         payload_eligible: int,
-        graph_path: str,
     ) -> str:
         return SESSION_MESSAGES["graph_reports_ready"].format(
             episodes=episodes,
+            observed_count=observed_count,
+            annotated_count=annotated_count,
+            pending_count=pending_count,
+            coverage=escape(coverage),
             invalid=invalid,
             empty_derived=empty_derived,
             annotation_ready=annotation_ready,
             graph_ready=graph_ready,
             report_ready=report_ready,
             payload_eligible=payload_eligible,
-            graph_path=escape(graph_path),
         )
 
     def expired_initial_session(self) -> str:

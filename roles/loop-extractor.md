@@ -123,8 +123,8 @@ episode.
 Derived extraction is disabled in this version.
 
 Never force a classification just to fill the artifact.
-Use `roles/annotator.md` for derived annotation work after observed extraction
-is complete. Derived annotations belong in annotation-runs or legacy
+Use `roles/annotator.md` for annotation-run derived payloads after observed
+extraction is complete. Derived annotations belong in annotation-runs or legacy
 compatibility flows, not in new observed source episode files.
 
 ## Save Procedure

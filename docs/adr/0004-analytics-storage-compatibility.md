@@ -36,7 +36,8 @@ Positive:
 - observed episodes can remain stable source artifacts
 - annotation runs can be versioned and selected for analytics
 - `GraphReport` is clarified as a computed graph view
-- reports and payloads stay disposable exports
+- reports stay disposable on-demand projections
+- map payloads stay explicit generated exports
 
 Negative:
 
@@ -49,4 +50,5 @@ Negative:
 
 Do not treat generated reports, payloads, map payloads, or graph Markdown as
 source-of-truth data. They are projections from episodes plus selected
-annotations.
+annotations. Persistent report files are optional debug/export snapshots; map
+payload JSON and map HTML are explicit export artifacts.

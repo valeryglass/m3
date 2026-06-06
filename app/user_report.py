@@ -64,6 +64,9 @@ def render_summary(report: GraphReport) -> str:
         "",
         f"В выборке: {_episode_count(report.total_episodes)}.",
     ]
+    coverage_note = _coverage_note(report)
+    if coverage_note:
+        lines.append(coverage_note)
     if trigger:
         lines.append(f"Основной контекст: {_friendly(trigger)}.")
     if emotion:
@@ -114,10 +117,14 @@ def _current_picture(report: GraphReport) -> list[str]:
         items.append(f"реакция — {_friendly_join(behavior)}")
     if not items:
         return []
-    return [
+    lines = [
         "Текущая картина",
         *[f"- {item}" for item in items],
     ]
+    coverage_note = _coverage_note(report)
+    if coverage_note:
+        lines.append(f"- {coverage_note}")
+    return lines
 
 
 def _repeating_pattern(report: GraphReport) -> list[str]:
@@ -310,6 +317,16 @@ def _format_pair(pair: tuple[str, str]) -> str:
 
 def _episode_count(count: int) -> str:
     return f"{count} {_plural_ru(count, 'эпизод', 'эпизода', 'эпизодов')}"
+
+
+def _coverage_note(report: GraphReport) -> str:
+    coverage = report.coverage
+    if coverage.coverage != "partial" or coverage.pending_count <= 0:
+        return ""
+    return (
+        f"Учтено {coverage.annotated_count} из {coverage.observed_count} эпизодов; "
+        f"{coverage.pending_count} ждут обработки."
+    )
 
 
 def _plural_ru(number: int, one: str, few: str, many: str) -> str:

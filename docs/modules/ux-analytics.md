@@ -12,8 +12,8 @@ Record and aggregate step-level Telegram loop UX events.
 ## Outputs
 
 - append-only private event logs.
-- aggregate UX summaries from the CLI.
-- Markdown and JSON reports under `data/reports/ux/`.
+- aggregate UX summaries from the CLI or admin command.
+- optional Markdown and JSON debug exports.
 
 ## Dependencies
 
@@ -28,3 +28,5 @@ Record and aggregate step-level Telegram loop UX events.
 `prototype`
 
 The event log exists and is useful, but analytics outputs are still lightweight.
+
+`app.ux_analytics` writes files only when `--output-dir` is explicitly passed.

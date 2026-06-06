@@ -14,6 +14,10 @@ MISHA should be understood and communicated.
 
 ## Included files
 
+- `00-architecture.md`: First-draft external architecture model for technical
+  and partner discussions.
+- `00-data-governance.md`: First-draft external data governance model covering
+  data layers, processing, exports, and safety boundaries.
 - `01-concept-guide.md`: Main stakeholder guide for MISHA's concept,
   boundaries, user value, and language.
 - `02-one-pager.md`: Compact universal overview that can be sent to almost any
@@ -24,4 +28,3 @@ MISHA should be understood and communicated.
   rewrites, and communication principles.
 - `05-message-house.md`: Marketing and SMM narrative, including short content
   hooks.
-
