@@ -12,6 +12,7 @@ from app.schemas.episode import Derived
 
 @dataclass(frozen=True)
 class AnnotationRun:
+    path: Path
     manifest: AnnotationRunManifest
     rows: tuple[AnnotationRunRow, ...]
     derived_by_episode_id: dict[str, Derived]
@@ -36,10 +37,29 @@ def load_annotation_run(
         derived_by_episode_id[row.episode_id] = row.derived
 
     return AnnotationRun(
+        path=run_dir,
         manifest=manifest,
         rows=tuple(rows),
         derived_by_episode_id=derived_by_episode_id,
     )
+
+
+def load_latest_annotation_run(
+    run_root: Path,
+    *,
+    episode_ids: set[str] | None = None,
+) -> AnnotationRun | None:
+    if not run_root.exists():
+        return None
+
+    for run_dir in sorted(run_root.glob("run-*"), reverse=True):
+        if not run_dir.is_dir():
+            continue
+        try:
+            return load_annotation_run(run_dir, episode_ids=episode_ids)
+        except ValueError:
+            continue
+    return None
 
 
 def _load_manifest(path: Path) -> AnnotationRunManifest:

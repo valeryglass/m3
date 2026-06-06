@@ -11,7 +11,11 @@ from app.ux_events import UxEventLog
 
 def regenerate_graph_reports(settings: Settings) -> dict[str, int | str]:
     audit = audit_episode_dir(settings.episode_dir)
-    episodes = load_episodes(settings.episode_dir)
+    episodes = load_episodes(
+        settings.episode_dir,
+        annotation_run_dir=getattr(settings, "annotation_run_dir", None),
+        annotation_run_root=getattr(settings, "annotation_run_root", None),
+    )
     report = build_report(episodes)
     write_markdown_reports(
         episodes,
@@ -23,8 +27,10 @@ def regenerate_graph_reports(settings: Settings) -> dict[str, int | str]:
     return {
         "episodes": report.total_episodes,
         "invalid": audit.invalid,
-        "empty_derived": audit.empty_derived,
-        "annotation_ready": audit.annotation_ready,
+        "empty_derived": sum(
+            1 for item in report.readiness if "empty_derived" in item.gap_reasons
+        ),
+        "annotation_ready": sum(1 for item in report.readiness if item.annotation_ready),
         "graph_ready": len(report.graph_ready),
         "report_ready": sum(1 for item in report.readiness if item.report_ready),
         "payload_eligible": sum(

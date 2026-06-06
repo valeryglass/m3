@@ -1,27 +1,36 @@
 from __future__ import annotations
 
 import json
+import os
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
 
-from app.annotation_runs import load_annotation_run
+from app.annotation_runs import (
+    AnnotationRun,
+    load_annotation_run,
+    load_latest_annotation_run,
+)
 from app.derived_normalizer import empty_derived, normalize_episode
 from app.schemas.episode import Episode
+
+
+DEFAULT_ANNOTATION_RUN_ROOT = Path("data/annotation-runs")
 
 
 def load_analytics_episodes(
     episode_dir: Path,
     annotation_run_dir: Path | None = None,
+    annotation_run_root: Path | None = None,
 ) -> list[Episode]:
     records = [_read_json(path) for path in _episode_paths(episode_dir)]
     episode_ids = {_episode_id(record) for record in records}
-    annotation_run = (
-        load_annotation_run(annotation_run_dir, episode_ids=episode_ids)
-        if annotation_run_dir is not None
-        else None
+    annotation_run = _select_annotation_run(
+        annotation_run_dir,
+        annotation_run_root,
+        episode_ids=episode_ids,
     )
 
     episodes: list[Episode] = []
@@ -42,6 +51,24 @@ def load_analytics_episodes(
         except ValidationError as exc:
             raise ValueError(f"invalid analytics episode: {_episode_id(record)}") from exc
     return episodes
+
+
+def _select_annotation_run(
+    annotation_run_dir: Path | None,
+    annotation_run_root: Path | None,
+    *,
+    episode_ids: set[str],
+) -> AnnotationRun | None:
+    selected_dir = annotation_run_dir or _env_path("M3_ANNOTATION_RUN_DIR")
+    if selected_dir is not None:
+        return load_annotation_run(selected_dir, episode_ids=episode_ids)
+
+    root = (
+        annotation_run_root
+        or _env_path("M3_ANNOTATION_RUN_ROOT")
+        or DEFAULT_ANNOTATION_RUN_ROOT
+    )
+    return load_latest_annotation_run(root, episode_ids=episode_ids)
 
 
 def _episode_with_selected_derived(
@@ -85,3 +112,8 @@ def _read_json(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError(f"episode JSON must be an object: {path}")
     return data
+
+
+def _env_path(name: str) -> Path | None:
+    value = os.environ.get(name, "").strip()
+    return Path(value) if value else None

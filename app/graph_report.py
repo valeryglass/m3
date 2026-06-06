@@ -63,10 +63,12 @@ class GraphReport:
 def load_episodes(
     episode_dir: Path,
     annotation_run_dir: Path | None = None,
+    annotation_run_root: Path | None = None,
 ) -> list[Episode]:
     return load_analytics_episodes(
         episode_dir,
         annotation_run_dir=annotation_run_dir,
+        annotation_run_root=annotation_run_root,
     )
 
 

@@ -316,6 +316,32 @@ def test_map_payload_builds_from_annotation_run_format(tmp_path):
     assert payload["provenance"]["graph_ready_episode_ids"] == ["episode-20260430-1"]
 
 
+def test_map_payload_builds_from_latest_annotation_run_by_default(tmp_path):
+    episode_dir = tmp_path / "episodes"
+    run_root = tmp_path / "annotation-runs"
+    run_dir = run_root / "run-20260605"
+    episode_dir.mkdir()
+    run_dir.mkdir(parents=True)
+    (episode_dir / "episode-20260430-1.json").write_text(
+        json.dumps(_observed_only_episode("episode-20260430-1"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    _write_annotation_run(
+        run_dir,
+        {
+            "episode_id": "episode-20260430-1",
+            "derived": _episode("episode-20260430-1")["derived"],
+        },
+    )
+
+    payload = build_map_payload(
+        load_episodes(episode_dir, annotation_run_root=run_root),
+        source="telegram-chat:123",
+    )
+
+    assert payload["provenance"]["graph_ready_episode_ids"] == ["episode-20260430-1"]
+
+
 def _entity(entities, entity_type, label):
     return next(
         entity
@@ -334,6 +360,28 @@ def _observed_only_episode(episode_id):
     data["metadata"] = {"capture_version": "test"}
     data.pop("derived")
     return data
+
+
+def _write_annotation_run(run_dir, row):
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "annotation_run_id": run_dir.name,
+                "schema_version": "episode.v1",
+                "taxonomy_version": "taxonomy.v1",
+                "prompt_version": "prompt.v1",
+                "created_at": "2026-05-01T00:00:00Z",
+                "source_episode_count": 1,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "annotations.jsonl").write_text(
+        json.dumps(row, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _episode(

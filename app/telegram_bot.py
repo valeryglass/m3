@@ -257,7 +257,11 @@ def _build_chat_profile_report(settings: Settings, chat_id: int):
     source = f"telegram-chat:{chat_id}"
     episodes = [
         episode
-        for episode in load_episodes(settings.episode_dir)
+        for episode in load_episodes(
+            settings.episode_dir,
+            annotation_run_dir=getattr(settings, "annotation_run_dir", None),
+            annotation_run_root=getattr(settings, "annotation_run_root", None),
+        )
         if episode.source == source
     ]
     if not episodes:

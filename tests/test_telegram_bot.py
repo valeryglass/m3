@@ -147,6 +147,36 @@ def test_profile_command_replies_with_current_report(tmp_path):
     assert reply_markup.inline_keyboard[0][0].callback_data == "profile:details"
 
 
+def test_profile_command_uses_latest_annotation_run(tmp_path):
+    annotation_run_root = tmp_path / "annotation-runs"
+    run_dir = annotation_run_root / "run-20260605"
+    settings = _settings(
+        episode_dir=tmp_path / "episodes",
+        annotation_run_root=annotation_run_root,
+    )
+    settings.episode_dir.mkdir(parents=True)
+    episode = _graph_ready_episode()
+    derived = episode.pop("derived")
+    _write_json(settings.episode_dir / "episode-20260503-1.json", episode)
+    _write_annotation_run(
+        run_dir,
+        {"episode_id": "episode-20260503-1", "derived": derived},
+    )
+    message = _FakeMessage("/profile")
+
+    _run(
+        telegram_bot._handle_profile_after_authorized(
+            _fake_update(123, message),
+            settings,
+            ToneEngine.default(),
+        )
+    )
+
+    assert len(message.replies) == 1
+    assert message.replies[0].startswith("Короткий отчет")
+    assert "В выборке: 1 эпизод" in message.replies[0]
+
+
 def test_profile_details_callback_sends_detailed_report(tmp_path):
     settings = _settings(episode_dir=tmp_path / "episodes")
     settings.episode_dir.mkdir(parents=True)
@@ -1161,6 +1191,28 @@ def _write_json(path, data):
     )
 
 
+def _write_annotation_run(run_dir, row):
+    run_dir.mkdir(parents=True)
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "annotation_run_id": run_dir.name,
+                "schema_version": "episode.v1",
+                "taxonomy_version": "taxonomy.v1",
+                "prompt_version": "prompt.v1",
+                "created_at": "2026-05-01T00:00:00Z",
+                "source_episode_count": 1,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "annotations.jsonl").write_text(
+        json.dumps(row, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
 def _graph_ready_episode():
     return {
         "id": "episode-20260503-1",
@@ -1275,6 +1327,8 @@ def _settings(
     ux_report_dir=None,
     userlist_path=None,
     ux_event_log=None,
+    annotation_run_dir=None,
+    annotation_run_root=None,
 ):
     return SimpleNamespace(
         initial_session_ttl_sec=600,
@@ -1285,6 +1339,8 @@ def _settings(
         ux_report_dir=ux_report_dir,
         userlist_path=userlist_path,
         ux_event_log=ux_event_log,
+        annotation_run_dir=annotation_run_dir,
+        annotation_run_root=annotation_run_root,
         ux_idle_after_sec=7200,
         report_min_count=2,
     )
