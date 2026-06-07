@@ -1,73 +1,78 @@
-# External Architecture First Draft
+# Внешняя архитектура: первый черновик
 
-Status: first draft, TBD.
+Статус: первый черновик, TBD.
 
-## Purpose
+## Назначение
 
-Describe MISHA's architecture in external-facing language for partners,
-technical stakeholders, and reviewers who need the system shape without
-implementation detail.
+Описать архитектуру MISHA внешним языком для партнеров, технических
+стейкхолдеров и ревьюеров, которым нужна общая форма системы без деталей
+реализации.
 
-This document is not the internal backend architecture source of truth. Internal
-module boundaries, ownership, gates, and interfaces live in
-`project.manifest.yaml` and `docs/architecture.md`.
+Этот документ не является внутренним источником истины по backend-архитектуре.
+Внутренние границы модулей, владение, gates и интерфейсы описаны в
+`project.manifest.yaml` и `docs/architecture.md`.
 
-## Audience
+## Аудитория
 
-- technical stakeholders evaluating feasibility
-- product and research partners evaluating data flow
-- clinical or wellbeing stakeholders checking boundaries and safety language
-- early collaborators who need a shared mental model
+- технические стейкхолдеры, оценивающие реализуемость;
+- продуктовые и исследовательские партнеры, оценивающие поток данных;
+- клинические или wellbeing-стейкхолдеры, проверяющие границы и язык
+  безопасности;
+- ранние участники проекта, которым нужна общая ментальная модель.
 
-## System Frame
+## Системная рамка
 
-MISHA is organized around this operating idea:
+MISHA устроена вокруг такой рабочей идеи:
 
 ```text
-observed user episode
-  -> durable annotation-run
-  -> computed graph view
-  -> user/report/map projections
+наблюдаемый пользовательский эпизод
+  -> устойчивый annotation-run
+  -> вычисляемое graph-представление
+  -> пользовательские/report/map-проекции
 ```
 
-The system separates source material from interpretation. Observed episodes are
-kept as source records. Derived graph annotations are versioned separately.
-Reports and maps are projections over the selected annotation-run, not stored
-truth about a person.
+Система отделяет исходный материал от интерпретации. Наблюдаемые эпизоды
+хранятся как исходные записи. Производные graph-аннотации версионируются
+отдельно. Отчеты и карты являются проекциями поверх выбранного annotation-run,
+а не сохраненной истиной о человеке.
 
-## Data Layers
+## Слои данных
 
-- Observed episodes: user-provided CBT episode facts captured through Telegram.
-- Annotation-runs: durable derived graph artifacts created from observed
-  episodes.
-- Graph views: on-demand computed summaries over observed episodes and selected
-  annotations.
-- User reports: Telegram-friendly summaries rendered from computed graph views.
-- Map payloads: explicit technical exports for visual/map experiments.
-- UX events: step-level interaction metadata used to improve the alpha flow.
+- Наблюдаемые эпизоды: предоставленные пользователем CBT-факты эпизода,
+  собранные через Telegram.
+- Annotation-runs: устойчивые производные graph-артефакты, созданные на основе
+  наблюдаемых эпизодов.
+- Graph-представления: вычисляемые по запросу сводки поверх наблюдаемых
+  эпизодов и выбранных аннотаций.
+- Пользовательские отчеты: Telegram-friendly сводки, отрендеренные из
+  вычисляемых graph-представлений.
+- Map payloads: явные технические экспорты для визуальных/map-экспериментов.
+- UX-события: metadata взаимодействий на уровне шагов, используемая для
+  улучшения alpha-потока.
 
-## Projection Boundaries
+## Границы проекций
 
-Reports, summaries, insights, and maps are reflective prompts. They may be
-incomplete, inaccurate, or generated in error. They are not diagnosis, therapy,
-medical advice, emergency support, or objective assessment.
+Отчеты, сводки, insights и карты являются рефлексивными подсказками. Они могут
+быть неполными, неточными или сгенерированными с ошибкой. Они не являются
+диагнозом, терапией, медицинским советом, экстренной поддержкой или объективной
+оценкой.
 
-## Current Architecture Claim
+## Текущий архитектурный тезис
 
-The durable analytical boundary is:
+Устойчивая аналитическая граница:
 
 ```text
-Episode files are observed source artifacts.
-Annotation-runs are durable derived graph artifacts.
-Analytics loaders hydrate runtime Episode.derived from the selected
-annotation-run or compatibility fallback.
+Episode-файлы являются наблюдаемыми исходными артефактами.
+Annotation-runs являются устойчивыми производными graph-артефактами.
+Analytics loaders наполняют runtime Episode.derived из выбранного
+annotation-run или compatibility fallback.
 ```
 
 ## TBD
 
-- external architecture diagram
-- deployment and hosting description
-- data retention wording for production
-- security review summary
-- integration story for external partners
-- terminology alignment with future product naming
+- внешняя архитектурная диаграмма;
+- описание deployment и hosting;
+- формулировки data retention для production;
+- краткое резюме security review;
+- integration story для внешних партнеров;
+- согласование терминологии с будущим названием продукта.
