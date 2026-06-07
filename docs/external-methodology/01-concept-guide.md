@@ -1,138 +1,166 @@
 # MISHA: Concept Guide
 
-## What MISHA is
+## What MISHA Is
 
-MISHA is a self-observation tool that helps people notice recurring emotional,
-cognitive, and behavioral patterns through structured life episodes.
+MISHA is a self-observation tool that helps people describe concrete life
+episodes and notice repeated emotional, cognitive, bodily, and behavioral
+patterns over time.
 
-MISHA turns scattered personal experiences into a map of recurring patterns. It
-does not tell people who they are. It helps them notice what repeats in what
-they describe.
+MISHA does not tell people who they are. It helps them look at what repeats in
+the episodes they choose to describe.
 
 At its simplest, MISHA is a structured reflection system. A user describes a
-concrete episode from life. MISHA helps organize that episode into clearer
-parts: situation, thought, emotion, reaction, action, and outcome. Over time,
-separate episodes can start to show recurring links.
+specific lived episode. MISHA helps organize it into clearer parts:
+situation, thoughts, emotions, body, behavior, short-term consequences, and
+long-term consequences. Across repeated use, separate episodes can start to
+show recurring links.
 
-## The problem
+## The Problem
 
 People often experience repeated loops: avoidance, overreaction, shutdown,
-self-criticism, procrastination, conflict, anxiety, guilt, or emotional
-escalation.
+self-criticism, procrastination, conflict, anxiety, guilt, bodily tension, or
+emotional escalation.
 
-Inside daily life, these episodes can look separate. A difficult conversation at
+Inside daily life, these moments can feel separate. A difficult conversation at
 work, a postponed decision, a conflict at home, and a harsh self-judgment may
-feel unrelated. The user remembers events, but the repeating structure is hard
+look unrelated. The user remembers events, but the repeating structure is hard
 to see while living through it.
 
-MISHA helps connect these episodes without turning them into diagnosis or
-identity claims. The goal is not to label the person. The goal is to make
-repetition easier to notice.
+MISHA helps make repetition easier to notice without turning it into a
+diagnosis, treatment plan, or identity claim.
 
-## What the user gets
+## User Journey
 
-The user gets structured episode records, a gentle mirror of recurring
-reactions, and a map of repeated links grounded in user-provided material.
+1. The user describes one concrete episode from life.
+2. MISHA helps decompose the episode into situation, thoughts, emotions, body,
+   behavior, short-term consequences, and long-term consequences.
+3. MISHA keeps the user's material central and separates what the user
+   described from any later reflection.
+4. Over time, multiple episodes can be compared.
+5. MISHA reflects possible recurring links and possible forks where responses
+   differ.
+6. The user can use the structured material for self-observation, personal
+   reflection, or a clearer conversation with a professional.
 
-MISHA helps users find clearer language for self-reflection. Instead of a vague
-sense that "this keeps happening," the user may see that tension often appears
-near postponement, that mistakes often appear near self-criticism, or that
-conflict often appears near withdrawal.
+## What The User Gets
 
-The result can also help a user prepare material for a professional. MISHA does
-not replace professional judgment. It can make self-reporting more concrete by
-preserving examples from described episodes.
+The user gets structured episode records, a gentle mirror of repeated
+reactions, and a pattern map grounded in user-provided material.
 
-## How it works in simple terms
+Instead of a vague feeling that "this keeps happening," the user may see that
+tension often appears near postponement, that mistakes often appear near
+self-criticism, that conflict often appears near withdrawal, or that a bodily
+reaction often appears before a familiar behavior.
 
-The user describes a specific lived episode. MISHA helps structure it into
-parts that are easier to compare later:
+MISHA reports are not clinical reports. Their value is practical: they preserve
+specific examples, show how observations are grounded in described episodes,
+and help the user prepare clearer material for reflection or for discussion
+with a professional.
+
+## Core Methodology
+
+An episode is a specific lived situation. It should be concrete enough that
+the user can describe what happened, what they thought, what they felt, what
+they noticed in the body, what they did or avoided doing, and what followed.
+
+The standard episode structure is:
 
 - Situation: what happened.
-- Thought: what went through the user's mind.
-- Emotion: what the user noticed emotionally.
-- Reaction: what happened inside or immediately after.
-- Action: what the user did or avoided doing.
-- Outcome: what followed.
+- Thoughts: what went through the user's mind.
+- Emotions: what the user noticed emotionally.
+- Body: what the user noticed physically or bodily.
+- Behavior: what the user did, did not do, or wanted to do.
+- Short-term consequences: what happened soon after.
+- Long-term consequences: what continued, repeated, or changed later.
 
-Across multiple episodes, MISHA helps reveal recurring links and possible
-forks. A fork is a place where the reaction differs, where a new response
-appears, or where change may become possible.
+A pattern is a possible recurring link across episodes. It is a hypothesis
+based on described episodes, not a fact about identity, diagnosis, or cause.
 
-## What MISHA is not
+A mirror is MISHA's non-authoritative reflection of the user's own words,
+reactions, and repetitions. A mirror does not diagnose or advise. It shows
+described material back in a clearer form.
 
-MISHA is not a doctor. MISHA is not a therapist. MISHA is not a diagnostic tool.
-MISHA is not an emergency service. MISHA is not a replacement for therapy.
-MISHA is not an AI psychologist.
+A map connects separate episodes into visible recurring links. It helps the
+user see relationships that may be hard to notice inside daily life.
+
+A fork marks a place where responses differ, where a new response appears, or
+where change may be worth observing. A fork does not prescribe what the user
+should do.
+
+## Beta-Stage Positioning
+
+MISHA should be described as a beta-stage self-observation product. Its
+reflection and report features are being tested with early users and should be
+presented as provisional product outputs, not validated clinical conclusions.
+
+Beta language should make three points clear:
+
+- MISHA is for structured self-observation, not treatment or diagnosis.
+- Reflections are based on user-described episodes and may be incomplete.
+- User feedback helps improve the clarity, usefulness, and safety of the
+  product.
+
+## What MISHA Is Not
+
+MISHA is not a doctor, therapist, AI psychologist, diagnostic tool, treatment
+tool, emergency service, crisis support tool, or replacement for professional
+help.
 
 MISHA is also not a generic chatbot. It is not built around isolated replies or
 one-off advice. Its value comes from structured self-observation across
 episodes and from helping recurring links become visible.
 
 MISHA should not be described as treating symptoms, detecting disorders,
-predicting mental health outcomes, or knowing the user better than the user
-knows themselves.
+predicting mental health outcomes, identifying hidden motives, or knowing the
+user better than the user knows themselves.
 
-## Core concepts
+## Safety Boundary
 
-An episode is a specific lived situation. It should be concrete enough that the
-user can describe what happened, what they thought, what they felt, what they
-did, and what followed.
+MISHA can help organize user-provided material. It must not assess risk,
+triage emergencies, provide crisis counseling, prescribe treatment, or suggest
+that a user does or does not need professional care.
 
-A pattern is a recurring link across episodes. It is a hypothesis about
-repetition based on described episodes, not a fact about identity.
+If a user appears to be in immediate danger or describes possible self-harm,
+harm to others, abuse, or urgent medical risk, MISHA should not continue as a
+reflection tool. The safe external position is simple: MISHA is not built for
+crisis support, and urgent situations require local emergency or professional
+support.
 
-A mirror is MISHA's non-authoritative reflection of the user's own words,
-reactions, and repetitions. A mirror does not diagnose. It shows what has been
-described back to the user in a clearer form.
-
-A map connects separate episodes into visible recurring patterns. It helps the
-user see relationships that may be hard to notice inside daily life.
-
-A fork highlights a place where reactions differ and change may be possible. A
-fork does not prescribe what the user should do. It marks a point worth
-observing.
-
-## Why now
-
-Many people already use chats, notes, journals, and wellness tools to make
-sense of their lives. Those tools can capture fragments, but fragments often
-stay scattered.
-
-MISHA responds to a specific need: structured personal reflection that keeps the
-user's own material central while making repetition easier to see. It gives
-people a practical way to move from isolated stories to a pattern map without
-turning reflection into diagnosis.
-
-## Who it is for
+## Who It Is For
 
 MISHA is for people who want clearer self-understanding, especially when they
-feel that certain reactions or situations keep repeating.
+feel that certain situations, reactions, bodily states, or behaviors keep
+repeating.
 
-It can be useful for early users who want a gentle mirror, for doctors and
-psychologists who value concrete self-reporting, for investors looking at
-consumer mental wellness and structured personal data, for technical
-stakeholders evaluating explainable products, and for marketing/SMM teams that
-need safe, clear language.
+It can be useful for:
 
-MISHA is not for emergencies, crisis support, diagnosis, or treatment decisions.
+- early users who want a gentle structure for self-observation;
+- professionals who value concrete self-reporting from users;
+- investors looking at consumer mental wellness and structured personal data;
+- technical stakeholders evaluating explainable, structured products;
+- marketing/SMM teams that need safe, non-clinical language.
 
-## How to describe MISHA
+MISHA is not for emergencies, crisis support, diagnosis, treatment decisions,
+or replacing professional judgment.
+
+## How To Describe MISHA
 
 Short version:
 
-MISHA turns scattered personal experiences into a map of recurring patterns.
+MISHA helps people turn concrete life episodes into a structured map of
+repeated patterns.
 
 Expanded version:
 
-MISHA is a self-observation tool that helps people structure concrete life
-episodes and notice recurring links across them. It acts as a mirror, a map,
-and a way to spot forks where different responses may become possible.
+MISHA is a beta-stage self-observation tool that helps users decompose life
+episodes into situation, thoughts, emotions, body, behavior, short-term
+consequences, and long-term consequences. Over time, MISHA helps users notice
+possible repeated links across their own described episodes.
 
 For professionals:
 
-MISHA is a structured episode journal that can help users bring clearer
-examples into conversation, while staying non-diagnostic and outside
+MISHA is a structured episode journal that may help users bring clearer
+examples into conversation, while staying outside diagnosis, treatment, and
 professional replacement claims.
 
 For technical stakeholders:
@@ -140,7 +168,7 @@ For technical stakeholders:
 MISHA is a structured data product for personal reflection, with a clear
 boundary between user-provided material and downstream interpretation.
 
-## Words to use and avoid
+## Words To Use And Avoid
 
 Use:
 
@@ -148,12 +176,13 @@ Use:
 - structured episode journal
 - personal pattern map
 - gentle mirror
-- recurring patterns
+- possible recurring links
+- repeated emotional, cognitive, bodily, and behavioral patterns
 - self-understanding
 - reflection system
-- helps notice links
 - grounded in user-provided material
 - based on described episodes
+- beta-stage product
 
 Avoid:
 
@@ -161,9 +190,12 @@ Avoid:
 - AI psychologist
 - therapy replacement
 - diagnostic tool
+- treatment tool
+- crisis support tool
 - treats anxiety
 - fixes thinking
 - detects disorders
+- predicts mental health
 - knows you better than you know yourself
 - personality detector
 - mental health diagnosis
