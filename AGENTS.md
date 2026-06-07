@@ -17,9 +17,10 @@ The active engine is JSON:
 - `model/*.schema.json` defines machine contracts.
 - `model/*.example.json` shows valid artifacts.
 - `model/*.template.json` provides fillable artifact shapes.
-- `data/episodes/*.json` stores private runtime episode records.
+- `data/episodes/*.json` stores private observed source episode records.
+- `data/annotation-runs/run-*/` stores durable derived graph artifacts.
 - `data/ux-events/*.jsonl` stores private runtime UX event records.
-- `data/reports/` stores private generated report artifacts.
+- `data/reports/` stores optional private debug/export snapshots only.
 - `config/tone.yaml` configures user-facing loop tone.
 
 The agent's job is to keep accepted contracts and artifacts coherent. Do not
@@ -71,6 +72,11 @@ project.manifest.yaml -- structural source of truth
 - Preserve the observed vs derived boundary in CBT data.
 - Prefer concrete CBT episodes over broad life-story summaries.
 - Episode JSON must conform to `model/episode.schema.json`.
+- Episode files are observed source artifacts.
+- Annotation-runs are durable derived graph artifacts.
+- Analytics loaders hydrate runtime `Episode.derived` from the selected
+  annotation-run or compatibility fallback.
+- Reports are computed projections and must not be treated as active storage.
 - Episode JSON artifacts belong under `data/episodes/` and are not committed.
 - UX event logs belong under `data/ux-events/` and are not committed.
 - Tone engine changes interface wording only; do not let tone rules modify CBT data.
@@ -83,7 +89,7 @@ project.manifest.yaml -- structural source of truth
 - Use `roles/developer.md` for implementation, refactors, model work, and cleanup.
 - Use `roles/committer.md` for commit preparation.
 - Use `roles/loop-extractor.md` for observed episode capture behavior.
-- Use `roles/annotator.md` for derived annotation work.
+- Use `roles/annotator.md` for annotation-run derived payloads.
 
 ## Editing Rules
 

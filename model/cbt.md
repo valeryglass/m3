@@ -6,7 +6,7 @@ vision lives in `model/graph.md`.
 
 ## MVP Scope
 
-Episode is the only MVP entity.
+Episode is the only MVP source entity.
 
 ```text
 Episode
@@ -26,19 +26,25 @@ Episode
   |     `-- outcome
   |           |-- short_term_consequence STC
   |           `-- long_term_consequence  LTC
-  |
-  `-- derived
-        |-- nodes               current JSON field for graph nodes
-        |-- trigger_annotations
-        |-- actor_annotations
-        |-- cognition_annotations
-        |-- emotion_annotations
-        |-- behavior_annotations
-        |-- outcome_annotations
-        `-- relations
 ```
 
-The current persisted JSON contract stores graph candidates in `derived.nodes[]`.
+Episode files are observed source artifacts. Annotation-runs are durable derived
+graph artifacts. Analytics loaders hydrate runtime `Episode.derived` from the
+selected annotation-run or compatibility fallback.
+
+Runtime derived payloads contain:
+
+```text
+derived
+  |-- nodes
+  |-- trigger_annotations
+  |-- actor_annotations
+  |-- cognition_annotations
+  |-- emotion_annotations
+  |-- behavior_annotations
+  |-- outcome_annotations
+  `-- relations
+```
 
 ## Evidence Boundary
 

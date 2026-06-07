@@ -12,8 +12,8 @@ This module keeps machine payloads separate from user-facing report text.
 
 ## Outputs
 
-- Renderer-neutral map payload JSON artifacts under `data/reports/map-payload/`.
-- Standalone map payload HTML previews under `data/reports/map-payload/`.
+- Renderer-neutral map payload JSON explicit exports.
+- Standalone map payload HTML preview exports.
 
 ## Dependencies
 
@@ -39,3 +39,7 @@ contains semantic entities and links only; renderers derive their own geometry.
 
 `app/map_payload_html.py` renders standalone HTML previews from map payload JSON.
 It is a preview surface over the payload contract, not a second compiler.
+
+Current local export commands may write these artifacts under
+`data/reports/map-payload/`, but that directory is an optional private export
+location, not active storage.

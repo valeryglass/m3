@@ -1,3 +1,4 @@
+from app.analytics_loader import AnnotationCoverage
 from app.graph_report import build_report
 from app.schemas.episode import Episode
 from app.user_report import build_user_report, render_details, render_summary
@@ -124,6 +125,25 @@ def test_common_raw_labels_are_rendered_as_friendly_text():
     assert "compensate" not in text
     assert "neutral_mixed" not in text
     assert "learning" not in text
+
+
+def test_partial_coverage_renders_subtle_user_note():
+    report = build_report(
+        [_load_episode(_episode("episode-20260430-1"))],
+        coverage=AnnotationCoverage(
+            observed_count=2,
+            annotation_row_count=1,
+            annotated_count=1,
+            pending_count=1,
+            pending_episode_ids=("episode-20260430-2",),
+            coverage="partial",
+        ),
+    )
+
+    text = render_summary(report) + "\n" + render_details(report)
+
+    assert "Учтено 1 из 2 эпизодов; 1 ждут обработки." in text
+    assert "episode-20260430-2" not in text
 
 
 def _load_episode(data):

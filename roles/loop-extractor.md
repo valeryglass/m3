@@ -7,7 +7,7 @@ Role name: `loop_extractor`
 ## Purpose
 
 Guide the user through one concrete CBT episode and save exactly one
-schema-valid episode JSON artifact in `data/episodes/`.
+schema-valid observed source episode JSON artifact in `data/episodes/`.
 
 This is the first dry-run composer loop. It does not change the CBT model,
 episode schema, raw inputs, or reference sources.
@@ -56,8 +56,11 @@ Do not save until all required top-level fields are complete:
 - `date`
 - `source`
 - `observed`
-- `derived` with the empty node, annotation, and relation arrays from
-  `model/episode.schema.json`
+
+Do not persist top-level `derived` or `current_derived` from this loop.
+Annotation-runs are durable derived graph artifacts. Analytics loaders hydrate
+runtime `Episode.derived` from the selected annotation-run or compatibility
+fallback.
 
 Do not save until every observed field has both `value` and `source_quote`:
 
@@ -119,24 +122,10 @@ episode.
 
 Derived extraction is disabled in this version.
 
-Always save:
-
-```json
-{
-  "nodes": [],
-  "trigger_annotations": [],
-  "actor_annotations": [],
-  "cognition_annotations": [],
-  "emotion_annotations": [],
-  "behavior_annotations": [],
-  "outcome_annotations": [],
-  "relations": []
-}
-```
-
 Never force a classification just to fill the artifact.
-Use `roles/annotator.md` for derived annotation work after observed extraction
-is complete.
+Use `roles/annotator.md` for annotation-run derived payloads after observed
+extraction is complete. Derived annotations belong in annotation-runs or legacy
+compatibility flows, not in new observed source episode files.
 
 ## Save Procedure
 
@@ -145,10 +134,10 @@ Before saving:
 1. Check that the episode date was set from the session creation date.
 2. Check that all observed fields have non-empty `value` and `source_quote`.
 3. Scan `data/episodes/` for the next filename number for that date.
-4. Build JSON that conforms to `model/episode.schema.json`.
+4. Build observed source JSON that conforms to `model/episode.schema.json`.
 5. Optionally show the completed JSON briefly for review after extraction is
    complete.
 6. Save exactly one file under `data/episodes/`.
 
-After saving, report the file path only if the runtime UX calls for it. Derived
-arrays remain empty because derived extraction is handled by the annotator role.
+After saving, report the file path only if the runtime UX calls for it. New
+episode files must not persist top-level `derived` or `current_derived`.

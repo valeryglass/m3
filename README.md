@@ -9,10 +9,11 @@ The project has working layers:
 - `raw/`: immutable user texts, thoughts, logs, and artifacts.
 - `sources/`: immutable reference/source materials.
 - `model/`: accepted CBT model and JSON contracts.
-- `data/episodes/`: private structured JSON episode records.
+- `data/episodes/`: private observed/source episode records.
 - `data/state/`: private active Telegram session state.
 - `data/userlist/`: private alpha waitlist and approval records.
 - `data/ux-events/`: private step-level UX analytics event log.
+- `data/reports/`: optional private debug/export snapshots.
 - `config/`: runtime configuration files.
 - `app/`: runnable Telegram loop extractor app.
 - `docs/`: architecture operating system and methodology drafts.
@@ -26,11 +27,21 @@ change.
 
 ## Current Focus
 
-The current engine is machine-first, episode-centered CBT storage.
+The current engine is machine-first, episode-centered CBT storage with
+runs-first derived annotations.
 
-`model/episode.schema.json` is the canonical episode contract. Episode records
-belong in `data/episodes/` as JSON and must preserve the observed vs derived
-boundary.
+`model/episode.schema.json` is the canonical episode contract. Episode files
+are observed source artifacts. Annotation-runs are durable derived graph
+artifacts. Analytics loaders hydrate runtime `Episode.derived` from the selected
+annotation-run or compatibility fallback.
+
+Reports are computed projections, not active storage. Normal bot/profile/admin
+paths build summaries on demand from observed episodes plus the selected/latest
+annotation-run. Markdown reports are optional debug exports.
+
+`app.graph_report` without `--output-dir` prints the Markdown summary only and
+must not write report files. Markdown export happens only when `--output-dir`
+is explicitly passed.
 
 ## Telegram Loop Extractor
 
@@ -45,6 +56,10 @@ python -m app.telegram_bot
 
 Runtime episode artifacts, session state, and alpha userlist records are stored
 under `data/` and are ignored by git.
+
+Analytics can use versioned derived annotations from `data/annotation-runs/`.
+Set `M3_ANNOTATION_RUN_DIR` to force one run, or leave it empty to use the
+latest valid `run-*` under `M3_ANNOTATION_RUN_ROOT`.
 
 Normal bot access is granted through approved records in
 `data/userlist/users.json`. The `.env` admin settings only control hidden admin
@@ -61,3 +76,5 @@ The Telegram loop records private step-level UX events without raw answer text.
 ```bash
 python -m app.ux_analytics
 ```
+
+`app.ux_analytics` writes files only when `--output-dir` is explicitly passed.

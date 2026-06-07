@@ -8,8 +8,7 @@
     "id",
     "date",
     "source",
-    "observed",
-    "derived"
+    "observed"
   ],
   "properties": {
     "id": {
@@ -72,6 +71,16 @@
     "derived": {
       "type": "object",
       "additionalProperties": false,
+      "default": {
+        "nodes": [],
+        "trigger_annotations": [],
+        "actor_annotations": [],
+        "cognition_annotations": [],
+        "emotion_annotations": [],
+        "behavior_annotations": [],
+        "outcome_annotations": [],
+        "relations": []
+      },
       "required": [
         "nodes",
         "trigger_annotations",

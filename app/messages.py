@@ -284,15 +284,15 @@ SESSION_MESSAGES = {
     ),
     "report_failed": "Не удалось собрать отчёт: {error}",
     "graph_reports_ready": (
-        "Отчёты обновлены\n"
+        "Отчёт собран\n"
         "episodes: {episodes}\n"
+        "coverage: {annotated_count}/{observed_count} annotated ({coverage}); pending: {pending_count}\n"
         "invalid: {invalid}\n"
         "empty_derived: {empty_derived}\n"
         "annotation_ready: {annotation_ready}\n"
         "graph_ready: {graph_ready}\n"
         "report_ready: {report_ready}\n"
-        "payload_eligible: {payload_eligible}\n\n"
-        "{graph_path}"
+        "payload_eligible: {payload_eligible}"
     ),
     "expired_initial_session": (
         "Прошлая сессия истекла до первого ответа. Отправь /start заново"

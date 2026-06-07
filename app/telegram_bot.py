@@ -6,10 +6,11 @@ from app.config import (
     load_settings,
     owner_chat_id_for_settings,
 )
+from app.analytics_loader import annotation_coverage_for_episode_ids
 from app.graph_report import build_report, load_episodes
 from app.report_runner import (
-    regenerate_graph_reports,
-    regenerate_ux_report,
+    build_graph_report_summary,
+    build_ux_report_text,
 )
 from app.user_report import render_details, render_summary
 from app.loop_extractor import (
@@ -255,14 +256,27 @@ def _build_chat_profile_report(settings: Settings, chat_id: int):
     if settings.episode_dir is None or not settings.episode_dir.exists():
         return None
     source = f"telegram-chat:{chat_id}"
+    loaded_episodes = load_episodes(
+        settings.episode_dir,
+        annotation_run_dir=getattr(settings, "annotation_run_dir", None),
+        annotation_run_root=getattr(settings, "annotation_run_root", None),
+    )
     episodes = [
         episode
-        for episode in load_episodes(settings.episode_dir)
+        for episode in loaded_episodes
         if episode.source == source
     ]
     if not episodes:
         return None
-    report = build_report(episodes)
+    report = build_report(
+        episodes,
+        coverage=annotation_coverage_for_episode_ids(
+            {episode.id for episode in episodes},
+            annotation_run_dir=getattr(settings, "annotation_run_dir", None),
+            annotation_run_root=getattr(settings, "annotation_run_root", None),
+            known_episode_ids={episode.id for episode in loaded_episodes},
+        ),
+    )
     if not report.graph_ready or not any(item.report_ready for item in report.readiness):
         return None
     return report
@@ -270,7 +284,7 @@ def _build_chat_profile_report(settings: Settings, chat_id: int):
 
 async def _handle_report_graph_after_admin(update, settings: Settings, tone) -> None:
     try:
-        summary = regenerate_graph_reports(settings)
+        summary = build_graph_report_summary(settings)
     except Exception as exc:  # pragma: no cover - exact failures depend on data files
         await _reply_text(update, tone.report_failed(exc))
         return
@@ -279,21 +293,23 @@ async def _handle_report_graph_after_admin(update, settings: Settings, tone) -> 
         update,
         tone.graph_reports_ready(
             episodes=summary["episodes"],
+            observed_count=summary["observed_count"],
+            annotated_count=summary["annotated_count"],
+            pending_count=summary["pending_count"],
+            coverage=summary["coverage"],
             invalid=summary["invalid"],
             empty_derived=summary["empty_derived"],
             annotation_ready=summary["annotation_ready"],
             graph_ready=summary["graph_ready"],
             report_ready=summary["report_ready"],
             payload_eligible=summary["payload_eligible"],
-            graph_path=summary["graph_path"],
         ),
     )
 
 
 async def _handle_report_ux_after_admin(update, settings: Settings, tone) -> None:
     try:
-        markdown_path, _ = regenerate_ux_report(settings)
-        text = markdown_path.read_text(encoding="utf-8")
+        text = build_ux_report_text(settings)
     except Exception as exc:  # pragma: no cover - exact failures depend on data files
         await _reply_text(update, tone.report_failed(exc))
         return

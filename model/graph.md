@@ -13,7 +13,7 @@ Current machine artifacts use:
 
 ```text
 observed.situation
-derived.nodes[]
+annotation-run derived.nodes[]
 node_id
 ```
 
@@ -33,15 +33,16 @@ Outcome nodes and `outcome_annotations` are supported in the current contract.
 
 ```text
 observed = user-stated evidence
-derived.nodes = current JSON field for graph node candidates
+derived.nodes = runtime/annotation-run graph node candidates
 derived.*_annotations = taxonomy-backed classifications of nodes or spans
-derived.relations = current JSON field for graph-ready edges
+derived.relations = runtime/annotation-run graph-ready edges
 taxonomy = allowed label dictionaries in schema/docs
 signatures = later cross-episode patterns
 ```
 
-Conceptually, `derived.nodes[]` is the current storage shape for
-target graph nodes.
+Episode files are observed source artifacts. Annotation-runs are durable derived
+graph artifacts. Analytics loaders hydrate runtime `Episode.derived` from the
+selected annotation-run or compatibility fallback.
 
 ## Episode Document Layer
 
@@ -63,23 +64,14 @@ Episode
   |     `-- outcome
   |           |-- short_term_consequence     STC source
   |           `-- long_term_consequence      LTC source
-  |
-  `-- derived
-        |-- nodes                       current JSON field for nodes
-        |-- trigger_annotations
-        |-- actor_annotations
-        |-- cognition_annotations
-        |-- emotion_annotations
-        |-- behavior_annotations
-        |-- outcome_annotations
-        `-- relations
 ```
 
 `observed` is the evidence layer. It contains what the user gave to the
 extractor.
 
-`derived` is the graph-ready interpretation layer. It must stay traceable to
-`observed`.
+Runtime `derived` is the graph-ready interpretation layer. It must stay
+traceable to `observed` and is durably stored in annotation-runs, with embedded
+episode `derived` supported only as a legacy compatibility fallback.
 
 ## Provenance
 

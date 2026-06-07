@@ -238,23 +238,26 @@ def test_session_messages_render_unchanged():
     )
     assert tone.graph_reports_ready(
         episodes=1,
+        observed_count=1,
+        annotated_count=1,
+        pending_count=0,
+        coverage="full",
         invalid=0,
         empty_derived=0,
         annotation_ready=1,
         graph_ready=1,
         report_ready=1,
         payload_eligible=1,
-        graph_path="data/reports/graph/all.md",
     ) == (
-        "Отчёты обновлены\n"
+        "Отчёт собран\n"
         "episodes: 1\n"
+        "coverage: 1/1 annotated (full); pending: 0\n"
         "invalid: 0\n"
         "empty_derived: 0\n"
         "annotation_ready: 1\n"
         "graph_ready: 1\n"
         "report_ready: 1\n"
-        "payload_eligible: 1\n\n"
-        "data/reports/graph/all.md"
+        "payload_eligible: 1"
     )
     assert tone.expired_initial_session() == (
         "Прошлая сессия истекла до первого ответа. Отправь /start заново"

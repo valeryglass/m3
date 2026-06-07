@@ -16,8 +16,7 @@ human map of how the pieces fit together.
 Telegram user
   -> Episode Capture
   -> Episode Model + Storage
-  -> Annotation Workflow
-  -> Annotation Run
+  -> Annotation Runs
   -> Graph Reporting
   -> Pattern Payloads
 ```
@@ -46,7 +45,7 @@ Episode Capture -> Userlist / Access Gate
   drafts.
 - Episode Model + Storage owns the JSON contract, Pydantic mirror, persistence,
   and legacy normalization.
-- Annotation Workflow owns versioned selected derived annotations and readiness
+- Annotation Runs owns versioned selected derived annotations and readiness
   gates.
 - Graph Reporting owns computed graph views and core graph quality reports.
 - Pattern Payloads owns renderer-neutral map payloads built from report-ready
@@ -75,6 +74,10 @@ interpretations of episodes. `GraphReport` is the current computed graph view
 built from episodes plus selected annotations. Reports and payloads are
 downstream exports. They must describe evidence and gaps without making
 diagnostic claims.
+
+Runtime profile and admin report paths compute projections on demand. Persistent
+report files under `data/reports/` are optional debug/export snapshots, not an
+active storage layer.
 
 ## CBT Domain Boundary
 

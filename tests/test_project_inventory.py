@@ -73,4 +73,22 @@ def test_active_docs_do_not_reference_stale_architecture_paths():
     for name, text in text_by_path.items():
         assert "schema.md" not in text, name
         assert "roles/auditor.md" not in text, name
-        assert re.search(r"(?<!docs/)methodology/", text) is None, name
+        assert "annotation_workflow" not in text, name
+        assert "docs/modules/annotation-workflow.md" not in text, name
+        assert "private runtime JSON artifacts" not in text, name
+        assert "private runtime outputs" not in text, name
+        assert "workflow tooling" not in text, name
+        assert "data/reports/` stores private generated report artifacts" not in text, name
+        assert "report files are durable" not in text.lower(), name
+        assert "report storage" not in text.lower(), name
+        assert re.search(r"(?<!docs/)(?<!external-)methodology/", text) is None, name
+
+
+def test_external_methodology_first_drafts_are_listed():
+    readme = (ROOT / "docs" / "external-methodology" / "README.md").read_text(
+        encoding="utf-8"
+    )
+
+    for filename in ("00-architecture.md", "00-data-governance.md"):
+        assert (ROOT / "docs" / "external-methodology" / filename).is_file()
+        assert filename in readme

@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from app.graph_report import load_episodes
 from app.map_payload import build_map_payload, main, write_map_payload
 from app.schemas.episode import Episode
@@ -30,6 +32,14 @@ def test_map_payload_builds_compiler_json_for_one_source():
             "episode-20260430-2",
         ],
         "skipped_episode_ids": ["episode-20260430-4"],
+        "coverage": {
+            "observed_count": 3,
+            "annotation_row_count": 0,
+            "annotated_count": 3,
+            "pending_count": 0,
+            "pending_episode_ids": [],
+            "state": "full",
+        },
     }
 
 
@@ -95,6 +105,7 @@ def test_map_payload_required_fields_exist_when_source_data_is_sparse():
     assert payload["neighbors"] == []
     assert payload["provenance"]["graph_ready_episode_ids"] == []
     assert payload["provenance"]["skipped_episode_ids"] == ["episode-20260430-1"]
+    assert payload["provenance"]["coverage"]["pending_count"] == 0
 
 
 def test_map_payload_links_reference_valid_entities_and_have_normalized_weights():
@@ -258,7 +269,56 @@ def test_map_payload_cli_writes_output(tmp_path, monkeypatch, capsys):
     main()
 
     assert capsys.readouterr().out.strip() == str(output)
-    assert json.loads(output.read_text(encoding="utf-8"))["kind"] == "map_payload"
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data["kind"] == "map_payload"
+    assert data["provenance"]["episode_dir"] == episode_dir.as_posix()
+    assert data["provenance"]["source_scope"] == "telegram-chat:123"
+    assert "generated_at" in data["provenance"]
+
+
+def test_map_payload_cli_includes_annotation_run_provenance(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
+    episode_dir.mkdir()
+    run_dir.mkdir(parents=True)
+    (episode_dir / "episode-20260430-1.json").write_text(
+        json.dumps(_observed_only_episode("episode-20260430-1"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    _write_annotation_run(
+        run_dir,
+        {
+            "episode_id": "episode-20260430-1",
+            "derived": _episode("episode-20260430-1")["derived"],
+        },
+    )
+    output = tmp_path / "map.json"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "map_payload",
+            "--episode-dir",
+            str(episode_dir),
+            "--annotation-run-dir",
+            str(run_dir),
+            "--source",
+            "telegram-chat:123",
+            "--output",
+            str(output),
+        ],
+    )
+
+    main()
+
+    assert capsys.readouterr().out.strip() == str(output)
+    provenance = json.loads(output.read_text(encoding="utf-8"))["provenance"]
+    assert provenance["annotation_run_id"] == "run-test"
+    assert provenance["annotation_run_path"] == run_dir.as_posix()
+    assert provenance["episode_dir"] == episode_dir.as_posix()
 
 
 def test_map_payload_loads_episode_files(tmp_path):
@@ -316,6 +376,113 @@ def test_map_payload_builds_from_annotation_run_format(tmp_path):
     assert payload["provenance"]["graph_ready_episode_ids"] == ["episode-20260430-1"]
 
 
+def test_map_payload_builds_with_partial_annotation_coverage(tmp_path):
+    episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
+    episode_dir.mkdir()
+    (episode_dir / "episode-20260430-1.json").write_text(
+        json.dumps(_observed_only_episode("episode-20260430-1"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    (episode_dir / "episode-20260430-2.json").write_text(
+        json.dumps(_observed_only_episode("episode-20260430-2"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    _write_annotation_run(
+        run_dir,
+        {
+            "episode_id": "episode-20260430-1",
+            "derived": _episode("episode-20260430-1")["derived"],
+        },
+    )
+
+    from app.analytics_loader import annotation_coverage_for_episode_ids
+
+    episodes = load_episodes(episode_dir, annotation_run_dir=run_dir)
+    payload = build_map_payload(
+        episodes,
+        source="telegram-chat:123",
+        coverage=annotation_coverage_for_episode_ids(
+            {episode.id for episode in episodes},
+            annotation_run_dir=run_dir,
+        ),
+    )
+
+    assert payload["provenance"]["coverage"] == {
+        "observed_count": 2,
+        "annotation_row_count": 1,
+        "annotated_count": 1,
+        "pending_count": 1,
+        "pending_episode_ids": ["episode-20260430-2"],
+        "state": "partial",
+    }
+
+
+def test_map_payload_cli_require_full_coverage_fails_on_partial_run(
+    tmp_path,
+    monkeypatch,
+):
+    episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
+    episode_dir.mkdir()
+    (episode_dir / "episode-20260430-1.json").write_text(
+        json.dumps(_observed_only_episode("episode-20260430-1"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    _write_annotation_run(
+        run_dir,
+        {
+            "episode_id": "episode-20260430-1",
+            "derived": _episode("episode-20260430-1")["derived"],
+        },
+    )
+    (run_dir / "annotations.jsonl").write_text("", encoding="utf-8")
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "map_payload",
+            "--episode-dir",
+            str(episode_dir),
+            "--annotation-run-dir",
+            str(run_dir),
+            "--source",
+            "telegram-chat:123",
+            "--output",
+            str(tmp_path / "map.json"),
+            "--require-full-coverage",
+        ],
+    )
+
+    with pytest.raises(ValueError, match="coverage is partial"):
+        main()
+
+
+def test_map_payload_builds_from_latest_annotation_run_by_default(tmp_path):
+    episode_dir = tmp_path / "episodes"
+    run_root = tmp_path / "annotation-runs"
+    run_dir = run_root / "run-20260605"
+    episode_dir.mkdir()
+    run_dir.mkdir(parents=True)
+    (episode_dir / "episode-20260430-1.json").write_text(
+        json.dumps(_observed_only_episode("episode-20260430-1"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    _write_annotation_run(
+        run_dir,
+        {
+            "episode_id": "episode-20260430-1",
+            "derived": _episode("episode-20260430-1")["derived"],
+        },
+    )
+
+    payload = build_map_payload(
+        load_episodes(episode_dir, annotation_run_root=run_root),
+        source="telegram-chat:123",
+    )
+
+    assert payload["provenance"]["graph_ready_episode_ids"] == ["episode-20260430-1"]
+
+
 def _entity(entities, entity_type, label):
     return next(
         entity
@@ -334,6 +501,28 @@ def _observed_only_episode(episode_id):
     data["metadata"] = {"capture_version": "test"}
     data.pop("derived")
     return data
+
+
+def _write_annotation_run(run_dir, row):
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "annotation_run_id": run_dir.name,
+                "schema_version": "episode.v1",
+                "taxonomy_version": "taxonomy.v1",
+                "prompt_version": "prompt.v1",
+                "created_at": "2026-05-01T00:00:00Z",
+                "source_episode_count": 1,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "annotations.jsonl").write_text(
+        json.dumps(row, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _episode(

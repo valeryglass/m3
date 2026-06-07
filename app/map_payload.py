@@ -4,9 +4,12 @@ import argparse
 import json
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from app.analytics_loader import selected_annotation_run
+from app.analytics_loader import annotation_coverage_for_episode_ids, require_full_coverage
 from app.graph_report import GraphReport, build_report, load_episodes
 from app.pattern_metrics import (
     WEEK_QUANT,
@@ -90,14 +93,32 @@ def build_map_payload(
     *,
     source: str,
     limits: dict[str, int] | None = None,
+    provenance: dict[str, Any] | None = None,
+    coverage=None,
 ) -> dict[str, Any]:
     source_episodes = [episode for episode in episodes if episode.source == source]
-    report = build_report(source_episodes)
+    report = build_report(source_episodes, coverage=coverage)
     active_limits = {**DEFAULT_LIMITS, **(limits or {})}
     seeds = _entity_seeds(report)
     entities, key_to_id = _finalize_entities(seeds, report, active_limits)
     links = _finalize_links(_link_seeds(report), key_to_id)
     clusters, neighbors = _district_topology(entities, report)
+
+    base_provenance = {
+        "generated_from": "graph_signatures",
+        "graph_ready_episode_ids": [sig.episode_id for sig in report.graph_ready],
+        "skipped_episode_ids": list(report.skipped),
+        "coverage": {
+            "observed_count": report.coverage.observed_count,
+            "annotation_row_count": report.coverage.annotation_row_count,
+            "annotated_count": report.coverage.annotated_count,
+            "pending_count": report.coverage.pending_count,
+            "pending_episode_ids": list(report.coverage.pending_episode_ids),
+            "state": report.coverage.coverage,
+        },
+    }
+    if provenance:
+        base_provenance.update(provenance)
 
     return {
         "kind": "map_payload",
@@ -110,11 +131,7 @@ def build_map_payload(
         "links": links,
         "clusters": clusters,
         "neighbors": neighbors,
-        "provenance": {
-            "generated_from": "graph_signatures",
-            "graph_ready_episode_ids": [sig.episode_id for sig in report.graph_ready],
-            "skipped_episode_ids": list(report.skipped),
-        },
+        "provenance": base_provenance,
     }
 
 
@@ -124,9 +141,17 @@ def write_map_payload(
     *,
     source: str,
     limits: dict[str, int] | None = None,
+    provenance: dict[str, Any] | None = None,
+    coverage=None,
 ) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = build_map_payload(episodes, source=source, limits=limits)
+    payload = build_map_payload(
+        episodes,
+        source=source,
+        limits=limits,
+        provenance=provenance,
+        coverage=coverage,
+    )
     output_path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -140,6 +165,11 @@ def main() -> None:
     parser.add_argument("--annotation-run-dir")
     parser.add_argument("--source", required=True)
     parser.add_argument("--output")
+    parser.add_argument(
+        "--require-full-coverage",
+        action="store_true",
+        help="Fail when the selected annotation-run has missing rows for this source.",
+    )
     args = parser.parse_args()
 
     output = (
@@ -147,17 +177,72 @@ def main() -> None:
         if args.output
         else Path("data/reports/map-payload") / f"{safe_filename(args.source)}.json"
     )
+    episode_dir = Path(args.episode_dir)
+    annotation_run_dir = Path(args.annotation_run_dir) if args.annotation_run_dir else None
+    episodes = load_episodes(
+        episode_dir,
+        annotation_run_dir=annotation_run_dir,
+    )
+    all_episode_ids = _episode_ids(episode_dir)
+    coverage = annotation_coverage_for_episode_ids(
+        {episode.id for episode in episodes if episode.source == args.source},
+        annotation_run_dir=annotation_run_dir,
+        known_episode_ids=all_episode_ids,
+    )
+    if args.require_full_coverage:
+        require_full_coverage(coverage)
     path = write_map_payload(
-        load_episodes(
-            Path(args.episode_dir),
-            annotation_run_dir=Path(args.annotation_run_dir)
-            if args.annotation_run_dir
-            else None,
-        ),
+        episodes,
         output,
         source=args.source,
+        coverage=coverage,
+        provenance=_cli_provenance(
+            episode_dir=episode_dir,
+            annotation_run_dir=annotation_run_dir,
+            episode_ids=all_episode_ids,
+            source=args.source,
+        ),
     )
     print(path.as_posix())
+
+
+def _cli_provenance(
+    *,
+    episode_dir: Path,
+    annotation_run_dir: Path | None,
+    episode_ids: set[str],
+    source: str,
+) -> dict[str, Any]:
+    annotation_run = selected_annotation_run(
+        episode_dir,
+        annotation_run_dir=annotation_run_dir,
+        episode_ids=episode_ids,
+    )
+    provenance: dict[str, Any] = {
+        "episode_dir": episode_dir.as_posix(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "source_scope": source,
+    }
+    if annotation_run is not None:
+        provenance.update(
+            {
+                "annotation_run_id": annotation_run.manifest.annotation_run_id,
+                "annotation_run_path": annotation_run.path.as_posix(),
+            }
+        )
+    return provenance
+
+
+def _episode_ids(episode_dir: Path) -> set[str]:
+    episode_ids: set[str] = set()
+    for path in sorted(episode_dir.glob("episode-*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            continue
+        episode_id = data.get("id", data.get("episode_id"))
+        if isinstance(episode_id, str):
+            episode_ids.add(episode_id)
+    return episode_ids
 
 
 def _entity_seeds(report: GraphReport) -> dict[tuple[str, tuple[str, ...]], EntitySeed]:

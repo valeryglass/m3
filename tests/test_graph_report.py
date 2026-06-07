@@ -1,8 +1,11 @@
 import json
 
+import pytest
+
 from app.graph_report import (
     build_report,
     load_episodes,
+    main,
     render_markdown,
     write_markdown_reports,
 )
@@ -173,6 +176,7 @@ def test_graph_report_renders_markdown_summary_and_per_episode():
     assert "- graph_ready: 2" in text
     assert "- report_ready: 2" in text
     assert "- payload_eligible: 2" in text
+    assert "- coverage: 2/2 annotated episodes (full); pending: 0" in text
     assert "## State Snapshots" not in text
     assert "## Profile Maturity" not in text
     assert "## Top Emotion Signatures" not in text
@@ -242,6 +246,85 @@ def test_graph_report_loads_annotation_run_format(tmp_path):
     assert report.graph_ready[0].episode_id == "episode-20260430-1"
 
 
+def test_graph_report_renders_partial_annotation_coverage(tmp_path):
+    episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
+    episode_dir.mkdir()
+    (episode_dir / "episode-20260430-1.json").write_text(
+        json.dumps(_observed_only_episode("episode-20260430-1"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    (episode_dir / "episode-20260430-2.json").write_text(
+        json.dumps(_observed_only_episode("episode-20260430-2"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    _write_annotation_run(
+        run_dir,
+        {"episode_id": "episode-20260430-1", "derived": _episode("x")["derived"]},
+    )
+
+    from app.analytics_loader import annotation_coverage
+
+    episodes = load_episodes(episode_dir, annotation_run_dir=run_dir)
+    report = build_report(
+        episodes,
+        coverage=annotation_coverage(episode_dir, annotation_run_dir=run_dir),
+    )
+
+    assert "- coverage: 1/2 annotated episodes (partial); pending: 1" in render_markdown(report)
+
+
+def test_graph_report_cli_require_full_coverage_fails_on_partial_run(
+    tmp_path,
+    monkeypatch,
+):
+    episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
+    episode_dir.mkdir()
+    (episode_dir / "episode-20260430-1.json").write_text(
+        json.dumps(_observed_only_episode("episode-20260430-1"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    _write_annotation_run(
+        run_dir,
+        {"episode_id": "episode-20260430-1", "derived": _episode("x")["derived"]},
+    )
+    (run_dir / "annotations.jsonl").write_text("", encoding="utf-8")
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "graph_report",
+            "--episode-dir",
+            str(episode_dir),
+            "--annotation-run-dir",
+            str(run_dir),
+            "--require-full-coverage",
+        ],
+    )
+
+    with pytest.raises(ValueError, match="coverage is partial"):
+        main()
+
+
+def test_graph_report_loads_latest_annotation_run_by_default(tmp_path):
+    episode_dir = tmp_path / "episodes"
+    run_root = tmp_path / "annotation-runs"
+    run_dir = run_root / "run-20260605"
+    episode_dir.mkdir()
+    (episode_dir / "episode-20260430-1.json").write_text(
+        json.dumps(_observed_only_episode("episode-20260430-1"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    _write_annotation_run(
+        run_dir,
+        {"episode_id": "episode-20260430-1", "derived": _episode("x")["derived"]},
+    )
+
+    report = build_report(load_episodes(episode_dir, annotation_run_root=run_root))
+
+    assert report.graph_ready[0].episode_id == "episode-20260430-1"
+
+
 def test_graph_report_writes_all_and_source_reports(tmp_path):
     episodes = [
         load_episode(_episode("episode-20260430-1", source="telegram-chat:123")),
@@ -266,6 +349,58 @@ def test_graph_report_writes_all_and_source_reports(tmp_path):
     assert "- episodes: 1" in source_text
 
 
+def test_graph_report_cli_without_output_dir_prints_without_writing(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    episode_dir = tmp_path / "episodes"
+    report_dir = tmp_path / "reports"
+    episode_dir.mkdir()
+    (episode_dir / "episode-20260430-1.json").write_text(
+        json.dumps(_episode("episode-20260430-1"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        ["graph_report", "--episode-dir", str(episode_dir), "--min-count", "1"],
+    )
+
+    main()
+
+    assert capsys.readouterr().out.startswith("# Graph Report\n")
+    assert not report_dir.exists()
+
+
+def test_graph_report_cli_writes_only_with_explicit_output_dir(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    episode_dir = tmp_path / "episodes"
+    report_dir = tmp_path / "reports"
+    episode_dir.mkdir()
+    (episode_dir / "episode-20260430-1.json").write_text(
+        json.dumps(_episode("episode-20260430-1"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "graph_report",
+            "--episode-dir",
+            str(episode_dir),
+            "--output-dir",
+            str(report_dir),
+        ],
+    )
+
+    main()
+
+    assert capsys.readouterr().out.strip() == str(report_dir / "all.md")
+    assert (report_dir / "all.md").exists()
+
+
 def load_episode(data):
     from app.schemas.episode import Episode
 
@@ -278,3 +413,25 @@ def _observed_only_episode(episode_id):
     data["metadata"] = {"capture_version": "test"}
     data.pop("derived")
     return data
+
+
+def _write_annotation_run(run_dir, row):
+    run_dir.mkdir(parents=True)
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "annotation_run_id": run_dir.name,
+                "schema_version": "episode.v1",
+                "taxonomy_version": "taxonomy.v1",
+                "prompt_version": "prompt.v1",
+                "created_at": "2026-05-01T00:00:00Z",
+                "source_episode_count": 1,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "annotations.jsonl").write_text(
+        json.dumps(row, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )

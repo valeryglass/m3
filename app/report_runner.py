@@ -2,42 +2,56 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.annotation_workflow import audit_episode_dir
+from app.analytics_loader import annotation_coverage
+from app.annotation_audit import audit_episode_dir
 from app.config import Settings
-from app.graph_report import build_report, load_episodes, write_markdown_reports
-from app.ux_analytics import load_user_records, summarize_events, write_reports
+from app.graph_report import build_report, load_episodes
+from app.ux_analytics import load_user_records, render_markdown, summarize_events
 from app.ux_events import UxEventLog
 
 
-def regenerate_graph_reports(settings: Settings) -> dict[str, int | str]:
-    audit = audit_episode_dir(settings.episode_dir)
-    episodes = load_episodes(settings.episode_dir)
-    report = build_report(episodes)
-    write_markdown_reports(
-        episodes,
-        settings.graph_report_dir,
-        min_count=settings.report_min_count,
-        by_source=True,
+def build_graph_report_summary(settings: Settings) -> dict[str, int]:
+    audit = audit_episode_dir(
+        settings.episode_dir,
+        annotation_run_dir=getattr(settings, "annotation_run_dir", None),
+        annotation_run_root=getattr(settings, "annotation_run_root", None),
     )
+    episodes = load_episodes(
+        settings.episode_dir,
+        annotation_run_dir=getattr(settings, "annotation_run_dir", None),
+        annotation_run_root=getattr(settings, "annotation_run_root", None),
+    )
+    coverage = annotation_coverage(
+        settings.episode_dir,
+        annotation_run_dir=getattr(settings, "annotation_run_dir", None),
+        annotation_run_root=getattr(settings, "annotation_run_root", None),
+    )
+    report = build_report(episodes, coverage=coverage)
 
     return {
         "episodes": report.total_episodes,
+        "observed_count": coverage.observed_count,
+        "annotation_row_count": coverage.annotation_row_count,
+        "annotated_count": coverage.annotated_count,
+        "pending_count": coverage.pending_count,
+        "coverage": coverage.coverage,
         "invalid": audit.invalid,
-        "empty_derived": audit.empty_derived,
-        "annotation_ready": audit.annotation_ready,
+        "empty_derived": sum(
+            1 for item in report.readiness if "empty_derived" in item.gap_reasons
+        ),
+        "annotation_ready": sum(1 for item in report.readiness if item.annotation_ready),
         "graph_ready": len(report.graph_ready),
         "report_ready": sum(1 for item in report.readiness if item.report_ready),
         "payload_eligible": sum(
             1 for item in report.readiness if item.payload_eligible
         ),
-        "graph_path": (settings.graph_report_dir / "all.md").as_posix(),
     }
 
 
-def regenerate_ux_report(settings: Settings) -> tuple[Path, Path]:
+def build_ux_report_text(settings: Settings) -> str:
     summary: dict[str, Any] = summarize_events(
         UxEventLog(settings.ux_event_log).read(),
         idle_after_sec=settings.ux_idle_after_sec,
         user_records=load_user_records(settings.userlist_path),
     )
-    return write_reports(summary, settings.ux_report_dir)
+    return render_markdown(summary)

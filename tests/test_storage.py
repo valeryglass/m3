@@ -1,6 +1,7 @@
 import json
 
 from app.loop_extractor import LoopSession
+from app.schemas.episode import Episode
 from app.storage import JsonStorage
 
 
@@ -100,7 +101,7 @@ def test_save_episode_keeps_plain_emotion_without_items(tmp_path):
     }
 
 
-def test_save_episode_persists_derived_annotations(tmp_path):
+def test_save_episode_omits_runtime_derived_annotations(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
     session = LoopSession(
         chat_id=123,
@@ -168,7 +169,7 @@ def test_save_episode_persists_derived_annotations(tmp_path):
     path = storage.save_episode(session)
 
     data = json.loads(path.read_text(encoding="utf-8"))
-    assert data["derived"]["nodes"][0]["kind"] == "cognition"
-    assert data["derived"]["cognition_annotations"][0]["confidence"] == 0.8
-    assert data["derived"]["relations"][0]["type"] == "belongs_to"
-    assert "intensity" not in data["derived"]["emotion_annotations"][0]
+    episode = Episode.model_validate(data)
+    assert "derived" not in data
+    assert "current_derived" not in data
+    assert episode.derived.nodes == []

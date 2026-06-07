@@ -3,8 +3,8 @@
 ## Decision
 
 Add a renderer-neutral map payload JSON artifact under Pattern Payloads. The
-compiler builds one-source map payloads from graph signatures and writes private
-runtime JSON artifacts under `data/reports/map-payload/`.
+compiler builds one-source map payloads from graph signatures as explicit
+technical exports for map experiments.
 
 ## Why
 
@@ -28,6 +28,7 @@ Negative:
 
 ## Policy
 
-The map compiler must not change episode schema or graph readiness logic.
-Generated map artifacts remain private runtime outputs under `data/reports/`.
-Renderers must consume the map payload instead of re-deriving graph semantics.
+The map compiler must not change episode schema or graph readiness logic. Map
+payload JSON and map HTML are explicit export artifacts, not active report
+storage or source-of-truth data. Renderers must consume the map payload instead
+of re-deriving graph semantics.

@@ -2,9 +2,10 @@
 
 ## Decision
 
-Keep the active report surface lean: Graph Reporting for internal readiness and
-debug reports, User Report for Telegram-facing summaries, Pattern Payloads for
-map payload JSON/HTML, and UX Analytics for loop-event reports.
+Keep the active report surface lean: on-demand Graph Reporting for internal
+readiness summaries, User Report for Telegram-facing summaries, Pattern
+Payloads for map payload JSON/HTML, and on-demand UX Analytics for loop-event
+summaries.
 
 Remove raw psy-payload Markdown from the main flow and stop generating stale
 CBT analytics/profile and psy-map artifacts.
@@ -24,7 +25,7 @@ Positive:
 - fewer report directories to inspect
 - no regular-user path exposes raw technical payload Markdown
 - map payload metrics live in a neutral helper module
-- graph reports stay focused on readiness and graph debugging
+- graph reports stay focused on on-demand readiness and graph debugging
 
 Negative:
 
@@ -35,3 +36,5 @@ Negative:
 
 Do not add a generated report surface unless it has a clear consumer. Shared
 pattern metrics should live in neutral helpers, not in one renderer.
+Persistent report files are optional debug/export snapshots, not active
+storage.
