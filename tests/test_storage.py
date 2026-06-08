@@ -2,12 +2,13 @@ import json
 
 from app.loop_extractor import LoopSession
 from app.schemas.episode import Episode
+from app.session_store import LoopSessionStore
 from app.storage import JsonStorage
 
 
 def test_next_episode_id_uses_next_number(tmp_path):
     episode_dir = tmp_path / "episodes"
-    storage = JsonStorage(episode_dir=episode_dir, state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=episode_dir)
     (episode_dir / "episode-20260430-1.json").write_text("{}\n")
     (episode_dir / "episode-20260430-2.json").write_text("{}\n")
 
@@ -15,20 +16,27 @@ def test_next_episode_id_uses_next_number(tmp_path):
 
 
 def test_session_round_trip(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     session = LoopSession(chat_id=123, episode_date="2026-04-30")
 
-    storage.save_session(session)
-    loaded = storage.load_session(123)
+    session_store.save_session(session)
+    loaded = session_store.load_session(123)
 
     assert loaded is not None
     assert loaded.chat_id == 123
     assert loaded.episode_date == "2026-04-30"
 
 
+def test_json_storage_only_creates_episode_directory(tmp_path):
+    JsonStorage(episode_dir=tmp_path / "episodes")
+
+    assert (tmp_path / "episodes").is_dir()
+    assert not (tmp_path / "runtime-sessions").exists()
+
+
 def test_episode_count_for_chat_counts_only_matching_source(tmp_path):
     episode_dir = tmp_path / "episodes"
-    storage = JsonStorage(episode_dir=episode_dir, state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=episode_dir)
     (episode_dir / "episode-20260430-1.json").write_text(
         '{"source": "telegram-chat:123"}\n',
         encoding="utf-8",
@@ -50,7 +58,7 @@ def test_episode_count_for_chat_counts_only_matching_source(tmp_path):
 
 
 def test_save_episode_persists_full_observed_fields(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
     session = LoopSession(
         chat_id=123,
         episode_date="2026-04-30",
@@ -77,7 +85,7 @@ def test_save_episode_persists_full_observed_fields(tmp_path):
 
 
 def test_save_episode_keeps_plain_emotion_without_items(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
     session = LoopSession(
         chat_id=123,
         episode_date="2026-04-30",
@@ -102,7 +110,7 @@ def test_save_episode_keeps_plain_emotion_without_items(tmp_path):
 
 
 def test_save_episode_omits_runtime_derived_annotations(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
     session = LoopSession(
         chat_id=123,
         episode_date="2026-04-30",

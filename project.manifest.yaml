@@ -32,13 +32,15 @@ modules:
     owned_paths:
       - app/telegram_bot.py
       - app/loop_extractor.py
+      - app/session_store.py
       - app/messages.py
       - app/tone_engine.py
       - app/user_report.py
       - config/tone.yaml
+      - data/runtime-sessions/
     inputs:
       - Telegram messages and callbacks
-      - data/state/*.json
+      - data/runtime-sessions/*.json
     outputs:
       - observed episode drafts
       - observed source episode files
@@ -49,7 +51,7 @@ modules:
       - ten_step_episode_collection
       - tone_controlled_prompts
       - user_profile_report_rendering
-      - private_runtime_state
+      - private_runtime_session_memory
 
   episode_model_storage:
     stage: experimental

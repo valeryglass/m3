@@ -13,26 +13,9 @@ EPISODE_RE = re.compile(r"^episode-(?P<date>[0-9]{8})-(?P<n>[0-9]+)\.json$")
 
 
 class JsonStorage:
-    def __init__(self, episode_dir: Path, state_dir: Path) -> None:
+    def __init__(self, episode_dir: Path) -> None:
         self.episode_dir = episode_dir
-        self.state_dir = state_dir
         self.episode_dir.mkdir(parents=True, exist_ok=True)
-        self.state_dir.mkdir(parents=True, exist_ok=True)
-
-    def load_session(self, chat_id: int) -> LoopSession | None:
-        path = self._session_path(chat_id)
-        if not path.exists():
-            return None
-        return LoopSession.from_dict(json.loads(path.read_text(encoding="utf-8")))
-
-    def save_session(self, session: LoopSession) -> None:
-        self._session_path(session.chat_id).write_text(
-            json.dumps(session.to_dict(), ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
-
-    def delete_session(self, chat_id: int) -> None:
-        self._session_path(chat_id).unlink(missing_ok=True)
 
     def save_episode(self, session: LoopSession) -> Path:
         if session.episode_date is None:
@@ -83,6 +66,3 @@ class JsonStorage:
             if match:
                 max_n = max(max_n, int(match.group("n")))
         return f"episode-{compact_date}-{max_n + 1}"
-
-    def _session_path(self, chat_id: int) -> Path:
-        return self.state_dir / f"chat-{chat_id}.json"

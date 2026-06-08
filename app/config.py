@@ -17,7 +17,7 @@ class Settings:
     telegram_admin_chat_ids: frozenset[int]
     telegram_owner_chat_id: int | None
     episode_dir: Path
-    state_dir: Path
+    runtime_session_dir: Path
     userlist_path: Path
     ux_event_log: Path
     annotation_run_dir: Path | None
@@ -70,7 +70,9 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
             source.get("M3_TELEGRAM_OWNER_CHAT_ID")
         ),
         episode_dir=Path(source.get("M3_EPISODE_DIR", "data/episodes")),
-        state_dir=Path(source.get("M3_STATE_DIR", "data/state")),
+        runtime_session_dir=Path(
+            source.get("M3_RUNTIME_SESSION_DIR", "data/runtime-sessions")
+        ),
         userlist_path=Path(source.get("M3_USERLIST_PATH", "data/userlist/users.json")),
         ux_event_log=Path(source.get("M3_UX_EVENT_LOG", "data/ux-events/events.jsonl")),
         annotation_run_dir=(

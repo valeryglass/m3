@@ -19,6 +19,7 @@ The active engine is JSON:
 - `model/*.template.json` provides fillable artifact shapes.
 - `data/episodes/*.json` stores private observed source episode records.
 - `data/annotation-runs/run-*/` stores durable derived graph artifacts.
+- `data/runtime-sessions/*.json` stores private in-progress Telegram session memory.
 - `data/ux-events/*.jsonl` stores private runtime UX event records.
 - `data/reports/` stores optional private debug/export snapshots only.
 - `config/tone.yaml` configures user-facing loop tone.
@@ -49,7 +50,7 @@ files affect architecture, interfaces, user-facing behavior, or report surfaces.
 raw/       -- immutable user texts, thoughts, logs, and artifacts
 sources/   -- immutable reference/source materials
 model/     -- accepted CBT model and JSON contracts
-data/      -- private runtime artifacts and loop state
+data/      -- private runtime artifacts and session memory
 config/    -- runtime configuration files
 app/       -- Telegram loop extractor application
 docs/      -- architecture operating system and methodology drafts

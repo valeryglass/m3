@@ -10,7 +10,7 @@ The project has working layers:
 - `sources/`: immutable reference/source materials.
 - `model/`: accepted CBT model and JSON contracts.
 - `data/episodes/`: private observed/source episode records.
-- `data/state/`: private active Telegram session state.
+- `data/runtime-sessions/`: private in-progress Telegram session memory.
 - `data/userlist/`: private alpha waitlist and approval records.
 - `data/ux-events/`: private step-level UX analytics event log.
 - `data/reports/`: optional private debug/export snapshots.
@@ -54,7 +54,7 @@ cp .env.example .env
 python -m app.telegram_bot
 ```
 
-Runtime episode artifacts, session state, and alpha userlist records are stored
+Runtime episode artifacts, session memory, and alpha userlist records are stored
 under `data/` and are ignored by git.
 
 Analytics can use versioned derived annotations from `data/annotation-runs/`.

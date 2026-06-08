@@ -4,7 +4,7 @@ sources/**
 # Legacy local episode artifacts from the pre-app layout.
 episodes/*.json
 data/episodes/*.json
-data/state/*.json
+data/runtime-sessions/*.json
 data/userlist/*.json
 data/ux-events/*.jsonl
 data/annotation-work/**
@@ -18,7 +18,7 @@ data/reports/**
 !sources/
 !data/
 !data/episodes/
-!data/state/
+!data/runtime-sessions/
 !data/userlist/
 !data/ux-events/
 !data/annotation-work/
@@ -27,7 +27,7 @@ data/reports/**
 !data/exports/
 !data/reports/
 !data/episodes/.gitkeep
-!data/state/.gitkeep
+!data/runtime-sessions/.gitkeep
 !data/userlist/.gitkeep
 !data/ux-events/.gitkeep
 !data/annotation-runs/.gitkeep

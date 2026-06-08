@@ -17,7 +17,7 @@ def test_load_settings_uses_default_data_paths():
     assert settings.telegram_admin_chat_ids == frozenset()
     assert settings.telegram_owner_chat_id is None
     assert str(settings.episode_dir) == "data/episodes"
-    assert str(settings.state_dir) == "data/state"
+    assert str(settings.runtime_session_dir) == "data/runtime-sessions"
     assert str(settings.userlist_path) == "data/userlist/users.json"
     assert str(settings.ux_event_log) == "data/ux-events/events.jsonl"
     assert settings.annotation_run_dir is None
@@ -45,6 +45,7 @@ def test_load_settings_allows_overrides():
         {
             "TELEGRAM_BOT_TOKEN": "token",
             "M3_UX_EVENT_LOG": "/tmp/events.jsonl",
+            "M3_RUNTIME_SESSION_DIR": "/tmp/runtime-sessions",
             "M3_UX_IDLE_AFTER_SEC": "60",
             "M3_INITIAL_SESSION_TTL_SEC": "30",
             "M3_TONE_CONFIG": "/tmp/tone.yaml",
@@ -58,6 +59,7 @@ def test_load_settings_allows_overrides():
     )
 
     assert str(settings.ux_event_log) == "/tmp/events.jsonl"
+    assert str(settings.runtime_session_dir) == "/tmp/runtime-sessions"
     assert settings.ux_idle_after_sec == 60
     assert settings.initial_session_ttl_sec == 30
     assert str(settings.tone_config) == "/tmp/tone.yaml"
