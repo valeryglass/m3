@@ -14,6 +14,7 @@ Pattern Payloads.
 
 - renderer-neutral map payload JSON.
 - standalone map HTML preview exports.
+- tracked explicit map exports under `data/exports/map-payload/`.
 
 ## Guarantees
 
@@ -21,6 +22,8 @@ Pattern Payloads.
 - payloads avoid diagnostic claims and stable trait claims.
 - map payloads and previews are explicit exports, not canonical source
   artifacts.
+- tracked map exports may contain derived private data and should be committed
+  only when intentionally sharing that export surface.
 - timespan analytics use fixed 1-week buckets.
 - map payloads expose graph-derived semantics and provenance without choosing a
   final visual renderer.

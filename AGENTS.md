@@ -21,6 +21,7 @@ The active engine is JSON:
 - `data/annotation-runs/run-*/` stores durable derived graph artifacts.
 - `data/runtime-sessions/*.json` stores private in-progress Telegram session memory.
 - `data/ux-events/*.jsonl` stores private runtime UX event records.
+- `data/exports/map-payload/` stores explicit tracked map payload JSON/HTML exports.
 - `data/reports/` stores optional private debug/export snapshots only.
 - `config/tone.yaml` configures user-facing loop tone.
 
@@ -78,6 +79,8 @@ project.manifest.yaml -- structural source of truth
 - Analytics loaders hydrate runtime `Episode.derived` from the selected
   annotation-run or compatibility fallback.
 - Reports are computed projections and must not be treated as active storage.
+- Map payload JSON/HTML under `data/exports/map-payload/` are explicit tracked
+  exports and may contain derived private data.
 - Episode JSON artifacts belong under `data/episodes/` and are not committed.
 - UX event logs belong under `data/ux-events/` and are not committed.
 - Tone engine changes interface wording only; do not let tone rules modify CBT data.

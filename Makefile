@@ -2,13 +2,13 @@ PYTHON ?= python3
 BOT_MODULE := app.telegram_bot
 EPISODE_DIR ?= data/episodes
 GRAPH_REPORT_EXPORT_DIR ?= data/reports/graph
-MAP_PAYLOAD_DIR ?= data/reports/map-payload
+MAP_PAYLOAD_EXPORT_DIR ?= data/exports/map-payload
 UX_REPORT_EXPORT_DIR ?= data/reports/ux
 REPORT_MIN_COUNT ?= 2
 MAP_SOURCE ?= telegram-chat:327002663
 MAP_SOURCE_SAFE ?= $(subst :,-,$(subst /,-,$(MAP_SOURCE)))
 
-.PHONY: bot bot-pid bot-stop bot-kill bot-restart legacy-normalize-episodes-write audit export-graph-report report-map-payload report-map-html export-ux-report export-debug-reports analytics-ux analytics
+.PHONY: bot bot-pid bot-stop bot-kill bot-restart legacy-normalize-episodes-write audit export-graph-report export-map-payload export-map-html export-ux-report export-debug-reports analytics-ux analytics
 
 bot:
 	$(PYTHON) -m $(BOT_MODULE)
@@ -46,11 +46,11 @@ audit:
 export-graph-report:
 	$(PYTHON) -m app.graph_report --episode-dir $(EPISODE_DIR) --output-dir $(GRAPH_REPORT_EXPORT_DIR) --by-source --min-count $(REPORT_MIN_COUNT)
 
-report-map-payload:
-	$(PYTHON) -m app.map_payload --episode-dir $(EPISODE_DIR) --source $(MAP_SOURCE) --output $(MAP_PAYLOAD_DIR)/$(MAP_SOURCE_SAFE).json
+export-map-payload:
+	$(PYTHON) -m app.map_payload --episode-dir $(EPISODE_DIR) --source $(MAP_SOURCE) --output $(MAP_PAYLOAD_EXPORT_DIR)/$(MAP_SOURCE_SAFE).json
 
-report-map-html:
-	$(PYTHON) -m app.map_payload_html --input $(MAP_PAYLOAD_DIR)/$(MAP_SOURCE_SAFE).json --output $(MAP_PAYLOAD_DIR)/$(MAP_SOURCE_SAFE).html
+export-map-html:
+	$(PYTHON) -m app.map_payload_html --input $(MAP_PAYLOAD_EXPORT_DIR)/$(MAP_SOURCE_SAFE).json --output $(MAP_PAYLOAD_EXPORT_DIR)/$(MAP_SOURCE_SAFE).html
 
 export-ux-report:
 	$(PYTHON) -m app.ux_analytics --output-dir $(UX_REPORT_EXPORT_DIR)

@@ -144,7 +144,7 @@ modules:
       - app/pattern_metrics.py
       - app/map_payload.py
       - app/map_payload_html.py
-      - data/reports/map-payload/
+      - data/exports/map-payload/
     inputs:
       - report-ready episodes
       - graph signature counters

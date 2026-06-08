@@ -32,6 +32,8 @@ data/reports/**
 !data/ux-events/.gitkeep
 !data/annotation-runs/.gitkeep
 !data/exports/.gitkeep
+!data/exports/map-payload/
+!data/exports/map-payload/**
 
 # Ignore user-local Obsidian workspace state.
 .obsidian/workspace.json
