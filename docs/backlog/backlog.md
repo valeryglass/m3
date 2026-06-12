@@ -1,4 +1,13 @@
-# Codex task: add renderer-neutral map grid layer
+# Backlog
+
+## ALARA Docker runtime for Telegram bot
+
+Add a minimal local Docker/Compose runtime capsule for `app.telegram_bot`.
+Use `pyproject.toml` as the dependency source, keep `data/` writable, mount
+`config/`, `model/`, and `roles/` read-only, and keep the change runtime-only:
+no schema, graph, report, annotation, storage contract, or bot behavior changes.
+
+## Codex task: add renderer-neutral map grid layer
 
 ## Goal
 

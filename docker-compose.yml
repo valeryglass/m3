@@ -1,0 +1,11 @@
+services:
+  bot:
+    build: .
+    command: python -m app.telegram_bot
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config:ro
+      - ./model:/app/model:ro
+      - ./roles:/app/roles:ro

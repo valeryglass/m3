@@ -59,6 +59,13 @@ cp .env.example .env
 python -m app.telegram_bot
 ```
 
+The same bot can run in the local Docker runtime capsule:
+
+```bash
+make docker-bot
+docker compose up bot
+```
+
 Runtime episode artifacts, session memory, and alpha userlist records are stored
 under `data/` and are ignored by git.
 

@@ -8,10 +8,13 @@ REPORT_MIN_COUNT ?= 2
 MAP_SOURCE ?= telegram-chat:327002663
 MAP_SOURCE_SAFE ?= $(subst :,-,$(subst /,-,$(MAP_SOURCE)))
 
-.PHONY: bot bot-pid bot-stop bot-kill bot-restart legacy-normalize-episodes-write audit export-graph-report export-map-payload export-map-html export-ux-report export-debug-reports analytics-ux analytics
+.PHONY: bot docker-bot bot-pid bot-stop bot-kill bot-restart legacy-normalize-episodes-write audit export-graph-report export-map-payload export-map-html export-ux-report export-debug-reports analytics-ux analytics
 
 bot:
 	$(PYTHON) -m $(BOT_MODULE)
+
+docker-bot:
+	docker compose up bot
 
 bot-pid:
 	@pgrep -af '$(BOT_MODULE)' || true
