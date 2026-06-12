@@ -1,141 +1,220 @@
-# app/map_topology.py
+from __future__ import annotations
 
 """Renderer-neutral spatial topology for map payloads.
 
-This module answers:
+This module is the first boundary after ``map_payload``. It should translate
+semantic map entities into neutral spatial candidates without rendering and
+without making current districts the permanent map truth.
 
-* what map entities become spatial nodes?
-* what nodes are near each other?
-* where are approximate continuous centers?
+Current policy:
 
-It does NOT:
-
-* render SVG/HTML
-* create grid cells
-* modify map_payload contract
-  """
-
-from **future** import annotations
+* current ``district`` payload entities may become temporary ``region`` seeds.
+* future attractors / graph communities may also become ``region`` seeds.
+* topology keeps source IDs so renderer/grid code does not depend on the
+  current district compiler.
+"""
 
 from dataclasses import dataclass
+import math
 from typing import Any
 
-@dataclass(frozen=True)
-class TopologyNode:
-id: str
-entity_id: str
-entity_type: str
-label: str
-x: float
-y: float
-weight: float
-radius_hint: float
-similarity_keys: tuple[str, ...]
+
+REGION_SOURCE_TYPES = frozenset({"district", "attractor", "region"})
+
 
 @dataclass(frozen=True)
-class TopologyEdge:
-id: str
-from_node: str
-to_node: str
-kind: str
-strength: float
+class TopologyEntity:
+    """Spatial candidate extracted from semantic map payload."""
+
+    id: str
+    source_entity_id: str
+    source_entity_type: str
+    spatial_role: str
+    label: str
+    x: float
+    y: float
+    weight: float
+    radius_hint: float
+    similarity_keys: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class TopologyRelation:
+    """Spatial relation between topology entities."""
+
+    id: str
+    from_entity_id: str
+    to_entity_id: str
+    kind: str
+    strength: float
+    source_id: str | None = None
+
 
 @dataclass(frozen=True)
 class MapTopology:
-width: int
-height: int
-nodes: tuple[TopologyNode, ...]
-edges: tuple[TopologyEdge, ...]
+    """Renderer-neutral spatial graph.
+
+    ``entities`` are still continuous-position candidates. The discrete map is
+    compiled later by ``hex_world`` / ``map_grid``.
+    """
+
+    width: int
+    height: int
+    entities: tuple[TopologyEntity, ...]
+    relations: tuple[TopologyRelation, ...]
+
+    @property
+    def nodes(self) -> tuple[TopologyEntity, ...]:
+        """Compatibility alias for the older draft name."""
+
+        return self.entities
+
+    @property
+    def edges(self) -> tuple[TopologyRelation, ...]:
+        """Compatibility alias for the older draft name."""
+
+        return self.relations
+
 
 def build_topology(
-payload: dict[str, Any],
-*,
-width: int = 1200,
-height: int = 800,
+    payload: dict[str, Any],
+    *,
+    width: int = 1200,
+    height: int = 800,
 ) -> MapTopology:
-"""Build deterministic continuous topology from map_payload.
+    """Build deterministic topology from a map payload.
 
-```
-Initial version should mostly extract district nodes and neighbor edges.
-Later versions can include gates, roads, destinations, landmarks.
-"""
-entities = payload.get("entities", [])
-neighbors = payload.get("neighbors", [])
+    The first slice intentionally focuses on region seeds and neighbor
+    relations. It avoids layout lock-in and avoids treating ``district`` as the
+    final spatial truth.
+    """
 
-districts = [e for e in entities if e.get("type") == "district"]
+    source_entities = list(payload.get("entities", []) or [])
+    region_sources = [entity for entity in source_entities if _is_region_source(entity)]
+    positions = _radial_positions(region_sources, width=width, height=height)
 
-# TODO(agent): reuse existing district positioning logic from map_payload_html.py
-# or move it here if already implemented there.
-positions = _district_positions_stub(districts, neighbors, width / 2, height / 2)
+    entities: list[TopologyEntity] = []
+    source_to_topology_id: dict[str, str] = {}
 
-nodes: list[TopologyNode] = []
-for entity in districts:
-    entity_id = str(entity.get("id", ""))
-    metrics = entity.get("metrics", {}) or {}
+    for source in region_sources:
+        source_id = str(source.get("id", "")).strip()
+        if not source_id:
+            continue
+
+        topology_id = f"region:{source_id}"
+        source_to_topology_id[source_id] = topology_id
+
+        metrics = source.get("metrics", {}) or {}
+        hints = source.get("compiler_hints", {}) or {}
+        weight = _safe_float(metrics.get("weight"), default=0.0)
+        x, y = positions.get(source_id, (width / 2.0, height / 2.0))
+
+        entities.append(
+            TopologyEntity(
+                id=topology_id,
+                source_entity_id=source_id,
+                source_entity_type=str(source.get("type") or "unknown"),
+                spatial_role="region",
+                label=str(source.get("label") or source_id),
+                x=float(x),
+                y=float(y),
+                weight=weight,
+                radius_hint=_radius_hint(weight, metrics),
+                similarity_keys=tuple(str(item) for item in hints.get("semantic_similarity_keys", []) or []),
+            )
+        )
+
+    relations = _neighbor_relations(payload, source_to_topology_id)
+    return MapTopology(
+        width=width,
+        height=height,
+        entities=tuple(sorted(entities, key=lambda item: item.id)),
+        relations=tuple(relations),
+    )
+
+
+def _is_region_source(entity: dict[str, Any]) -> bool:
+    entity_type = str(entity.get("type") or "")
     hints = entity.get("compiler_hints", {}) or {}
+    role = str(hints.get("suggested_map_role") or "")
+    return entity_type in REGION_SOURCE_TYPES or role in REGION_SOURCE_TYPES
 
-    x, y = positions.get(entity_id, (width / 2, height / 2))
 
-    nodes.append(
-        TopologyNode(
-            id=f"node-{entity_id}",
-            entity_id=entity_id,
-            entity_type="district",
-            label=str(entity.get("label", entity_id)),
-            x=float(x),
-            y=float(y),
-            weight=float(metrics.get("weight", 0.0) or 0.0),
-            radius_hint=40.0 + 60.0 * float(metrics.get("weight", 0.0) or 0.0),
-            similarity_keys=tuple(hints.get("semantic_similarity_keys", []) or []),
-        )
-    )
-
-node_ids = {node.entity_id: node.id for node in nodes}
-
-edges: list[TopologyEdge] = []
-for index, neighbor in enumerate(sorted(neighbors, key=lambda n: str(n.get("id", "")))):
-    source = str(neighbor.get("from", ""))
-    target = str(neighbor.get("to", ""))
-    if source not in node_ids or target not in node_ids:
-        continue
-
-    edges.append(
-        TopologyEdge(
-            id=str(neighbor.get("id") or f"topology-edge-{index + 1}"),
-            from_node=node_ids[source],
-            to_node=node_ids[target],
-            kind="neighbor",
-            strength=float(neighbor.get("score", neighbor.get("weight", 0.0)) or 0.0),
-        )
-    )
-
-return MapTopology(width=width, height=height, nodes=tuple(nodes), edges=tuple(edges))
-```
-
-def _district_positions_stub(
-districts: list[dict[str, Any]],
-neighbors: list[dict[str, Any]],
-center_x: float,
-center_y: float,
+def _radial_positions(
+    entities: list[dict[str, Any]],
+    *,
+    width: int,
+    height: int,
 ) -> dict[str, tuple[float, float]]:
-"""Temporary placeholder.
+    """Return deterministic continuous seed positions.
 
-```
-TODO(agent):
-Replace with extracted deterministic force layout from map_payload_html.py.
-This function exists only to make the module boundary explicit.
-"""
-if not districts:
-    return {}
+    This is intentionally simple. The canonical spatial output is the later
+    hex-world artifact, not this temporary continuous placement.
+    """
 
-if len(districts) == 1:
-    return {str(districts[0]["id"]): (center_x, center_y)}
+    if not entities:
+        return {}
 
-# Simple deterministic fallback line. Not final layout.
-step = 80.0
-start = center_x - step * (len(districts) - 1) / 2
-return {
-    str(entity["id"]): (start + index * step, center_y)
-    for index, entity in enumerate(districts)
-}
-```
+    ordered = sorted(
+        entities,
+        key=lambda entity: (
+            -_safe_float((entity.get("compiler_hints", {}) or {}).get("layout_priority"), default=0.0),
+            str(entity.get("id") or ""),
+        ),
+    )
+    center_x = width / 2.0
+    center_y = height / 2.0
+
+    if len(ordered) == 1:
+        return {str(ordered[0].get("id")): (center_x, center_y)}
+
+    radius = max(120.0, min(width, height) * 0.28)
+    result: dict[str, tuple[float, float]] = {}
+    for index, entity in enumerate(ordered):
+        angle = -math.pi / 2.0 + (2.0 * math.pi * index / len(ordered))
+        source_id = str(entity.get("id") or "")
+        result[source_id] = (
+            center_x + radius * math.cos(angle),
+            center_y + radius * math.sin(angle),
+        )
+    return result
+
+
+def _neighbor_relations(
+    payload: dict[str, Any],
+    source_to_topology_id: dict[str, str],
+) -> list[TopologyRelation]:
+    relations: list[TopologyRelation] = []
+    neighbors = sorted(payload.get("neighbors", []) or [], key=lambda item: str(item.get("id") or ""))
+
+    for index, neighbor in enumerate(neighbors):
+        source = source_to_topology_id.get(str(neighbor.get("from") or ""))
+        target = source_to_topology_id.get(str(neighbor.get("to") or ""))
+        if source is None or target is None:
+            continue
+
+        relations.append(
+            TopologyRelation(
+                id=str(neighbor.get("id") or f"region-neighbor-{index + 1}"),
+                from_entity_id=source,
+                to_entity_id=target,
+                kind=str(neighbor.get("type") or "neighbor"),
+                strength=_safe_float(neighbor.get("score", neighbor.get("weight")), default=0.0),
+                source_id=str(neighbor.get("id") or "") or None,
+            )
+        )
+    return relations
+
+
+def _radius_hint(weight: float, metrics: dict[str, Any]) -> float:
+    count = max(1.0, _safe_float(metrics.get("count"), default=1.0))
+    return 64.0 + 64.0 * max(weight, 0.0) + 8.0 * min(count, 8.0)
+
+
+def _safe_float(value: Any, *, default: float) -> float:
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default

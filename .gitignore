@@ -34,6 +34,8 @@ data/reports/**
 !data/exports/.gitkeep
 !data/exports/map-payload/
 !data/exports/map-payload/**
+!data/exports/hex-world/
+!data/exports/hex-world/.gitkeep
 
 # Ignore user-local Obsidian workspace state.
 .obsidian/

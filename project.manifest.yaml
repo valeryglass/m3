@@ -143,13 +143,18 @@ modules:
     owned_paths:
       - app/pattern_metrics.py
       - app/map_payload.py
+      - app/map_topology.py
+      - app/map_grid.py
+      - app/hex_world.py
       - app/map_payload_html.py
       - data/exports/map-payload/
+      - data/exports/hex-world/
     inputs:
       - report-ready episodes
       - graph signature counters
     outputs:
       - explicit map payload JSON exports
+      - explicit hex-world layout JSON exports
       - explicit map HTML preview exports
     interfaces:
       - report_to_payload
@@ -160,6 +165,8 @@ modules:
       - fork_convergence_outcome_analysis
       - one_week_drift_novelty_stability
       - backend_map_payload
+      - hex_world_spatial_layout
+      - axial_hex_grid_math
       - map_payload_html_preview
 
   ux_analytics:
