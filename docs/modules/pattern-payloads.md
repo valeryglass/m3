@@ -57,6 +57,9 @@ it may still consume map payload JSON directly, but the accepted direction is fo
 renderers to consume `hex_world` instead of inventing geography from semantic
 payload entities.
 
+`app/hex_world_html.py` renders standalone diagnostic HTML/SVG previews from
+hex-world JSON. It is a visual validation surface, not the final map renderer.
+
 Current local export commands write map payload artifacts under
 `data/exports/map-payload/`. Future hex-world exports may use
 `data/exports/hex-world/`. These directories are explicit tracked export

@@ -147,6 +147,7 @@ modules:
       - app/map_grid.py
       - app/hex_world.py
       - app/map_payload_html.py
+      - app/hex_world_html.py
       - data/exports/map-payload/
       - data/exports/hex-world/
     inputs:
@@ -156,6 +157,7 @@ modules:
       - explicit map payload JSON exports
       - explicit hex-world layout JSON exports
       - explicit map HTML preview exports
+      - explicit diagnostic hex-world HTML preview exports
     interfaces:
       - report_to_payload
     gates:
@@ -168,6 +170,7 @@ modules:
       - hex_world_spatial_layout
       - axial_hex_grid_math
       - map_payload_html_preview
+      - hex_world_html_diagnostic_preview
 
   ux_analytics:
     stage: prototype
