@@ -1,0 +1,2248 @@
+{
+  "kind": "map_payload",
+  "version": "0.1",
+  "source": "telegram-chat:1225520131",
+  "episodes": 11,
+  "timespan_quant": "1week",
+  "similarity": {
+    "version": "symbolic_v1"
+  },
+  "entities": [
+    {
+      "id": "district-1",
+      "type": "district",
+      "label": "social + злость + avoid",
+      "parent_id": null,
+      "signature": {
+        "trigger": "social",
+        "emotion": "злость",
+        "behavior": "avoid"
+      },
+      "metrics": {
+        "count": 4,
+        "weight": 1.0,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": true,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 1.0,
+        "semantic_similarity_keys": [
+          "social",
+          "злость",
+          "avoid"
+        ],
+        "centrality": 1.0,
+        "density": 0.625,
+        "suggested_map_role": "district"
+      },
+      "cluster_membership": {
+        "cluster_id": "district-cluster-1"
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-11",
+          "episode-20260529-2",
+          "episode-20260529-3"
+        ]
+      }
+    },
+    {
+      "id": "district-2",
+      "type": "district",
+      "label": "social + злость + compensate",
+      "parent_id": null,
+      "signature": {
+        "trigger": "social",
+        "emotion": "злость",
+        "behavior": "compensate"
+      },
+      "metrics": {
+        "count": 2,
+        "weight": 0.5,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": true,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.5,
+        "semantic_similarity_keys": [
+          "social",
+          "злость",
+          "compensate"
+        ],
+        "centrality": 0.5,
+        "density": 0.375,
+        "suggested_map_role": "district"
+      },
+      "cluster_membership": {
+        "cluster_id": "district-cluster-1"
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "district-3",
+      "type": "district",
+      "label": "social + злость + freeze",
+      "parent_id": null,
+      "signature": {
+        "trigger": "social",
+        "emotion": "злость",
+        "behavior": "freeze"
+      },
+      "metrics": {
+        "count": 2,
+        "weight": 0.5,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": true,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.5,
+        "semantic_similarity_keys": [
+          "social",
+          "злость",
+          "freeze"
+        ],
+        "centrality": 0.5,
+        "density": 0.375,
+        "suggested_map_role": "district"
+      },
+      "cluster_membership": {
+        "cluster_id": "district-cluster-1"
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-10",
+          "episode-20260531-2"
+        ]
+      }
+    },
+    {
+      "id": "gate-1",
+      "type": "gate",
+      "label": "social",
+      "parent_id": null,
+      "signature": {
+        "trigger": "social"
+      },
+      "metrics": {
+        "count": 11,
+        "weight": 1.0,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 1.0,
+        "semantic_similarity_keys": [
+          "social"
+        ],
+        "centrality": 0.65,
+        "density": 1.0,
+        "suggested_map_role": "gate"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-10",
+          "episode-20260529-11",
+          "episode-20260529-2",
+          "episode-20260529-3",
+          "episode-20260529-9",
+          "episode-20260531-1",
+          "episode-20260531-2",
+          "episode-20260531-3",
+          "episode-20260531-4",
+          "episode-20260531-9"
+        ]
+      }
+    },
+    {
+      "id": "climate-1",
+      "type": "climate",
+      "label": "злость",
+      "parent_id": null,
+      "signature": {
+        "emotion": "злость"
+      },
+      "metrics": {
+        "count": 9,
+        "weight": 1.0,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 1.0,
+        "semantic_similarity_keys": [
+          "злость"
+        ],
+        "centrality": 0.65,
+        "density": 1.0,
+        "suggested_map_role": "climate"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-10",
+          "episode-20260529-11",
+          "episode-20260529-2",
+          "episode-20260529-3",
+          "episode-20260531-1",
+          "episode-20260531-2",
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "climate-2",
+      "type": "climate",
+      "label": "страх",
+      "parent_id": null,
+      "signature": {
+        "emotion": "страх"
+      },
+      "metrics": {
+        "count": 3,
+        "weight": 0.3333,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.3333,
+        "semantic_similarity_keys": [
+          "страх"
+        ],
+        "centrality": 0.2166,
+        "density": 0.5,
+        "suggested_map_role": "climate"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-9",
+          "episode-20260531-1",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "climate-3",
+      "type": "climate",
+      "label": "любовь/тепло",
+      "parent_id": null,
+      "signature": {
+        "emotion": "любовь/тепло"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.1111,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.1111,
+        "semantic_similarity_keys": [
+          "любовь/тепло"
+        ],
+        "centrality": 0.0722,
+        "density": 0.25,
+        "suggested_map_role": "climate"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-9"
+        ]
+      }
+    },
+    {
+      "id": "architecture-1",
+      "type": "architecture",
+      "label": "question",
+      "parent_id": null,
+      "signature": {
+        "cognition": "question"
+      },
+      "metrics": {
+        "count": 4,
+        "weight": 1.0,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 1.0,
+        "semantic_similarity_keys": [
+          "question"
+        ],
+        "centrality": 0.65,
+        "density": 0.625,
+        "suggested_map_role": "architecture"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-11",
+          "episode-20260529-3",
+          "episode-20260529-9",
+          "episode-20260531-2"
+        ]
+      }
+    },
+    {
+      "id": "architecture-2",
+      "type": "architecture",
+      "label": "evaluation",
+      "parent_id": null,
+      "signature": {
+        "cognition": "evaluation"
+      },
+      "metrics": {
+        "count": 3,
+        "weight": 0.75,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.75,
+        "semantic_similarity_keys": [
+          "evaluation"
+        ],
+        "centrality": 0.4875,
+        "density": 0.5,
+        "suggested_map_role": "architecture"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-10",
+          "episode-20260529-2"
+        ]
+      }
+    },
+    {
+      "id": "architecture-3",
+      "type": "architecture",
+      "label": "meaning",
+      "parent_id": null,
+      "signature": {
+        "cognition": "meaning"
+      },
+      "metrics": {
+        "count": 2,
+        "weight": 0.5,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.5,
+        "semantic_similarity_keys": [
+          "meaning"
+        ],
+        "centrality": 0.325,
+        "density": 0.375,
+        "suggested_map_role": "architecture"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-1",
+          "episode-20260531-9"
+        ]
+      }
+    },
+    {
+      "id": "architecture-4",
+      "type": "architecture",
+      "label": "prediction",
+      "parent_id": null,
+      "signature": {
+        "cognition": "prediction"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.25,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.25,
+        "semantic_similarity_keys": [
+          "prediction"
+        ],
+        "centrality": 0.1625,
+        "density": 0.25,
+        "suggested_map_role": "architecture"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-3"
+        ]
+      }
+    },
+    {
+      "id": "architecture-5",
+      "type": "architecture",
+      "label": "urge",
+      "parent_id": null,
+      "signature": {
+        "cognition": "urge"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.25,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.25,
+        "semantic_similarity_keys": [
+          "urge"
+        ],
+        "centrality": 0.1625,
+        "density": 0.25,
+        "suggested_map_role": "architecture"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "road-1",
+      "type": "road",
+      "label": "avoid",
+      "parent_id": null,
+      "signature": {
+        "behavior": "avoid"
+      },
+      "metrics": {
+        "count": 5,
+        "weight": 1.0,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 1.0,
+        "semantic_similarity_keys": [
+          "avoid"
+        ],
+        "centrality": 1.0,
+        "density": 0.75,
+        "suggested_map_role": "road"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-11",
+          "episode-20260529-2",
+          "episode-20260529-3",
+          "episode-20260529-9"
+        ]
+      }
+    },
+    {
+      "id": "road-2",
+      "type": "road",
+      "label": "compensate",
+      "parent_id": null,
+      "signature": {
+        "behavior": "compensate"
+      },
+      "metrics": {
+        "count": 2,
+        "weight": 0.4,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.4,
+        "semantic_similarity_keys": [
+          "compensate"
+        ],
+        "centrality": 0.4,
+        "density": 0.375,
+        "suggested_map_role": "road"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "road-3",
+      "type": "road",
+      "label": "freeze",
+      "parent_id": null,
+      "signature": {
+        "behavior": "freeze"
+      },
+      "metrics": {
+        "count": 2,
+        "weight": 0.4,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.4,
+        "semantic_similarity_keys": [
+          "freeze"
+        ],
+        "centrality": 0.4,
+        "density": 0.375,
+        "suggested_map_role": "road"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-10",
+          "episode-20260531-2"
+        ]
+      }
+    },
+    {
+      "id": "road-4",
+      "type": "road",
+      "label": "approach",
+      "parent_id": null,
+      "signature": {
+        "behavior": "approach"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.2,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.2,
+        "semantic_similarity_keys": [
+          "approach"
+        ],
+        "centrality": 0.2,
+        "density": 0.25,
+        "suggested_map_role": "road"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-1"
+        ]
+      }
+    },
+    {
+      "id": "road-5",
+      "type": "road",
+      "label": "submit",
+      "parent_id": null,
+      "signature": {
+        "behavior": "submit"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.2,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.2,
+        "semantic_similarity_keys": [
+          "submit"
+        ],
+        "centrality": 0.2,
+        "density": 0.25,
+        "suggested_map_role": "road"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-9"
+        ]
+      }
+    },
+    {
+      "id": "crossroads-1",
+      "type": "crossroads",
+      "label": "social -> злость",
+      "parent_id": null,
+      "signature": {
+        "trigger": "social",
+        "emotion": "злость"
+      },
+      "metrics": {
+        "count": 9,
+        "weight": 1.0,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 1.0,
+        "semantic_similarity_keys": [
+          "social",
+          "злость"
+        ],
+        "centrality": 1.0,
+        "density": 1.0,
+        "suggested_map_role": "crossroads"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-10",
+          "episode-20260529-11",
+          "episode-20260529-2",
+          "episode-20260529-3",
+          "episode-20260531-1",
+          "episode-20260531-2",
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "crossroads-2",
+      "type": "crossroads",
+      "label": "social -> страх",
+      "parent_id": null,
+      "signature": {
+        "trigger": "social",
+        "emotion": "страх"
+      },
+      "metrics": {
+        "count": 3,
+        "weight": 0.3333,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.3333,
+        "semantic_similarity_keys": [
+          "social",
+          "страх"
+        ],
+        "centrality": 0.3333,
+        "density": 0.5,
+        "suggested_map_role": "crossroads"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-9",
+          "episode-20260531-1",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "landmark-1",
+      "type": "landmark",
+      "label": "social -> злость -> avoid",
+      "parent_id": "district-1",
+      "signature": {
+        "trigger": "social",
+        "emotion": "злость",
+        "behavior": "avoid"
+      },
+      "metrics": {
+        "count": 4,
+        "weight": 1.0,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": true,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 1.0,
+        "semantic_similarity_keys": [
+          "social",
+          "злость",
+          "avoid"
+        ],
+        "centrality": 0.65,
+        "density": 0.625,
+        "suggested_map_role": "landmark"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-11",
+          "episode-20260529-2",
+          "episode-20260529-3"
+        ]
+      }
+    },
+    {
+      "id": "landmark-2",
+      "type": "landmark",
+      "label": "social -> злость -> compensate",
+      "parent_id": "district-2",
+      "signature": {
+        "trigger": "social",
+        "emotion": "злость",
+        "behavior": "compensate"
+      },
+      "metrics": {
+        "count": 2,
+        "weight": 0.5,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": true,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.5,
+        "semantic_similarity_keys": [
+          "social",
+          "злость",
+          "compensate"
+        ],
+        "centrality": 0.325,
+        "density": 0.375,
+        "suggested_map_role": "landmark"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "landmark-3",
+      "type": "landmark",
+      "label": "social -> злость -> freeze",
+      "parent_id": "district-3",
+      "signature": {
+        "trigger": "social",
+        "emotion": "злость",
+        "behavior": "freeze"
+      },
+      "metrics": {
+        "count": 2,
+        "weight": 0.5,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": true,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.5,
+        "semantic_similarity_keys": [
+          "social",
+          "злость",
+          "freeze"
+        ],
+        "centrality": 0.325,
+        "density": 0.375,
+        "suggested_map_role": "landmark"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-10",
+          "episode-20260531-2"
+        ]
+      }
+    },
+    {
+      "id": "landmark-4",
+      "type": "landmark",
+      "label": "social -> злость -> approach",
+      "parent_id": null,
+      "signature": {
+        "trigger": "social",
+        "emotion": "злость",
+        "behavior": "approach"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.25,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": true,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": true
+      },
+      "compiler_hints": {
+        "layout_priority": 0.25,
+        "semantic_similarity_keys": [
+          "social",
+          "злость",
+          "approach"
+        ],
+        "centrality": 0.1625,
+        "density": 0.25,
+        "suggested_map_role": "landmark"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-1"
+        ]
+      }
+    },
+    {
+      "id": "landmark-5",
+      "type": "landmark",
+      "label": "social -> любовь/тепло -> submit",
+      "parent_id": null,
+      "signature": {
+        "trigger": "social",
+        "emotion": "любовь/тепло",
+        "behavior": "submit"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.25,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": true,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.25,
+        "semantic_similarity_keys": [
+          "social",
+          "любовь/тепло",
+          "submit"
+        ],
+        "centrality": 0.1625,
+        "density": 0.25,
+        "suggested_map_role": "landmark"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-9"
+        ]
+      }
+    },
+    {
+      "id": "landmark-6",
+      "type": "landmark",
+      "label": "social -> страх -> approach",
+      "parent_id": null,
+      "signature": {
+        "trigger": "social",
+        "emotion": "страх",
+        "behavior": "approach"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.25,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": true,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": true
+      },
+      "compiler_hints": {
+        "layout_priority": 0.25,
+        "semantic_similarity_keys": [
+          "social",
+          "страх",
+          "approach"
+        ],
+        "centrality": 0.1625,
+        "density": 0.25,
+        "suggested_map_role": "landmark"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-1"
+        ]
+      }
+    },
+    {
+      "id": "landmark-7",
+      "type": "landmark",
+      "label": "social -> страх -> avoid",
+      "parent_id": null,
+      "signature": {
+        "trigger": "social",
+        "emotion": "страх",
+        "behavior": "avoid"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.25,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": true,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": true
+      },
+      "compiler_hints": {
+        "layout_priority": 0.25,
+        "semantic_similarity_keys": [
+          "social",
+          "страх",
+          "avoid"
+        ],
+        "centrality": 0.1625,
+        "density": 0.25,
+        "suggested_map_role": "landmark"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-9"
+        ]
+      }
+    },
+    {
+      "id": "landmark-8",
+      "type": "landmark",
+      "label": "social -> страх -> compensate",
+      "parent_id": null,
+      "signature": {
+        "trigger": "social",
+        "emotion": "страх",
+        "behavior": "compensate"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.25,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": true,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": true
+      },
+      "compiler_hints": {
+        "layout_priority": 0.25,
+        "semantic_similarity_keys": [
+          "social",
+          "страх",
+          "compensate"
+        ],
+        "centrality": 0.1625,
+        "density": 0.25,
+        "suggested_map_role": "landmark"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "destination-1",
+      "type": "destination",
+      "label": "short_term: unresolved",
+      "parent_id": null,
+      "signature": {
+        "horizon": "short_term",
+        "outcome": "unresolved"
+      },
+      "metrics": {
+        "count": 5,
+        "weight": 1.0,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 1.0,
+        "semantic_similarity_keys": [
+          "unresolved",
+          "short_term"
+        ],
+        "centrality": 0.65,
+        "density": 0.75,
+        "suggested_map_role": "destination"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-10",
+          "episode-20260529-3",
+          "episode-20260531-1",
+          "episode-20260531-2",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "destination-2",
+      "type": "destination",
+      "label": "long_term: unresolved",
+      "parent_id": null,
+      "signature": {
+        "horizon": "long_term",
+        "outcome": "unresolved"
+      },
+      "metrics": {
+        "count": 4,
+        "weight": 0.8,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.8,
+        "semantic_similarity_keys": [
+          "unresolved",
+          "long_term"
+        ],
+        "centrality": 0.52,
+        "density": 0.625,
+        "suggested_map_role": "destination"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-1",
+          "episode-20260531-2",
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "destination-3",
+      "type": "destination",
+      "label": "long_term: control",
+      "parent_id": null,
+      "signature": {
+        "horizon": "long_term",
+        "outcome": "control"
+      },
+      "metrics": {
+        "count": 2,
+        "weight": 0.4,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.4,
+        "semantic_similarity_keys": [
+          "control",
+          "long_term"
+        ],
+        "centrality": 0.26,
+        "density": 0.375,
+        "suggested_map_role": "destination"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-10",
+          "episode-20260529-11"
+        ]
+      }
+    },
+    {
+      "id": "destination-4",
+      "type": "destination",
+      "label": "long_term: neutral_mixed",
+      "parent_id": null,
+      "signature": {
+        "horizon": "long_term",
+        "outcome": "neutral_mixed"
+      },
+      "metrics": {
+        "count": 2,
+        "weight": 0.4,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.4,
+        "semantic_similarity_keys": [
+          "neutral_mixed",
+          "long_term"
+        ],
+        "centrality": 0.26,
+        "density": 0.375,
+        "suggested_map_role": "destination"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-2",
+          "episode-20260529-3"
+        ]
+      }
+    },
+    {
+      "id": "destination-5",
+      "type": "destination",
+      "label": "short_term: neutral_mixed",
+      "parent_id": null,
+      "signature": {
+        "horizon": "short_term",
+        "outcome": "neutral_mixed"
+      },
+      "metrics": {
+        "count": 2,
+        "weight": 0.4,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": false,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.4,
+        "semantic_similarity_keys": [
+          "neutral_mixed",
+          "short_term"
+        ],
+        "centrality": 0.26,
+        "density": 0.375,
+        "suggested_map_role": "destination"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-11"
+        ]
+      }
+    },
+    {
+      "id": "destination-6",
+      "type": "destination",
+      "label": "long_term: avoidance_cost",
+      "parent_id": null,
+      "signature": {
+        "horizon": "long_term",
+        "outcome": "avoidance_cost"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.2,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.2,
+        "semantic_similarity_keys": [
+          "avoidance_cost",
+          "long_term"
+        ],
+        "centrality": 0.13,
+        "density": 0.25,
+        "suggested_map_role": "destination"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-9"
+        ]
+      }
+    },
+    {
+      "id": "destination-7",
+      "type": "destination",
+      "label": "long_term: escalation",
+      "parent_id": null,
+      "signature": {
+        "horizon": "long_term",
+        "outcome": "escalation"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.2,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.2,
+        "semantic_similarity_keys": [
+          "escalation",
+          "long_term"
+        ],
+        "centrality": 0.13,
+        "density": 0.25,
+        "suggested_map_role": "destination"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1"
+        ]
+      }
+    },
+    {
+      "id": "destination-8",
+      "type": "destination",
+      "label": "long_term: learning",
+      "parent_id": null,
+      "signature": {
+        "horizon": "long_term",
+        "outcome": "learning"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.2,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.2,
+        "semantic_similarity_keys": [
+          "learning",
+          "long_term"
+        ],
+        "centrality": 0.13,
+        "density": 0.25,
+        "suggested_map_role": "destination"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-9"
+        ]
+      }
+    },
+    {
+      "id": "destination-9",
+      "type": "destination",
+      "label": "short_term: avoidance_cost",
+      "parent_id": null,
+      "signature": {
+        "horizon": "short_term",
+        "outcome": "avoidance_cost"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.2,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.2,
+        "semantic_similarity_keys": [
+          "avoidance_cost",
+          "short_term"
+        ],
+        "centrality": 0.13,
+        "density": 0.25,
+        "suggested_map_role": "destination"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-9"
+        ]
+      }
+    },
+    {
+      "id": "destination-10",
+      "type": "destination",
+      "label": "short_term: escalation",
+      "parent_id": null,
+      "signature": {
+        "horizon": "short_term",
+        "outcome": "escalation"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.2,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.2,
+        "semantic_similarity_keys": [
+          "escalation",
+          "short_term"
+        ],
+        "centrality": 0.13,
+        "density": 0.25,
+        "suggested_map_role": "destination"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-2"
+        ]
+      }
+    },
+    {
+      "id": "destination-11",
+      "type": "destination",
+      "label": "short_term: learning",
+      "parent_id": null,
+      "signature": {
+        "horizon": "short_term",
+        "outcome": "learning"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.2,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.2,
+        "semantic_similarity_keys": [
+          "learning",
+          "short_term"
+        ],
+        "centrality": 0.13,
+        "density": 0.25,
+        "suggested_map_role": "destination"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-9"
+        ]
+      }
+    },
+    {
+      "id": "destination-12",
+      "type": "destination",
+      "label": "short_term: relief",
+      "parent_id": null,
+      "signature": {
+        "horizon": "short_term",
+        "outcome": "relief"
+      },
+      "metrics": {
+        "count": 1,
+        "weight": 0.2,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "novelty_flag": false,
+        "stability_flag": false,
+        "rarity_flag": true,
+        "surprise_flag": false
+      },
+      "compiler_hints": {
+        "layout_priority": 0.2,
+        "semantic_similarity_keys": [
+          "relief",
+          "short_term"
+        ],
+        "centrality": 0.13,
+        "density": 0.25,
+        "suggested_map_role": "destination"
+      },
+      "cluster_membership": {
+        "cluster_id": null
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-3"
+        ]
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "gate_to_district-1",
+      "type": "gate_to_district",
+      "from": "gate-1",
+      "to": "district-1",
+      "weight": 1.0,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-11",
+          "episode-20260529-2",
+          "episode-20260529-3"
+        ]
+      }
+    },
+    {
+      "id": "gate_to_district-2",
+      "type": "gate_to_district",
+      "from": "gate-1",
+      "to": "district-2",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "gate_to_district-3",
+      "type": "gate_to_district",
+      "from": "gate-1",
+      "to": "district-3",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-10",
+          "episode-20260531-2"
+        ]
+      }
+    },
+    {
+      "id": "climate_to_district-1",
+      "type": "climate_to_district",
+      "from": "climate-1",
+      "to": "district-1",
+      "weight": 1.0,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-11",
+          "episode-20260529-2",
+          "episode-20260529-3"
+        ]
+      }
+    },
+    {
+      "id": "climate_to_district-2",
+      "type": "climate_to_district",
+      "from": "climate-1",
+      "to": "district-2",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "climate_to_district-3",
+      "type": "climate_to_district",
+      "from": "climate-1",
+      "to": "district-3",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-10",
+          "episode-20260531-2"
+        ]
+      }
+    },
+    {
+      "id": "architecture_to_district-1",
+      "type": "architecture_to_district",
+      "from": "architecture-1",
+      "to": "district-1",
+      "weight": 1.0,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-11",
+          "episode-20260529-3"
+        ]
+      }
+    },
+    {
+      "id": "architecture_to_district-2",
+      "type": "architecture_to_district",
+      "from": "architecture-2",
+      "to": "district-1",
+      "weight": 1.0,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-2"
+        ]
+      }
+    },
+    {
+      "id": "architecture_to_district-3",
+      "type": "architecture_to_district",
+      "from": "architecture-1",
+      "to": "district-3",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-2"
+        ]
+      }
+    },
+    {
+      "id": "architecture_to_district-4",
+      "type": "architecture_to_district",
+      "from": "architecture-2",
+      "to": "district-3",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-10"
+        ]
+      }
+    },
+    {
+      "id": "architecture_to_district-5",
+      "type": "architecture_to_district",
+      "from": "architecture-4",
+      "to": "district-2",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-3"
+        ]
+      }
+    },
+    {
+      "id": "architecture_to_district-6",
+      "type": "architecture_to_district",
+      "from": "architecture-5",
+      "to": "district-2",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "district_to_road-1",
+      "type": "district_to_road",
+      "from": "district-1",
+      "to": "road-1",
+      "weight": 1.0,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-11",
+          "episode-20260529-2",
+          "episode-20260529-3"
+        ]
+      }
+    },
+    {
+      "id": "district_to_road-2",
+      "type": "district_to_road",
+      "from": "district-2",
+      "to": "road-2",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "district_to_road-3",
+      "type": "district_to_road",
+      "from": "district-3",
+      "to": "road-3",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-10",
+          "episode-20260531-2"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-1",
+      "type": "road_to_destination",
+      "from": "road-1",
+      "to": "destination-4",
+      "weight": 1.0,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-2",
+          "episode-20260529-3"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-2",
+      "type": "road_to_destination",
+      "from": "road-1",
+      "to": "destination-5",
+      "weight": 1.0,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-11"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-3",
+      "type": "road_to_destination",
+      "from": "road-2",
+      "to": "destination-2",
+      "weight": 1.0,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-4",
+      "type": "road_to_destination",
+      "from": "road-3",
+      "to": "destination-1",
+      "weight": 1.0,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-10",
+          "episode-20260531-2"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-5",
+      "type": "road_to_destination",
+      "from": "road-1",
+      "to": "destination-1",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-3"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-6",
+      "type": "road_to_destination",
+      "from": "road-1",
+      "to": "destination-10",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-2"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-7",
+      "type": "road_to_destination",
+      "from": "road-1",
+      "to": "destination-3",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-11"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-8",
+      "type": "road_to_destination",
+      "from": "road-1",
+      "to": "destination-6",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-9"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-9",
+      "type": "road_to_destination",
+      "from": "road-1",
+      "to": "destination-7",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-10",
+      "type": "road_to_destination",
+      "from": "road-1",
+      "to": "destination-9",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-9"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-11",
+      "type": "road_to_destination",
+      "from": "road-2",
+      "to": "destination-1",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-12",
+      "type": "road_to_destination",
+      "from": "road-2",
+      "to": "destination-12",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-3"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-13",
+      "type": "road_to_destination",
+      "from": "road-3",
+      "to": "destination-2",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-2"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-14",
+      "type": "road_to_destination",
+      "from": "road-3",
+      "to": "destination-3",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-10"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-15",
+      "type": "road_to_destination",
+      "from": "road-4",
+      "to": "destination-1",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-1"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-16",
+      "type": "road_to_destination",
+      "from": "road-4",
+      "to": "destination-2",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-1"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-17",
+      "type": "road_to_destination",
+      "from": "road-5",
+      "to": "destination-11",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-9"
+        ]
+      }
+    },
+    {
+      "id": "road_to_destination-18",
+      "type": "road_to_destination",
+      "from": "road-5",
+      "to": "destination-8",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-9"
+        ]
+      }
+    },
+    {
+      "id": "crossroads_to_district-1",
+      "type": "crossroads_to_district",
+      "from": "crossroads-1",
+      "to": "district-1",
+      "weight": 1.0,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-11",
+          "episode-20260529-2",
+          "episode-20260529-3"
+        ]
+      }
+    },
+    {
+      "id": "crossroads_to_district-2",
+      "type": "crossroads_to_district",
+      "from": "crossroads-1",
+      "to": "district-2",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "crossroads_to_district-3",
+      "type": "crossroads_to_district",
+      "from": "crossroads-1",
+      "to": "district-3",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-10",
+          "episode-20260531-2"
+        ]
+      }
+    },
+    {
+      "id": "landmark_to_district-1",
+      "type": "landmark_to_district",
+      "from": "landmark-1",
+      "to": "district-1",
+      "weight": 1.0,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-11",
+          "episode-20260529-2",
+          "episode-20260529-3"
+        ]
+      }
+    },
+    {
+      "id": "landmark_to_district-2",
+      "type": "landmark_to_district",
+      "from": "landmark-2",
+      "to": "district-2",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ]
+      }
+    },
+    {
+      "id": "landmark_to_district-3",
+      "type": "landmark_to_district",
+      "from": "landmark-3",
+      "to": "district-3",
+      "weight": 0.5,
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-10",
+          "episode-20260531-2"
+        ]
+      }
+    }
+  ],
+  "clusters": [
+    {
+      "id": "district-cluster-1",
+      "type": "district_similarity_cluster",
+      "label": "Social-Злость Cluster",
+      "member_entity_ids": [
+        "district-1",
+        "district-2",
+        "district-3"
+      ],
+      "centroid_signature": {
+        "trigger": "social",
+        "emotion": "злость",
+        "behavior": "avoid"
+      },
+      "metrics": {
+        "member_count": 3,
+        "episode_count": 8,
+        "weight": 1.0,
+        "recurrence_weeks": 1,
+        "first_week": "2026-W22",
+        "last_week": "2026-W22",
+        "cohesion": 0.6,
+        "density": 1.0
+      },
+      "compiler_hints": {
+        "layout_priority": 1.0,
+        "centrality": 1.0,
+        "density": 1.0,
+        "suggested_map_role": "district_cluster",
+        "semantic_similarity_keys": [
+          "trigger:social",
+          "emotion:злость",
+          "behavior:avoid"
+        ]
+      },
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-10",
+          "episode-20260529-11",
+          "episode-20260529-2",
+          "episode-20260529-3",
+          "episode-20260531-2",
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ]
+      }
+    }
+  ],
+  "neighbors": [
+    {
+      "id": "district_similarity-1",
+      "type": "district_similarity",
+      "from": "district-1",
+      "to": "district-2",
+      "score": 0.6,
+      "shared_keys": [
+        "emotion:злость",
+        "trigger:social"
+      ],
+      "differing_keys": [
+        "behavior:avoid",
+        "behavior:compensate"
+      ],
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-11",
+          "episode-20260529-2",
+          "episode-20260529-3",
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ],
+        "shared_episode_ids": []
+      }
+    },
+    {
+      "id": "district_similarity-2",
+      "type": "district_similarity",
+      "from": "district-1",
+      "to": "district-3",
+      "score": 0.6,
+      "shared_keys": [
+        "emotion:злость",
+        "trigger:social"
+      ],
+      "differing_keys": [
+        "behavior:avoid",
+        "behavior:freeze"
+      ],
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-1",
+          "episode-20260529-10",
+          "episode-20260529-11",
+          "episode-20260529-2",
+          "episode-20260529-3",
+          "episode-20260531-2"
+        ],
+        "shared_episode_ids": []
+      }
+    },
+    {
+      "id": "district_similarity-3",
+      "type": "district_similarity",
+      "from": "district-2",
+      "to": "district-3",
+      "score": 0.6,
+      "shared_keys": [
+        "emotion:злость",
+        "trigger:social"
+      ],
+      "differing_keys": [
+        "behavior:compensate",
+        "behavior:freeze"
+      ],
+      "provenance": {
+        "episode_ids": [
+          "episode-20260529-10",
+          "episode-20260531-2",
+          "episode-20260531-3",
+          "episode-20260531-4"
+        ],
+        "shared_episode_ids": []
+      }
+    }
+  ],
+  "provenance": {
+    "generated_from": "graph_signatures",
+    "graph_ready_episode_ids": [
+      "episode-20260529-1",
+      "episode-20260529-10",
+      "episode-20260529-11",
+      "episode-20260529-2",
+      "episode-20260529-3",
+      "episode-20260529-9",
+      "episode-20260531-1",
+      "episode-20260531-2",
+      "episode-20260531-3",
+      "episode-20260531-4",
+      "episode-20260531-9"
+    ],
+    "skipped_episode_ids": [],
+    "coverage": {
+      "observed_count": 11,
+      "annotation_row_count": 89,
+      "annotated_count": 11,
+      "pending_count": 0,
+      "pending_episode_ids": [],
+      "state": "full"
+    },
+    "episode_dir": "data/episodes",
+    "generated_at": "2026-06-06T23:08:09.236156+00:00",
+    "source_scope": "telegram-chat:1225520131",
+    "annotation_run_id": "run-20260605-annotated-baseline-v2",
+    "annotation_run_path": "data/annotation-runs/run-20260605-annotated-baseline-v2"
+  }
+}

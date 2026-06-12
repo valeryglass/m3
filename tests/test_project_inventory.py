@@ -81,7 +81,27 @@ def test_active_docs_do_not_reference_stale_architecture_paths():
         assert "data/reports/` stores private generated report artifacts" not in text, name
         assert "report files are durable" not in text.lower(), name
         assert "report storage" not in text.lower(), name
+        assert "data/reports/" + "map-payload" not in text, name
+        assert "data/" + "state" not in text, name
+        assert "state" + "_dir" not in text, name
+        assert "M3_" + "STATE_DIR" not in text, name
         assert re.search(r"(?<!docs/)(?<!external-)methodology/", text) is None, name
+
+
+def test_map_payload_exports_do_not_use_report_directory():
+    active_paths = [
+        ROOT / "Makefile",
+        ROOT / "README.md",
+        ROOT / "AGENTS.md",
+        ROOT / "project.manifest.yaml",
+        ROOT / "docs" / "interfaces" / "report-to-payload.md",
+        ROOT / "docs" / "modules" / "pattern-payloads.md",
+    ]
+
+    for path in active_paths:
+        text = path.read_text(encoding="utf-8")
+        assert "data/exports/map-payload" in text, path.relative_to(ROOT).as_posix()
+        assert "data/reports/" + "map-payload" not in text, path.relative_to(ROOT).as_posix()
 
 
 def test_external_methodology_first_drafts_are_listed():

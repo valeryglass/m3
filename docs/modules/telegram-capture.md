@@ -9,7 +9,7 @@ through the episode storage boundary.
 
 - Telegram user messages.
 - Telegram callback data where still used by bot control flow.
-- private in-progress state under `data/state/`.
+- private in-progress session memory under `data/runtime-sessions/`.
 - tone configuration from `config/tone.yaml`.
 
 ## Outputs

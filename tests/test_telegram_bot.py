@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import app.telegram_bot as telegram_bot
 from app.loop_extractor import LoopSession, prompt_for_current_target
+from app.session_store import LoopSessionStore
 from app.storage import JsonStorage
 from app.tone_engine import ToneEngine
 from app.userlist import APPROVED, PAUSED, WAITLISTED, JsonUserList
@@ -95,7 +96,8 @@ def test_second_admin_is_authorized_for_hidden_commands(tmp_path):
 
 
 def test_send_help_replies_without_creating_session(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     message = _FakeMessage("/help")
     update = SimpleNamespace(
         effective_chat=SimpleNamespace(id=123),
@@ -105,7 +107,7 @@ def test_send_help_replies_without_creating_session(tmp_path):
 
     _run(telegram_bot._send_help(update, ToneEngine.default()))
 
-    assert storage.load_session(123) is None
+    assert session_store.load_session(123) is None
     assert message.replies == [
         "МИШа\n"
         "машина извлечения шаблонов\n"
@@ -236,7 +238,8 @@ def test_profile_command_reports_missing_profile(tmp_path):
 
 
 def test_authorize_logs_unauthorized_attempt_without_session(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage("/start")
     update = SimpleNamespace(
@@ -266,7 +269,7 @@ def test_authorize_logs_unauthorized_attempt_without_session(tmp_path):
         "Спасибо за интерес. Мы добавили тебя в waitlist. "
         "Напишем, как только доступ откроется"
     ]
-    assert storage.load_session(456) is None
+    assert session_store.load_session(456) is None
     assert userlist.load()["456"]["status"] == WAITLISTED
     assert userlist.load()["456"]["username"] == "tester"
     assert userlist.load()["456"]["first_name"] == "Test"
@@ -611,18 +614,19 @@ def test_admin_decision_requires_chat_id(tmp_path):
 
 
 def test_plain_text_without_session_requires_start(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage("hi")
     update = _fake_update(123, message)
 
     _run(
         telegram_bot._handle_message_after_authorized(
-            update, storage, ux_events, _settings(), ToneEngine.default()
+            update, session_store, ux_events, _settings(), ToneEngine.default()
         )
     )
 
-    assert storage.load_session(123) is None
+    assert session_store.load_session(123) is None
     assert ux_events.read() == []
     assert message.replies == [
         "Сейчас активной сессии нет. Отправь /start, чтобы начать новый эпизод",
@@ -630,24 +634,26 @@ def test_plain_text_without_session_requires_start(tmp_path):
 
 
 def test_cancel_without_session_reports_no_active_session(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage("/cancel")
     update = _fake_update(123, message)
 
     _run(
         telegram_bot._handle_cancel_after_authorized(
-            update, storage, ux_events, _settings(), ToneEngine.default()
+            update, session_store, ux_events, _settings(), ToneEngine.default()
         )
     )
 
-    assert storage.load_session(123) is None
+    assert session_store.load_session(123) is None
     assert ux_events.read() == []
     assert message.replies == ["Активной сессии нет"]
 
 
 def test_accepted_answer_replies_with_bridge_and_next_question(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = LoopSession(
         chat_id=123,
@@ -655,20 +661,20 @@ def test_accepted_answer_replies_with_bridge_and_next_question(tmp_path):
         target_index=0,
         episode_date="2026-05-03",
     )
-    storage.save_session(session)
+    session_store.save_session(session)
     message = _FakeMessage("situation")
 
     _run(
         telegram_bot._handle_message_after_authorized(
             _fake_update(123, message),
-            storage,
+            session_store,
             ux_events,
             _settings(),
             ToneEngine.default(),
         )
     )
 
-    loaded = storage.load_session(123)
+    loaded = session_store.load_session(123)
     assert loaded is not None
     assert loaded.target_index == 1
     assert message.replies == [
@@ -679,7 +685,8 @@ def test_accepted_answer_replies_with_bridge_and_next_question(tmp_path):
 
 
 def test_automatic_thought_answer_replies_with_plain_emotion_frame(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = LoopSession(
         chat_id=123,
@@ -693,20 +700,20 @@ def test_automatic_thought_answer_replies_with_plain_emotion_frame(tmp_path):
             "quote": {"value": "sp", "source_quote": "sp"},
         },
     )
-    storage.save_session(session)
+    session_store.save_session(session)
     message = _FakeMessage("thought")
 
     _run(
         telegram_bot._handle_message_after_authorized(
             _fake_update(123, message),
-            storage,
+            session_store,
             ux_events,
             _settings(),
             ToneEngine.default(),
         )
     )
 
-    loaded = storage.load_session(123)
+    loaded = session_store.load_session(123)
     assert loaded is not None
     assert loaded.target_index == 5
     assert message.replies == [
@@ -716,23 +723,24 @@ def test_automatic_thought_answer_replies_with_plain_emotion_frame(tmp_path):
 
 
 def test_text_during_emotion_step_advances_to_behavior(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = _emotion_step_session()
-    storage.save_session(session)
+    session_store.save_session(session)
     message = _FakeMessage("страх")
 
     _run(
         telegram_bot._handle_message_after_authorized(
             _fake_update(123, message),
-            storage,
+            session_store,
             ux_events,
             _settings(),
             ToneEngine.default(),
         )
     )
 
-    loaded = storage.load_session(123)
+    loaded = session_store.load_session(123)
     assert loaded is not None
     assert loaded.target_index == 6
     assert loaded.observed["emotion"] == {
@@ -746,23 +754,24 @@ def test_text_during_emotion_step_advances_to_behavior(tmp_path):
 
 
 def test_text_during_emotion_step_stores_plain_emotion(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = _emotion_step_session()
-    storage.save_session(session)
+    session_store.save_session(session)
     message = _FakeMessage("смущение")
 
     _run(
         telegram_bot._handle_message_after_authorized(
             _fake_update(123, message),
-            storage,
+            session_store,
             ux_events,
             _settings(),
             ToneEngine.default(),
         )
     )
 
-    loaded = storage.load_session(123)
+    loaded = session_store.load_session(123)
     assert loaded is not None
     assert loaded.target_index == 6
     assert loaded.observed["emotion"] == {
@@ -775,7 +784,8 @@ def test_text_during_emotion_step_stores_plain_emotion(tmp_path):
 
 
 def test_empty_answer_retries_without_bridge(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = LoopSession(
         chat_id=123,
@@ -783,20 +793,20 @@ def test_empty_answer_retries_without_bridge(tmp_path):
         target_index=0,
         episode_date="2026-05-03",
     )
-    storage.save_session(session)
+    session_store.save_session(session)
     message = _FakeMessage(" ")
 
     _run(
         telegram_bot._handle_message_after_authorized(
             _fake_update(123, message),
-            storage,
+            session_store,
             ux_events,
             _settings(),
             ToneEngine.default(),
         )
     )
 
-    loaded = storage.load_session(123)
+    loaded = session_store.load_session(123)
     assert loaded is not None
     assert loaded.target_index == 0
     assert message.replies == [
@@ -806,7 +816,8 @@ def test_empty_answer_retries_without_bridge(tmp_path):
 
 
 def test_final_answer_opens_save_review_with_all_fields(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = LoopSession(
         chat_id=123,
@@ -825,20 +836,20 @@ def test_final_answer_opens_save_review_with_all_fields(tmp_path):
             "short_term_consequence": {"value": "st", "source_quote": "st"},
         },
     )
-    storage.save_session(session)
+    session_store.save_session(session)
     message = _FakeMessage("lt")
 
     _run(
         telegram_bot._handle_message_after_authorized(
             _fake_update(123, message),
-            storage,
+            session_store,
             ux_events,
             _settings(),
             ToneEngine.default(),
         )
     )
 
-    loaded = storage.load_session(123)
+    loaded = session_store.load_session(123)
     assert loaded is not None
     assert loaded.awaiting_save_confirmation is True
     assert loaded.target_index == 10
@@ -863,37 +874,39 @@ def test_final_answer_opens_save_review_with_all_fields(tmp_path):
     _run(
         telegram_bot._handle_message_after_authorized(
             _fake_update(123, followup),
-            storage,
+            session_store,
             ux_events,
             _settings(),
             ToneEngine.default(),
         )
     )
 
-    loaded = storage.load_session(123)
+    loaded = session_store.load_session(123)
     assert loaded is not None
     assert loaded.observed["long_term_consequence"]["value"] == "lt"
     assert followup.replies[0].endswith("Сохраняем?")
 
 
 def test_save_callback_writes_episode_and_replies_completion(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = _complete_review_session()
-    storage.save_session(session)
+    session_store.save_session(session)
     callback = _FakeCallbackQuery("episode:save")
 
     _run(
         telegram_bot._handle_episode_callback_after_authorized(
             _fake_callback_update(123, callback),
             storage,
+            session_store,
             ux_events,
             ToneEngine.default(),
         )
     )
 
     assert callback.answered is True
-    assert storage.load_session(123) is None
+    assert session_store.load_session(123) is None
     assert [path.name for path in (tmp_path / "episodes").glob("*.json")] == [
         "episode-20260503-1.json"
     ]
@@ -903,16 +916,18 @@ def test_save_callback_writes_episode_and_replies_completion(tmp_path):
 
 
 def test_save_callback_writes_unified_episode(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = _complete_review_session()
-    storage.save_session(session)
+    session_store.save_session(session)
     callback = _FakeCallbackQuery("episode:save")
 
     _run(
         telegram_bot._handle_episode_callback_after_authorized(
             _fake_callback_update(123, callback),
             storage,
+            session_store,
             ux_events,
             ToneEngine.default(),
         )
@@ -924,33 +939,36 @@ def test_save_callback_writes_unified_episode(tmp_path):
     assert '"trigger"' in saved
     assert '"actor"' in saved
     assert '"quote"' in saved
-    assert storage.load_session(123) is None
+    assert session_store.load_session(123) is None
 
 
 def test_cancel_callback_discards_review_session(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = _complete_review_session()
-    storage.save_session(session)
+    session_store.save_session(session)
     callback = _FakeCallbackQuery("episode:cancel")
 
     _run(
         telegram_bot._handle_episode_callback_after_authorized(
             _fake_callback_update(123, callback),
             storage,
+            session_store,
             ux_events,
             ToneEngine.default(),
         )
     )
 
-    assert storage.load_session(123) is None
+    assert session_store.load_session(123) is None
     assert [path.name for path in (tmp_path / "episodes").glob("*.json")] == []
     assert callback.message.replies == ["Сессия отменена"]
     assert ux_events.read()[-1]["cancel_reason"] == "review_cancel"
 
 
 def test_stale_initial_session_expires_and_logs_reason(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     now = datetime(2026, 5, 2, 12, 0, tzinfo=timezone.utc)
     session = LoopSession(
@@ -960,14 +978,14 @@ def test_stale_initial_session_expires_and_logs_reason(tmp_path):
         episode_date="2026-05-02",
         last_prompted_at=format_utc(now - timedelta(seconds=601)),
     )
-    storage.save_session(session)
+    session_store.save_session(session)
 
     expired = telegram_bot._expire_initial_session_if_stale(
-        storage, ux_events, session, 123, now, 600
+        session_store, ux_events, session, 123, now, 600
     )
 
     assert expired is True
-    assert storage.load_session(123) is None
+    assert session_store.load_session(123) is None
     assert ux_events.read() == [
         {
             "cancel_reason": "initial_session_expired",
@@ -982,7 +1000,8 @@ def test_stale_initial_session_expires_and_logs_reason(tmp_path):
 
 
 def test_non_initial_stale_session_does_not_expire(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     now = datetime(2026, 5, 2, 12, 0, tzinfo=timezone.utc)
     session = LoopSession(
@@ -992,14 +1011,14 @@ def test_non_initial_stale_session_does_not_expire(tmp_path):
         episode_date="2026-05-02",
         last_prompted_at=format_utc(now - timedelta(seconds=3600)),
     )
-    storage.save_session(session)
+    session_store.save_session(session)
 
     expired = telegram_bot._expire_initial_session_if_stale(
-        storage, ux_events, session, 123, now, 600
+        session_store, ux_events, session, 123, now, 600
     )
 
     assert expired is False
-    assert storage.load_session(123) is not None
+    assert session_store.load_session(123) is not None
     assert ux_events.read() == []
 
 
@@ -1021,12 +1040,13 @@ def test_new_session_uses_creation_date():
 
 
 def test_start_new_session_prompts_without_observed_answer(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes", state_dir=tmp_path / "state")
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     now = datetime(2026, 5, 3, 9, 44, tzinfo=timezone.utc)
 
-    session = telegram_bot._start_new_session(storage, ux_events, 123, now)
-    loaded = storage.load_session(123)
+    session = telegram_bot._start_new_session(session_store, ux_events, 123, now)
+    loaded = session_store.load_session(123)
 
     assert loaded is not None
     assert session.target_index == 0

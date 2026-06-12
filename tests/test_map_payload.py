@@ -276,6 +276,32 @@ def test_map_payload_cli_writes_output(tmp_path, monkeypatch, capsys):
     assert "generated_at" in data["provenance"]
 
 
+def test_map_payload_cli_default_output_uses_exports_dir(tmp_path, monkeypatch, capsys):
+    episode_dir = tmp_path / "episodes"
+    episode_dir.mkdir()
+    (episode_dir / "episode-20260430-1.json").write_text(
+        json.dumps(_episode("episode-20260430-1"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "map_payload",
+            "--episode-dir",
+            str(episode_dir),
+            "--source",
+            "telegram-chat:123",
+        ],
+    )
+
+    main()
+
+    output = tmp_path / "data" / "exports" / "map-payload" / "telegram-chat-123.json"
+    assert capsys.readouterr().out.strip() == output.relative_to(tmp_path).as_posix()
+    assert json.loads(output.read_text(encoding="utf-8"))["kind"] == "map_payload"
+
+
 def test_map_payload_cli_includes_annotation_run_provenance(
     tmp_path,
     monkeypatch,

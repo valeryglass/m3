@@ -175,7 +175,7 @@ def main() -> None:
     output = (
         Path(args.output)
         if args.output
-        else Path("data/reports/map-payload") / f"{safe_filename(args.source)}.json"
+        else Path("data/exports/map-payload") / f"{safe_filename(args.source)}.json"
     )
     episode_dir = Path(args.episode_dir)
     annotation_run_dir = Path(args.annotation_run_dir) if args.annotation_run_dir else None

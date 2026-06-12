@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Map Payload - telegram-chat:1677570167</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f7f5ef;
+      color: #1f2937;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header {
+      padding: 18px 24px 12px;
+      border-bottom: 1px solid #d8d2c4;
+      background: #fffdfa;
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+    .meta {
+      margin-top: 6px;
+      color: #667085;
+      font-size: 13px;
+    }
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      min-height: calc(100vh - 70px);
+    }
+    .stage {
+      overflow: auto;
+      padding: 18px;
+    }
+    aside {
+      border-left: 1px solid #d8d2c4;
+      background: #fffdfa;
+      padding: 18px;
+      overflow: auto;
+    }
+    svg {
+      width: 100%;
+      min-width: 980px;
+      height: auto;
+      border: 1px solid #d8d2c4;
+      background: #f8f5ec;
+    }
+    svg [data-layer][data-hidden="true"] { display: none; }
+    .bg { fill: #fbfaf7; }
+    .map-title {
+      font-size: 17px;
+      font-weight: 760;
+      fill: #1f2937;
+    }
+    .layer-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 10px;
+      margin: 8px 0 18px;
+    }
+    .layer-control {
+      font-size: 12px;
+      color: #475467;
+    }
+    .district-area {
+      stroke: rgba(4, 120, 87, 0.42);
+      stroke-width: 2;
+      fill: rgba(4, 120, 87, 0.18);
+    }
+    .cluster-halo {
+      fill: rgba(4, 120, 87, 0.08);
+      stroke: rgba(4, 120, 87, 0.18);
+      stroke-width: 2;
+      stroke-dasharray: 8 6;
+    }
+    .neighbor-link {
+      fill: none;
+      stroke: rgba(8, 145, 178, 0.24);
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+    .gate-entry-path {
+      fill: none;
+      stroke: rgba(37, 99, 235, 0.22);
+      stroke-width: 2;
+      stroke-dasharray: 5 6;
+    }
+    .gate-marker {
+      stroke: rgba(37, 99, 235, 0.55);
+      stroke-width: 2;
+      fill: rgba(37, 99, 235, 0.86);
+    }
+    .road-path {
+      fill: none;
+      stroke: rgba(75, 85, 99, 0.48);
+      stroke-linecap: round;
+    }
+    .destination-marker {
+      fill: rgba(107, 114, 128, 0.22);
+      stroke: rgba(75, 85, 99, 0.5);
+      stroke-width: 1.5;
+    }
+    .destination-short-term { fill: rgba(245, 158, 11, 0.72); }
+    .destination-long-term { fill: rgba(99, 102, 241, 0.72); }
+    .destination-unknown { fill: rgba(100, 116, 139, 0.62); }
+    .crossroads-marker {
+      fill: rgba(217, 119, 6, 0.86);
+      stroke: rgba(120, 53, 15, 0.38);
+      stroke-width: 2;
+    }
+    .climate-band {
+      stroke-width: 1;
+      mix-blend-mode: multiply;
+    }
+    .architecture-block {
+      stroke: rgba(76, 29, 149, 0.34);
+      stroke-width: 1.2;
+    }
+    .architecture-segment {
+      opacity: 0.86;
+    }
+    .architecture-wedge {
+      pointer-events: none;
+    }
+    .landmark-marker {
+      fill: rgba(8, 145, 178, 0.9);
+      stroke: rgba(22, 78, 99, 0.42);
+      stroke-width: 1.5;
+    }
+    .node-count {
+      font-size: 12px;
+      font-weight: 740;
+      fill: #ffffff;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+    .node-label {
+      font-size: 11px;
+      fill: #374151;
+      text-anchor: middle;
+    }
+    .small-label {
+      font-size: 10px;
+      fill: #4b5563;
+      text-anchor: middle;
+    }
+    .outcome-label {
+      font-size: 11px;
+      fill: #374151;
+      text-anchor: middle;
+    }
+    h2 {
+      margin: 18px 0 8px;
+      font-size: 14px;
+    }
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      color: #4b5563;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    li + li { margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Map Payload</h1>
+    <div class="meta">source: telegram-chat:1677570167 | episodes: 9 | quant: 1week</div>
+  </header>
+  <main>
+    <section class="stage">
+      <svg viewBox="0 0 1480 900" role="img" aria-label="Map payload"><rect width="1480" height="900" class="bg" /><text class="map-title" x="32" y="42">semantic map payload</text><g data-layer="climate" data-hidden="false"><ellipse class="climate-band climate-field" cx="680.0" cy="537.3" rx="325.0" ry="188.4" fill="rgba(220, 38, 38, 0.88)" stroke="rgba(153, 27, 27, 0.44)" opacity="0.34" /><text class="small-label" x="680.0" y="340.9">злость</text><ellipse class="climate-band climate-field" cx="680.0" cy="342.7" rx="287.0" ry="166.4" fill="rgba(79, 70, 229, 0.84)" stroke="rgba(55, 48, 163, 0.42)" opacity="0.28" /><text class="small-label" x="680.0" y="168.3">грусть</text><ellipse class="climate-band climate-field" cx="783.9" cy="400.0" rx="240.0" ry="148.0" fill="rgba(20, 184, 166, 0.78)" stroke="rgba(15, 118, 110, 0.38)" opacity="0.21" /><text class="small-label" x="783.9" y="244.0">нейтраль/мешанные</text><ellipse class="climate-band climate-field" cx="800.0" cy="440.0" rx="230.0" ry="142.0" fill="rgba(22, 163, 74, 0.84)" stroke="rgba(21, 128, 61, 0.42)" opacity="0.21" /><text class="small-label" x="800.0" y="290.0">отвращение</text><ellipse class="climate-band climate-field" cx="783.9" cy="480.0" rx="220.0" ry="136.0" fill="rgba(37, 99, 235, 0.86)" stroke="rgba(30, 64, 175, 0.42)" opacity="0.21" /><text class="small-label" x="783.9" y="336.0">страх</text><ellipse class="climate-band climate-field" cx="740.0" cy="509.3" rx="210.0" ry="130.0" fill="rgba(219, 39, 119, 0.86)" stroke="rgba(157, 23, 77, 0.42)" opacity="0.21" /><text class="small-label" x="740.0" y="371.3">стыд</text></g><g data-layer="clusters" data-hidden="false"></g><g data-layer="neighbors" data-hidden="false"><path class="neighbor-link" d="M 680.0 342.7 L 680.0 537.3" stroke-width="2.9" /></g><g data-layer="roads" data-hidden="false"><path class="road-path" d="M 652.1 367.0 Q 645.8 305.0 639.5 378.0" stroke-width="8.5" /><path class="road-path" d="M 670.9 501.4 Q 655.2 316.0 639.5 378.0" stroke-width="8.5" /><path class="road-path" d="M 652.5 318.0 Q 634.1 222.8 615.6 284.8" stroke-width="8.5" /><path class="road-path" d="M 670.9 501.5 Q 643.2 222.8 615.6 284.8" stroke-width="8.5" /><path class="road-path" d="M 644.5 332.3 Q 597.9 243.0 551.2 305.0" stroke-width="8.5" /><path class="road-path" d="M 662.1 504.9 Q 606.6 243.0 551.2 305.0" stroke-width="8.5" /><path class="road-path" d="M 681.4 305.7 Q 682.0 210.0 682.6 272.0" stroke-width="8.5" /><path class="road-path" d="M 680.4 500.3 Q 681.5 210.0 682.6 272.0" stroke-width="8.5" /><path class="road-path" d="M 671.2 378.6 Q 666.7 316.6 662.1 415.9" stroke-width="8.5" /><path class="road-path" d="M 674.6 500.7 Q 668.4 353.9 662.1 415.9" stroke-width="8.5" /><path class="road-path" d="M 643.1 339.9 Q 632.5 276.4 622.0 338.4" stroke-width="8.5" /><path class="road-path" d="M 669.6 501.8 Q 645.8 276.4 622.0 338.4" stroke-width="8.5" /><path class="road-path" d="M 707.9 367.0 Q 714.6 305.0 721.3 378.6" stroke-width="8.5" /><path class="road-path" d="M 689.3 501.5 Q 705.3 316.6 721.3 378.6" stroke-width="8.5" /><path class="road-path" d="M 652.1 367.0 Q 645.8 305.0 639.5 378.0" stroke-width="2.9" /><path class="road-path" d="M 652.5 318.0 Q 634.1 222.8 615.6 284.8" stroke-width="2.9" /><path class="road-path" d="M 671.2 378.6 Q 666.7 316.6 662.1 415.9" stroke-width="2.9" /><path class="road-path" d="M 714.0 328.0 Q 744.6 239.6 775.3 301.6" stroke-width="2.9" /><path class="road-path" d="M 643.1 339.9 Q 632.5 276.4 622.0 338.4" stroke-width="2.9" /><path class="road-path" d="M 703.3 313.9 Q 717.0 217.9 730.8 279.9" stroke-width="2.9" /><path class="road-path" d="M 652.1 367.0 Q 645.8 305.0 639.5 378.0" stroke-width="2.9" /><path class="road-path" d="M 681.4 305.7 Q 682.0 210.0 682.6 272.0" stroke-width="2.9" /></g><g data-layer="destinations" data-hidden="false"><polygon class="destination-marker destination-poi destination-short-term" points="639.5,362.0 653.4,386.0 625.7,386.0" data-horizon="short_term" /><text class="outcome-label" x="639.5" y="410.0">short_term: neutral_mix...</text><polygon class="destination-marker destination-poi destination-long-term" points="615.6,269.8 628.6,292.3 602.6,292.3" data-horizon="long_term" /><text class="outcome-label" x="615.6" y="315.8">long_term: unresolved</text><polygon class="destination-marker destination-poi destination-long-term" points="551.2,291.0 563.3,312.0 539.1,312.0" data-horizon="long_term" /><text class="outcome-label" x="551.2" y="335.0">long_term: learning</text><polygon class="destination-marker destination-poi destination-long-term" points="682.6,258.0 694.7,279.0 670.5,279.0" data-horizon="long_term" /><text class="outcome-label" x="682.6" y="302.0">long_term: neutral_mixed</text><polygon class="destination-marker destination-poi destination-short-term" points="662.1,401.9 674.3,422.9 650.0,422.9" data-horizon="short_term" /><text class="outcome-label" x="662.1" y="445.9">short_term: escalation</text><polygon class="destination-marker destination-poi destination-short-term" points="622.0,324.4 634.1,345.4 609.8,345.4" data-horizon="short_term" /><text class="outcome-label" x="622.0" y="368.4">short_term: unresolved</text><polygon class="destination-marker destination-poi destination-long-term" points="730.8,266.9 742.0,286.4 719.5,286.4" data-horizon="long_term" /><text class="outcome-label" x="730.8" y="308.9">long_term: avoidance_co...</text><polygon class="destination-marker destination-poi destination-long-term" points="775.3,288.6 786.5,308.1 764.0,308.1" data-horizon="long_term" /><text class="outcome-label" x="775.3" y="330.6">long_term: escalation</text><polygon class="destination-marker destination-poi destination-short-term" points="721.3,365.6 732.6,385.1 710.0,385.1" data-horizon="short_term" /><text class="outcome-label" x="721.3" y="407.6">short_term: avoidance_c...</text></g><g data-layer="gates" data-hidden="false"><path class="gate-entry-path" d="M 680.0 115.0 L 680.0 342.7" /><circle class="gate-marker" cx="680.0" cy="115.0" r="15" /><text class="node-count" x="680.0" y="116.0">5</text><text class="node-label" x="680.0" y="148.0">external</text><path class="gate-entry-path" d="M 680.0 105.0 L 680.0 342.7" /><path class="gate-entry-path" d="M 680.0 105.0 L 680.0 537.3" /><circle class="gate-marker" cx="680.0" cy="105.0" r="14" /><text class="node-count" x="680.0" y="106.0">4</text><text class="node-label" x="680.0" y="137.0">social</text></g><g data-layer="districts" data-hidden="false"><circle class="district-area" cx="680.0" cy="342.7" r="37.0" /><text class="node-count" x="680.0" y="339.7">2</text><text class="node-label" x="680.0" y="395.7">social + грусть + appro...</text><circle class="district-area" cx="680.0" cy="537.3" r="37.0" /><text class="node-count" x="680.0" y="534.3">2</text><text class="node-label" x="680.0" y="590.3">social + злость + appro...</text></g><g data-layer="architecture" data-hidden="false"><path class="architecture-block architecture-segment architecture-wedge" d="M 680.0 342.7 L 680.0 322.0 A 20.7 20.7 0 0 1 680.0 363.4 Z" data-proportion="0.50" fill="rgb(157, 134, 230)" /><path class="architecture-block architecture-segment architecture-wedge" d="M 680.0 342.7 L 680.0 363.4 A 20.7 20.7 0 0 1 680.0 322.0 Z" data-proportion="0.50" fill="rgb(157, 134, 230)" /><path class="architecture-block architecture-segment architecture-wedge" d="M 680.0 537.3 L 680.0 516.6 A 20.7 20.7 0 1 1 680.0 516.6 Z" data-proportion="1.00" fill="rgb(118, 86, 207)" /></g><g data-layer="crossroads" data-hidden="false"><polygon class="crossroads-marker" points="680.0,377.3 694.0,391.3 680.0,405.3 666.0,391.3" /><text class="node-count" x="680.0" y="392.3">3</text></g><g data-layer="landmarks" data-hidden="false"><polygon class="landmark-marker" points="714.0,295.7 717.5,303.8 726.4,304.7 719.7,310.5 721.6,319.2 714.0,314.7 706.4,319.2 708.3,310.5 701.6,304.7 710.5,303.8" /><text class="small-label" x="714.0" y="291.7">social -&gt; грусть ...</text><polygon class="landmark-marker" points="714.0,490.3 717.5,498.5 726.4,499.3 719.7,505.2 721.6,513.8 714.0,509.3 706.4,513.8 708.3,505.2 701.6,499.3 710.5,498.5" /><text class="small-label" x="714.0" y="486.3">social -&gt; злость ...</text><polygon class="landmark-marker" points="714.0,295.7 717.5,303.8 726.4,304.7 719.7,310.5 721.6,319.2 714.0,314.7 706.4,319.2 708.3,310.5 701.6,304.7 710.5,303.8" /><text class="small-label" x="714.0" y="291.7">external -&gt; груст...</text><polygon class="landmark-marker" points="714.0,490.3 717.5,498.5 726.4,499.3 719.7,505.2 721.6,513.8 714.0,509.3 706.4,513.8 708.3,505.2 701.6,499.3 710.5,498.5" /><text class="small-label" x="714.0" y="486.3">external -&gt; злост...</text><polygon class="landmark-marker" points="714.0,295.7 717.5,303.8 726.4,304.7 719.7,310.5 721.6,319.2 714.0,314.7 706.4,319.2 708.3,310.5 701.6,304.7 710.5,303.8" /><text class="small-label" x="714.0" y="291.7">external -&gt; злост...</text><polygon class="landmark-marker" points="714.0,490.3 717.5,498.5 726.4,499.3 719.7,505.2 721.6,513.8 714.0,509.3 706.4,513.8 708.3,505.2 701.6,499.3 710.5,498.5" /><text class="small-label" x="714.0" y="486.3">external -&gt; злост...</text><polygon class="landmark-marker" points="714.0,295.7 717.5,303.8 726.4,304.7 719.7,310.5 721.6,319.2 714.0,314.7 706.4,319.2 708.3,310.5 701.6,304.7 710.5,303.8" /><text class="small-label" x="714.0" y="291.7">external -&gt; нейтр...</text><polygon class="landmark-marker" points="714.0,490.3 717.5,498.5 726.4,499.3 719.7,505.2 721.6,513.8 714.0,509.3 706.4,513.8 708.3,505.2 701.6,499.3 710.5,498.5" /><text class="small-label" x="714.0" y="486.3">external -&gt; страх...</text><polygon class="landmark-marker" points="714.0,295.7 717.5,303.8 726.4,304.7 719.7,310.5 721.6,319.2 714.0,314.7 706.4,319.2 708.3,310.5 701.6,304.7 710.5,303.8" /><text class="small-label" x="714.0" y="291.7">external -&gt; стыд ...</text><polygon class="landmark-marker" points="714.0,490.3 717.5,498.5 726.4,499.3 719.7,505.2 721.6,513.8 714.0,509.3 706.4,513.8 708.3,505.2 701.6,499.3 710.5,498.5" /><text class="small-label" x="714.0" y="486.3">social -&gt; отвраще...</text></g></svg>
+    </section>
+    <aside>
+      <h2>Layers</h2>
+      <div class="layer-controls"><label class="layer-control"><input type="checkbox" data-layer-toggle value="climate" checked> Climate</label>
+<label class="layer-control"><input type="checkbox" data-layer-toggle value="clusters" checked> Clusters</label>
+<label class="layer-control"><input type="checkbox" data-layer-toggle value="neighbors" checked> Neighbor links</label>
+<label class="layer-control"><input type="checkbox" data-layer-toggle value="roads" checked> Roads</label>
+<label class="layer-control"><input type="checkbox" data-layer-toggle value="destinations" checked> Destinations</label>
+<label class="layer-control"><input type="checkbox" data-layer-toggle value="gates" checked> Gates</label>
+<label class="layer-control"><input type="checkbox" data-layer-toggle value="districts" checked> Districts</label>
+<label class="layer-control"><input type="checkbox" data-layer-toggle value="architecture" checked> Architecture</label>
+<label class="layer-control"><input type="checkbox" data-layer-toggle value="crossroads" checked> Crossroads</label>
+<label class="layer-control"><input type="checkbox" data-layer-toggle value="landmarks" checked> Landmarks</label></div>
+      <h2>Compiler Contract</h2>
+      <ul>
+        <li>kind: map_payload</li>
+        <li>entities: 40</li>
+        <li>links: 26</li>
+      </ul>
+      <h2>Top Districts</h2>
+      <ul><li>social + грусть + approach: 2</li>
+<li>social + злость + approach: 2</li></ul>
+      <h2>Top Crossroads</h2>
+      <ul><li>external -&gt; злость: 3</li></ul>
+      <h2>Top Roads</h2>
+      <ul><li>approach: 5</li>
+<li>attack: 1</li>
+<li>avoid: 1</li>
+<li>compensate: 1</li>
+<li>freeze: 1</li></ul>
+    </aside>
+  </main>
+  <script>
+    document.querySelectorAll('[data-layer-toggle]').forEach((control) => {
+      control.addEventListener('change', () => {
+        document.querySelectorAll(`[data-layer="${control.value}"]`).forEach((layer) => {
+          layer.dataset.hidden = control.checked ? 'false' : 'true';
+        });
+      });
+    });
+  </script>
+</body>
+</html>

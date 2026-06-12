@@ -10,9 +10,10 @@ The project has working layers:
 - `sources/`: immutable reference/source materials.
 - `model/`: accepted CBT model and JSON contracts.
 - `data/episodes/`: private observed/source episode records.
-- `data/state/`: private active Telegram session state.
+- `data/runtime-sessions/`: private in-progress Telegram session memory.
 - `data/userlist/`: private alpha waitlist and approval records.
 - `data/ux-events/`: private step-level UX analytics event log.
+- `data/exports/map-payload/`: explicit tracked map payload JSON/HTML exports.
 - `data/reports/`: optional private debug/export snapshots.
 - `config/`: runtime configuration files.
 - `app/`: runnable Telegram loop extractor app.
@@ -39,6 +40,10 @@ Reports are computed projections, not active storage. Normal bot/profile/admin
 paths build summaries on demand from observed episodes plus the selected/latest
 annotation-run. Markdown reports are optional debug exports.
 
+Map payload JSON and HTML previews are explicit generated exports under
+`data/exports/map-payload/`. They may contain derived private data, so commit
+them only when deliberately sharing that export surface.
+
 `app.graph_report` without `--output-dir` prints the Markdown summary only and
 must not write report files. Markdown export happens only when `--output-dir`
 is explicitly passed.
@@ -54,7 +59,7 @@ cp .env.example .env
 python -m app.telegram_bot
 ```
 
-Runtime episode artifacts, session state, and alpha userlist records are stored
+Runtime episode artifacts, session memory, and alpha userlist records are stored
 under `data/` and are ignored by git.
 
 Analytics can use versioned derived annotations from `data/annotation-runs/`.

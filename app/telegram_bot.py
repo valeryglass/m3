@@ -22,6 +22,7 @@ from app.loop_extractor import (
     status_text,
     target_fields,
 )
+from app.session_store import LoopSessionStore
 from app.storage import JsonStorage
 from app.tone_engine import load_tone_engine
 from app.userlist import JsonUserList
@@ -38,7 +39,8 @@ from app.ux_events import (
 
 def main() -> None:
     settings = load_settings()
-    storage = JsonStorage(settings.episode_dir, settings.state_dir)
+    storage = JsonStorage(settings.episode_dir)
+    session_store = LoopSessionStore(settings.runtime_session_dir)
     userlist = JsonUserList(settings.userlist_path)
     ux_events = UxEventLog(settings.ux_event_log)
     tone = load_tone_engine(settings.tone_config)
@@ -62,7 +64,7 @@ def main() -> None:
             update, settings, tone, ux_events, userlist, context.bot
         ):
             return
-        await _handle_start_after_authorized(update, storage, ux_events, tone)
+        await _handle_start_after_authorized(update, session_store, ux_events, tone)
 
     async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
@@ -71,9 +73,14 @@ def main() -> None:
             return
         chat_id = update.effective_chat.id
         now = utc_now()
-        session = storage.load_session(chat_id)
+        session = session_store.load_session(chat_id)
         if _expire_initial_session_if_stale(
-            storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
+            session_store,
+            ux_events,
+            session,
+            chat_id,
+            now,
+            settings.initial_session_ttl_sec,
         ):
             await _reply_text(update, _expired_initial_session_text(tone))
             return
@@ -101,14 +108,18 @@ def main() -> None:
             update, settings, tone, ux_events, userlist, context.bot
         ):
             return
-        await _handle_cancel_after_authorized(update, storage, ux_events, settings, tone)
+        await _handle_cancel_after_authorized(
+            update, session_store, ux_events, settings, tone
+        )
 
     async def message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
             update, settings, tone, ux_events, userlist, context.bot
         ):
             return
-        await _handle_message_after_authorized(update, storage, ux_events, settings, tone)
+        await _handle_message_after_authorized(
+            update, session_store, ux_events, settings, tone
+        )
 
     async def episode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
@@ -116,7 +127,7 @@ def main() -> None:
         ):
             return
         await _handle_episode_callback_after_authorized(
-            update, storage, ux_events, tone
+            update, storage, session_store, ux_events, tone
         )
 
     async def profile_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -326,13 +337,13 @@ def _trim_report_text(text: str, limit: int = REPORT_REPLY_LIMIT) -> str:
 
 async def _handle_start_after_authorized(
     update,
-    storage: JsonStorage,
+    session_store: LoopSessionStore,
     ux_events: UxEventLog,
     tone,
 ) -> None:
     chat_id = update.effective_chat.id
     now = utc_now()
-    session = storage.load_session(chat_id)
+    session = session_store.load_session(chat_id)
     if session is not None and session.session_id is not None:
         ux_events.append(
             _session_cancelled_event(
@@ -342,7 +353,7 @@ async def _handle_start_after_authorized(
                 cancel_reason="restart",
             )
         )
-    session = _start_new_session(storage, ux_events, chat_id, now)
+    session = _start_new_session(session_store, ux_events, chat_id, now)
     await _reply_text(
         update,
         tone.start_session(
@@ -354,16 +365,16 @@ async def _handle_start_after_authorized(
 
 async def _handle_cancel_after_authorized(
     update,
-    storage: JsonStorage,
+    session_store: LoopSessionStore,
     ux_events: UxEventLog,
     settings: Settings,
     tone,
 ) -> None:
     chat_id = update.effective_chat.id
     now = utc_now()
-    session = storage.load_session(chat_id)
+    session = session_store.load_session(chat_id)
     if _expire_initial_session_if_stale(
-        storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
+        session_store, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
     ):
         await _reply_text(update, _expired_initial_session_text(tone))
         return
@@ -378,22 +389,22 @@ async def _handle_cancel_after_authorized(
                 now=now,
             )
         )
-    storage.delete_session(chat_id)
+    session_store.delete_session(chat_id)
     await _reply_text(update, tone.cancel())
 
 
 async def _handle_message_after_authorized(
     update,
-    storage: JsonStorage,
+    session_store: LoopSessionStore,
     ux_events: UxEventLog,
     settings: Settings,
     tone,
 ) -> None:
     chat_id = update.effective_chat.id
-    session = storage.load_session(chat_id)
+    session = session_store.load_session(chat_id)
     now = utc_now()
     if _expire_initial_session_if_stale(
-        storage, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
+        session_store, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
     ):
         await _reply_text(update, _expired_initial_session_text(tone))
         return
@@ -441,7 +452,7 @@ async def _handle_message_after_authorized(
     )
     if result.should_save:
         session.awaiting_save_confirmation = True
-        storage.save_session(session)
+        session_store.save_session(session)
         await _reply_text(
             update,
             tone.review_screen(session.observed, target_fields(session)),
@@ -449,7 +460,7 @@ async def _handle_message_after_authorized(
         )
         return
     _log_step_prompted(ux_events, session, str(chat_id), now=now)
-    storage.save_session(session)
+    session_store.save_session(session)
     reply = result.reply
     if advanced:
         reply = tone.next_prompt_bridge(
@@ -463,6 +474,7 @@ async def _handle_message_after_authorized(
 async def _handle_episode_callback_after_authorized(
     update,
     storage: JsonStorage,
+    session_store: LoopSessionStore,
     ux_events: UxEventLog,
     tone,
 ) -> None:
@@ -470,7 +482,7 @@ async def _handle_episode_callback_after_authorized(
     if query is not None:
         await query.answer()
     chat_id = update.effective_chat.id
-    session = storage.load_session(chat_id)
+    session = session_store.load_session(chat_id)
     if session is None or not session.awaiting_save_confirmation:
         if query is not None:
             await _reply_to_callback(query, tone.no_active_loop())
@@ -489,7 +501,7 @@ async def _handle_episode_callback_after_authorized(
                 created_at=now,
             )
         )
-        storage.delete_session(chat_id)
+        session_store.delete_session(chat_id)
         await _reply_to_callback(query, tone.saved_episode(tone.complete(), episode_count))
         return
     if data == "episode:cancel":
@@ -501,7 +513,7 @@ async def _handle_episode_callback_after_authorized(
                 cancel_reason="review_cancel",
             )
         )
-        storage.delete_session(chat_id)
+        session_store.delete_session(chat_id)
         await _reply_to_callback(query, tone.cancel())
         return
     if query is not None:
@@ -794,7 +806,7 @@ def _new_session_for_now(chat_id: int, now):
 
 
 def _start_new_session(
-    storage: JsonStorage,
+    session_store: LoopSessionStore,
     ux_events: UxEventLog,
     chat_id: int,
     now,
@@ -809,7 +821,7 @@ def _start_new_session(
         )
     )
     _log_step_prompted(ux_events, session, str(chat_id), now=now)
-    storage.save_session(session)
+    session_store.save_session(session)
     return session
 
 
@@ -867,7 +879,7 @@ def _expired_initial_session_text(tone) -> str:
 
 
 def _expire_initial_session_if_stale(
-    storage: JsonStorage,
+    session_store: LoopSessionStore,
     ux_events: UxEventLog,
     session,
     chat_id: int,
@@ -892,7 +904,7 @@ def _expire_initial_session_if_stale(
             cancel_reason="initial_session_expired",
         )
     )
-    storage.delete_session(chat_id)
+    session_store.delete_session(chat_id)
     return True
 
 
