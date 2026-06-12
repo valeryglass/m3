@@ -34,7 +34,7 @@ data/reports/**
 !data/exports/.gitkeep
 
 # Ignore user-local Obsidian workspace state.
-.obsidian/workspace.json
+.obsidian/
 
 # Ignore local Codex environment marker.
 .codex
