@@ -31,7 +31,7 @@ Do not skip the chain. Any insight must remain traceable to observed evidence.
 Use this ladder when deciding what kind of thing an artifact is:
 
 ```text
-Atom -> Pair -> Signature -> Motif -> Insight
+Atom -> Pair -> Signature / Set Signature -> Motif / Set Motif -> Attractor -> Insight
 ```
 
 - `Atom`: one analytic value.
@@ -40,12 +40,18 @@ Atom -> Pair -> Signature -> Motif -> Insight
   Example: `shame -> avoid`
 - `Signature`: one multi-atom episode pattern.
   Example: `social -> shame -> avoid`
-- `Motif`: repeated signature or repeated graph fragment.
+- `Set Signature`: unordered multi-atom co-presence pattern.
+  Example: `{trigger:social, emotion:shame, behavior:avoid}`
+- `Motif`: repeated ordered signature or graph fragment.
   Example: `frequency(social -> shame -> avoid) = 7`
-- `Insight`: interpretation of one or more motifs for a report.
+- `Set Motif`: repeated unordered set signature.
+  Example: `frequency({social, shame, avoid}) = 9`
+- `Attractor`: repeated graph region supported by multiple signatures or sets.
+  Example: `{external, shame, evaluation, avoid, compensate}`
+- `Insight`: interpretation of motifs, attractors, contrasts, or exceptions.
   Example: "in this sample, social/shame/avoid repeats."
 
-Keep future math words such as `hyperedge`, `simplex`, and `attractor` as
+Keep future math words such as `hyperedge` and `simplex` as
 external-methodology ideas until they are promoted into accepted model docs.
 
 ## Current Atoms
@@ -76,8 +82,14 @@ confidence
 ## Compound Patterns
 
 - `loop`: compact CBT pattern, currently `trigger + emotion + behavior`.
+- `path_motif`: repeated ordered signature.
+- `set_motif`: repeated unordered set signature.
 - `fork`: same `trigger + emotion`, multiple behaviors.
 - `trajectory`: supported path from context/state/action toward outcome.
+- `attractor`: stable report-layer region, not one path and not diagnosis.
+- `contrast`: meaningful difference between two supported patterns.
+- `counterexample`: episode or motif that breaks a dominant pattern without
+  invalidating it automatically.
 - `recurrence`: pattern appears in more than one episode.
 - `stability`: pattern appears across more than one 1-week bucket.
 - `novelty`: loop appears in latest week but not earlier sample weeks.
@@ -85,6 +97,9 @@ confidence
 - `surprise`: rare loop whose individual atoms are otherwise common.
 
 These are sample facts, not stable traits or diagnoses.
+
+Draft attractor rule: require `support_count >= 3`, `unique_signatures >= 2`,
+`unique_episodes >= 3`, usable confidence, and provenance episode IDs.
 
 ## Quality Entities
 
