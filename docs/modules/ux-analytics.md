@@ -21,7 +21,7 @@ Record and aggregate step-level Telegram loop UX events.
 
 ## Interfaces
 
-- `capture_to_episode`
+No formal storage interface. Telegram Capture emits the current runtime events.
 
 ## Lifecycle
 

@@ -6,6 +6,188 @@ surface, not a source of truth, schema, roadmap commitment, or release plan.
 Use it for small next-step memory that is too concrete for external methodology
 and too early for accepted model docs.
 
+
+## Epic: Input Funnels And Episode Draft Hydration
+
+Intent: refactor capture so text, voice, uploaded audio, three-block narrative,
+and the classic question flow all enter the same draft and gap-hydration
+pipeline without changing the canonical episode schema.
+
+Decision candidate:
+
+- Add ADR `0007-input-funnels-and-episode-drafts`.
+- Treat Telegram Capture as a surface adapter.
+- Introduce Input Funnels, Episode Drafts, and Gap Hydration as explicit
+  planning boundaries.
+- Keep confirmed observed episodes as the only canonical persisted source
+  artifact.
+
+Global acceptance:
+
+- `episode.schema.json` is unchanged for the planning epic.
+- No audio-specific episode type is introduced.
+- Raw audio and transcripts do not bypass user confirmation.
+- Gap hydration can operate on any partial episode draft.
+- Existing graph, report, annotation-run, and map payload behavior is out of
+  scope.
+
+Completed planning setup:
+
+- BL-01 input funnels ADR accepted.
+- BL-02 module and interface docs accepted.
+- BL-03 architecture wording refactored with Telegram UX/access kept as current
+  runtime responsibilities.
+
+### BL-01 Add input funnels ADR
+
+Status: completed.
+
+Created `adr/0007-input-funnels-and-episode-drafts.md`.
+
+Acceptance:
+
+- ADR distinguishes `input`, `transcript`, `draft`, `episode`, `annotation`,
+  `graph`, and `report`.
+- ADR says multiple capture forms produce drafts, not separate episode types.
+- ADR preserves observed episode files as canonical source artifacts.
+
+### BL-02 Add module and interface docs
+
+Status: completed.
+
+Created planning docs for:
+
+```text
+modules/input-funnels.md
+modules/episode-drafts.md
+modules/gap-hydration.md
+interfaces/input-to-draft.md
+interfaces/draft-to-episode.md
+```
+
+Acceptance:
+
+- each file states purpose, inputs, outputs, guarantees, ownership, and
+  lifecycle.
+- new docs remain planning-level and do not imply runtime behavior already
+  exists.
+
+### BL-03 Refactor architecture wording
+
+Status: completed.
+
+Updated architecture and Telegram Capture docs so the classic question flow is a
+capture strategy, not the architecture boundary.
+
+Acceptance:
+
+- architecture flow includes Input Funnels, Episode Drafts, and Gap Hydration.
+- `modules/telegram-capture.md` describes Telegram as a surface adapter.
+- `interfaces/capture-to-episode.md` remains as compatibility/direct completed
+  capture boundary.
+
+### BL-04 Shorten capture CTA
+
+Replace the heavy start framing with one clear CTA-style question.
+
+Candidate copy:
+
+```text
+What happened? Send text or voice — I’ll make a draft and ask only what’s missing.
+```
+
+Russian candidate:
+
+```text
+Что случилось? Ответь текстом или голосом — я соберу черновик и спрошу только недостающее.
+```
+
+Acceptance:
+
+- one action is visible to the user.
+- the 10-question structure is not exposed upfront.
+- the old question flow can still be used behind the draft/gap boundary.
+
+### BL-05 Refactor classic 10Q as draft filler
+
+Treat the existing 10-question sequence as one way to fill an Episode Draft.
+
+Acceptance:
+
+- each answer updates a draft field.
+- missing required fields are selected by Gap Hydration.
+- completed and confirmed drafts still persist through Episode Model + Storage.
+
+### BL-06 Add one-take text draft path
+
+Allow one text message to produce a provisional episode draft.
+
+Acceptance:
+
+- one-take text can create a partial draft.
+- missing fields are detected.
+- the user can confirm, continue, edit, or discard.
+
+### BL-07 Add Telegram voice funnel
+
+Accept Telegram voice notes as input artifacts.
+
+Acceptance:
+
+- voice input enters the same draft path as text.
+- transcript is support evidence, not a saved episode.
+- confirmation is required before persistence.
+- raw audio is not saved by default.
+
+### BL-08 Add audio/document fallback
+
+Accept uploaded audio files as a fallback to voice notes.
+
+Acceptance:
+
+- `audio` messages and audio-like `document` messages can enter the same
+  funnel.
+- unsupported or oversized files are rejected clearly.
+- downstream draft behavior is identical to voice.
+
+### BL-09 Add three-block narrative mode
+
+Add a lighter guided capture strategy:
+
+```text
+1. What happened?
+2. What happened inside you?
+3. What did you do / what changed after?
+```
+
+Acceptance:
+
+- three answers produce a draft.
+- Gap Hydration asks only for missing canonical fields.
+- no new episode schema is required.
+
+### BL-10 Track funnel UX metrics
+
+Add UX events for funnel comparison.
+
+Candidate events:
+
+```text
+input_received
+transcript_created
+draft_created
+gap_question_asked
+draft_confirmed
+draft_discarded
+episode_saved
+transcription_failed
+```
+
+Acceptance:
+
+- events avoid private content unless already allowed by UX event policy.
+- metrics can compare 10Q, one-take, voice, and three-block capture.
+
 ## Now
 
 ### Add Set Signature / Co-signature

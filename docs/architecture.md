@@ -24,9 +24,15 @@ Telegram user
 Supporting flows:
 
 ```text
-Episode Capture -> UX Analytics
-Episode Capture -> Userlist / Access Gate
+Telegram Capture -> UX Analytics
+Telegram Capture -> Userlist / Access Gate
+Telegram Capture -> Input Funnels -> Episode Drafts -> Gap Hydration (planned/downstream)
 ```
+
+Today, Telegram Capture emits UX/access events and can save completed observed
+episodes through the existing capture boundary. Planned capture work may route
+Telegram text, voice, uploaded audio, and future forms into Input Funnels,
+Episode Drafts, and Gap Hydration before confirmation.
 
 ## Layers
 
@@ -41,8 +47,14 @@ Episode Capture -> Userlist / Access Gate
 
 ## Bounded Contexts
 
-- Episode Capture collects observed episode frames and writes validated episode
-  drafts.
+- Telegram Capture receives Telegram input, access checks, callbacks, and UX
+  event emission for the current runtime.
+- Input Funnels normalize Telegram text, voice, audio, and future capture
+  surfaces into pre-episode input artifacts.
+- Episode Drafts stage partial observed fields before confirmation and
+  persistence.
+- Gap Hydration selects the smallest useful next question for incomplete or
+  weak episode drafts.
 - Episode Model + Storage owns the JSON contract, Pydantic mirror, persistence,
   and legacy normalization.
 - Annotation Runs owns versioned selected derived annotations and readiness
@@ -63,6 +75,9 @@ include provenance through `source_field`, `source_quote`, and `confidence`.
 The project keeps these boundaries explicit:
 
 ```text
+input != episode
+transcript != episode
+draft != episode
 episode != annotation
 annotation != graph
 graph != report

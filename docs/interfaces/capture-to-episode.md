@@ -2,13 +2,22 @@
 
 ## Contract
 
-Telegram Capture produces observed episode fields and hands them to Episode
-Model + Storage for validation and persistence.
+Telegram Capture produces confirmed observed episode fields and hands them to
+Episode Model + Storage for validation and persistence.
+
+For new capture work, prefer the more explicit path:
+
+```text
+input_to_draft -> gap_hydration -> draft_to_episode
+```
+
+This interface remains the compatibility boundary for flows that already hand
+complete observed fields directly to storage.
 
 ## Input
 
 - one active loop session.
-- plain text replies for observed CBT frames.
+- observed CBT fields collected from text replies.
 - source metadata such as Telegram chat id.
 
 ## Output

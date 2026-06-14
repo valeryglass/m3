@@ -1,0 +1,64 @@
+# Episode Drafts
+
+## Purpose
+
+Hold provisional observed episode material before confirmation and persistence.
+
+Episode Drafts are the staging area between natural user input and the canonical
+observed episode contract. They let the system accept incomplete or messy input
+without weakening the saved episode schema.
+
+## Inputs
+
+- normalized input artifacts from Input Funnels.
+- field updates from classic question flow replies.
+- gap answers selected by Gap Hydration.
+- user confirmation, edit, or discard actions.
+
+## Outputs
+
+- partial episode drafts.
+- complete-but-unconfirmed episode drafts.
+- confirmed observed fields ready for Episode Model + Storage.
+
+Conceptual shape:
+
+```text
+EpisodeDraft:
+  observed_partial:
+    situation?
+    trigger?
+    actor?
+    quote?
+    automatic_thought?
+    emotion?
+    behavior?
+    physical?
+    short_term_consequence?
+    long_term_consequence?
+  missing_fields: []
+  weak_fields: []
+  source_quotes: []
+  confidence_notes: []
+  status: partial | complete | confirmed | discarded
+```
+
+## Guarantees
+
+- drafts are provisional and not source-of-truth artifacts.
+- drafts may be incomplete.
+- only confirmed drafts can be saved as observed episodes.
+- saved episodes must still validate against the canonical schema.
+- draft fields should preserve source quotes where possible.
+
+## Ownership
+
+- producer: `episode_drafts`
+- consumers: `gap_hydration`, `episode_model_storage`
+
+## Lifecycle
+
+`draft`
+
+The module is a planned boundary for refactoring capture flows. It should remain
+small until runtime needs prove which draft fields are necessary.

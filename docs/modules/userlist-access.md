@@ -20,7 +20,8 @@ Track approved and waitlisted Telegram users for local bot access control.
 
 ## Interfaces
 
-- `capture_to_episode`
+No formal episode storage interface. Telegram Capture supplies the current
+runtime profile and access-check inputs.
 
 ## Lifecycle
 

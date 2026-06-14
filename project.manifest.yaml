@@ -28,7 +28,7 @@ modules:
   telegram_capture:
     stage: experimental
     enabled: true
-    purpose: Collect observed CBT episode frames through Telegram.
+    purpose: Adapt Telegram messages and callbacks into the capture pipeline.
     owned_paths:
       - app/telegram_bot.py
       - app/loop_extractor.py
@@ -53,6 +53,62 @@ modules:
       - user_profile_report_rendering
       - private_runtime_session_memory
 
+  input_funnels:
+    stage: draft
+    enabled: true
+    purpose: Normalize user input surfaces into pre-episode capture artifacts.
+    owned_paths:
+      - docs/modules/input-funnels.md
+    inputs:
+      - Telegram text messages
+      - Telegram voice notes and audio uploads
+      - future structured forms
+    outputs:
+      - normalized input artifacts
+    interfaces:
+      - input_to_draft
+    capabilities:
+      - surface_input_normalization
+      - pre_episode_artifact_boundary
+
+  episode_drafts:
+    stage: draft
+    enabled: true
+    purpose: Stage provisional observed episode material before confirmation and persistence.
+    owned_paths:
+      - docs/modules/episode-drafts.md
+    inputs:
+      - normalized input artifacts
+      - field updates from capture flows
+      - gap answers
+      - user confirmation decisions
+    outputs:
+      - partial episode drafts
+      - confirmed observed fields
+    interfaces:
+      - input_to_draft
+      - draft_to_episode
+    capabilities:
+      - provisional_episode_staging
+      - confirmation_boundary
+
+  gap_hydration:
+    stage: draft
+    enabled: true
+    purpose: Select the smallest useful next question for incomplete episode drafts.
+    owned_paths:
+      - docs/modules/gap-hydration.md
+    inputs:
+      - episode drafts
+      - canonical required observed fields
+      - draft field quality notes
+    outputs:
+      - next gap question
+      - remaining gap list
+    capabilities:
+      - missing_field_selection
+      - reusable_capture_gap_questions
+
   episode_model_storage:
     stage: experimental
     enabled: true
@@ -76,6 +132,7 @@ modules:
       - normalized private legacy episode records from migration/compat tools
     interfaces:
       - capture_to_episode
+      - draft_to_episode
       - episode_to_annotation
     capabilities:
       - schema_validation
@@ -131,6 +188,7 @@ modules:
       - optional Markdown debug exports
     interfaces:
       - annotation_to_report
+      - report_to_payload
     capabilities:
       - graph_readiness_summary
       - signature_counts
@@ -186,8 +244,6 @@ modules:
       - private JSONL event logs
       - UX aggregate summaries
       - optional UX debug exports
-    interfaces:
-      - capture_to_episode
     capabilities:
       - append_only_event_log
       - funnel_summary
@@ -206,20 +262,30 @@ modules:
     outputs:
       - private userlist records
       - admin waitlist notifications
-    interfaces:
-      - capture_to_episode
     capabilities:
       - approved_user_gate
       - waitlist_profile_capture
 
 interfaces:
+  input_to_draft:
+    state: draft
+    owner: input_funnels
+    consumers:
+      - episode_drafts
+    contract_doc: docs/interfaces/input-to-draft.md
+
+  draft_to_episode:
+    state: draft
+    owner: episode_drafts
+    consumers:
+      - episode_model_storage
+    contract_doc: docs/interfaces/draft-to-episode.md
+
   capture_to_episode:
     state: open
     owner: telegram_capture
     consumers:
       - episode_model_storage
-      - ux_analytics
-      - userlist_access
     contract_doc: docs/interfaces/capture-to-episode.md
 
   episode_to_annotation:

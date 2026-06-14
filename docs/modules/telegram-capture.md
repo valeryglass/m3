@@ -2,19 +2,25 @@
 
 ## Purpose
 
-Collect observed CBT episode frames through Telegram and save completed episodes
-through the episode storage boundary.
+Adapt Telegram messages and callbacks into the capture pipeline.
+
+Telegram Capture owns Telegram-specific receiving, access checks, callbacks,
+and UX events. It should not own the full interview architecture. New capture
+work may route text, voice, and audio through Input Funnels, Episode Drafts,
+Gap Hydration, and the confirmation boundary before persistence.
 
 ## Inputs
 
-- Telegram user messages.
+- Telegram user text messages.
+- Telegram voice notes and audio uploads when enabled.
 - Telegram callback data where still used by bot control flow.
 - private in-progress session memory under `data/runtime-sessions/`.
 - tone configuration from `config/tone.yaml`.
 
 ## Outputs
 
-- observed episode fields.
+- normalized input artifacts when using the draft pipeline.
+- confirmed observed episode fields when using the legacy direct path.
 - completed private observed source episode files under `data/episodes/`.
 - private UX event records under `data/ux-events/`.
 
@@ -29,11 +35,15 @@ through the episode storage boundary.
 
 - `capture_to_episode`
 
+Planned downstream capture work may use `input_to_draft` and `draft_to_episode`
+after Telegram-specific receiving and access checks.
+
 ## Lifecycle
 
 `experimental`
 
-The flow is usable, but prompt copy and frame order can still evolve.
+The text flow is usable, but prompt copy, frame order, audio input, and draft
+hydration can still evolve.
 
 Episode files are observed source artifacts. Telegram capture does not persist
 top-level `derived` or `current_derived`.
