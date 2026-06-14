@@ -61,6 +61,9 @@ def base_event(
     advanced: bool | None = None,
     answer_chars: int | None = None,
     cancel_reason: str | None = None,
+    funnel: str | None = None,
+    media_kind: str | None = None,
+    draft_fields: int | None = None,
 ) -> dict[str, Any]:
     event: dict[str, Any] = {
         "event_type": event_type,
@@ -75,6 +78,9 @@ def base_event(
         "advanced": advanced,
         "answer_chars": answer_chars,
         "cancel_reason": cancel_reason,
+        "funnel": funnel,
+        "media_kind": media_kind,
+        "draft_fields": draft_fields,
     }
     event.update({key: value for key, value in optional.items() if value is not None})
     return event
@@ -89,6 +95,9 @@ def telegram_event(
     message_kind: str | None = None,
     command: str | None = None,
     answer_chars: int | None = None,
+    funnel: str | None = None,
+    media_kind: str | None = None,
+    reject_reason: str | None = None,
 ) -> dict[str, Any]:
     event: dict[str, Any] = {
         "event_type": event_type,
@@ -100,6 +109,9 @@ def telegram_event(
         "message_kind": message_kind,
         "command": command,
         "answer_chars": answer_chars,
+        "funnel": funnel,
+        "media_kind": media_kind,
+        "reject_reason": reject_reason,
     }
     event.update({key: value for key, value in optional.items() if value is not None})
     return event

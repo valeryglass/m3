@@ -31,6 +31,51 @@ def test_summarize_events_counts_completion_retries_and_lengths():
             command="/start",
         ),
         base_event(
+            "input_received",
+            "session-1",
+            "123",
+            created_at=_dt(12, 0),
+            funnel="one_take_text",
+            media_kind="text",
+        ),
+        base_event(
+            "draft_created",
+            "session-1",
+            "123",
+            created_at=_dt(12, 0),
+            funnel="one_take_text",
+            media_kind="text",
+            draft_fields=1,
+        ),
+        telegram_event(
+            "input_received",
+            "123",
+            created_at=_dt(12, 3),
+            chat_id=123,
+            message_kind="voice",
+            funnel="voice",
+            media_kind="voice",
+        ),
+        telegram_event(
+            "transcription_pending",
+            "123",
+            created_at=_dt(12, 3),
+            chat_id=123,
+            message_kind="voice",
+            funnel="voice",
+            media_kind="voice",
+        ),
+        telegram_event(
+            "input_rejected",
+            "123",
+            created_at=_dt(12, 4),
+            chat_id=123,
+            message_kind="document",
+            funnel="audio_document",
+            media_kind="document",
+            reject_reason="unsupported_document",
+        ),
+        base_event(
             "session_started",
             "session-1",
             "123",
@@ -96,6 +141,12 @@ def test_summarize_events_counts_completion_retries_and_lengths():
     assert summary["unauthorized_attempts"] == 1
     assert summary["unauthorized_users"] == 1
     assert summary["updates_by_message_kind"] == {"command": 1}
+    assert summary["inputs_by_funnel"] == {"one_take_text": 1, "voice": 1}
+    assert summary["inputs_by_media_kind"] == {"text": 1, "voice": 1}
+    assert summary["drafts_created_by_funnel"] == {"one_take_text": 1}
+    assert summary["avg_draft_fields_by_funnel"] == {"one_take_text": 1.0}
+    assert summary["transcription_pending_by_funnel"] == {"voice": 1}
+    assert summary["input_rejections_by_reason"] == {"unsupported_document": 1}
     assert summary["unauthorized_by_user"] == {"456": 1}
     assert summary["user_labels"] == {"123": "123 (@test_user)", "456": "456 (Guest)"}
     assert summary["avg_session_duration_sec"] == 600.0
@@ -158,6 +209,12 @@ def test_ux_analytics_renders_and_writes_markdown_and_json(tmp_path):
         "repeat_users": 0,
         "abandoned_count": 1,
         "avg_session_duration_sec": 42.5,
+        "inputs_by_funnel": {"one_take_text": 2, "voice": 1},
+        "inputs_by_media_kind": {"text": 2, "voice": 1},
+        "drafts_created_by_funnel": {"one_take_text": 2},
+        "avg_draft_fields_by_funnel": {"one_take_text": 1.0},
+        "transcription_pending_by_funnel": {"voice": 1},
+        "input_rejections_by_reason": {"unsupported_document": 1},
         "sessions_per_user": {"123": 2, "456": 1},
         "user_labels": {"123": "123 (@test_user)", "456": "456 (Guest)"},
         "steps_prompted_by_target": {"situation": 2, "behavior": 5},
@@ -174,6 +231,11 @@ def test_ux_analytics_renders_and_writes_markdown_and_json(tmp_path):
 
     assert "# UX Analytics" in text
     assert "- completion_rate: 50.00%" in text
+    assert "## Inputs By Funnel" in text
+    assert "- one_take_text: 2" in text
+    assert "- voice: 1" in text
+    assert "## Input Rejections By Reason" in text
+    assert "- unsupported_document: 1" in text
     assert "- 123 (@test_user): 2" in text
     assert "- 456 (Guest): 1" in text
     assert text.index("- behavior: 5") < text.index("- situation: 2")

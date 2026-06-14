@@ -144,21 +144,21 @@ def main() -> None:
             update, settings, tone, ux_events, userlist, context.bot
         ):
             return
-        await _handle_voice_after_authorized(update, session_store, tone)
+        await _handle_voice_after_authorized(update, session_store, ux_events, tone)
 
     async def audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
             update, settings, tone, ux_events, userlist, context.bot
         ):
             return
-        await _handle_audio_after_authorized(update, session_store, tone)
+        await _handle_audio_after_authorized(update, session_store, ux_events, tone)
 
     async def document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
             update, settings, tone, ux_events, userlist, context.bot
         ):
             return
-        await _handle_document_after_authorized(update, session_store, tone)
+        await _handle_document_after_authorized(update, session_store, ux_events, tone)
 
     async def message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
@@ -459,6 +459,7 @@ async def _start_text_capture_session(
     now,
     existing_session=None,
     cancel_reason: str | None = None,
+    funnel: str = "one_take_text",
 ) -> None:
     artifact = text_input_artifact(
         text,
@@ -474,6 +475,7 @@ async def _start_text_capture_session(
         now=now,
         existing_session=existing_session,
         cancel_reason=cancel_reason,
+        funnel=funnel,
     )
 
 
@@ -488,6 +490,7 @@ async def _start_input_artifact_capture_session(
     now,
     existing_session=None,
     cancel_reason: str | None = None,
+    funnel: str = "input_artifact",
 ) -> None:
     capture_text = artifact_text(artifact)
     await _start_episode_draft_capture_session(
@@ -501,6 +504,8 @@ async def _start_input_artifact_capture_session(
         now=now,
         existing_session=existing_session,
         cancel_reason=cancel_reason,
+        funnel=funnel,
+        media_kind=artifact.media_kind,
     )
 
 
@@ -516,6 +521,8 @@ async def _start_episode_draft_capture_session(
     now,
     existing_session=None,
     cancel_reason: str | None = None,
+    funnel: str = "unknown",
+    media_kind: str | None = None,
 ) -> None:
     if (
         cancel_reason is not None
@@ -536,6 +543,28 @@ async def _start_episode_draft_capture_session(
         draft,
         session_id=new_session_id(str(chat_id), now),
         episode_date=_episode_date_for_now(now),
+    )
+    ux_events.append(
+        base_event(
+            "input_received",
+            session.session_id,
+            str(chat_id),
+            created_at=now,
+            funnel=funnel,
+            media_kind=media_kind,
+            answer_chars=answer_chars,
+        )
+    )
+    ux_events.append(
+        base_event(
+            "draft_created",
+            session.session_id,
+            str(chat_id),
+            created_at=now,
+            funnel=funnel,
+            media_kind=media_kind,
+            draft_fields=len(draft.observed),
+        )
     )
     ux_events.append(
         base_event(
@@ -606,6 +635,7 @@ async def _handle_capture_after_authorized(
         now=now,
         existing_session=existing_session,
         cancel_reason="capture_restart",
+        funnel="capture_command",
     )
 
 
@@ -650,19 +680,40 @@ async def _handle_capture3_after_authorized(
         now=now,
         existing_session=existing_session,
         cancel_reason="capture3_restart",
+        funnel="three_block",
+        media_kind="three_block",
     )
 
 
 async def _handle_voice_after_authorized(
     update,
     session_store: LoopSessionStore,
+    ux_events: UxEventLog,
     tone,
 ) -> None:
     artifact = _voice_input_artifact_from_update(update)
     if artifact is None:
+        _log_media_funnel_event(
+            ux_events,
+            update,
+            "input_rejected",
+            funnel="voice",
+            media_kind="voice",
+            reject_reason="missing_file_id",
+        )
         await _reply_text(update, "Не смог прочитать голосовое сообщение")
         return
 
+    _log_media_funnel_event(
+        ux_events, update, "input_received", funnel="voice", media_kind=artifact.media_kind
+    )
+    _log_media_funnel_event(
+        ux_events,
+        update,
+        "transcription_pending",
+        funnel="voice",
+        media_kind=artifact.media_kind,
+    )
     # Voice is accepted as an input artifact, but it must not advance or create
     # an episode draft until transcription is available.
     await _reply_text(
@@ -675,26 +726,68 @@ async def _handle_voice_after_authorized(
 async def _handle_audio_after_authorized(
     update,
     session_store: LoopSessionStore,
+    ux_events: UxEventLog,
     tone,
 ) -> None:
     artifact = _audio_input_artifact_from_update(update)
     if artifact is None:
+        _log_media_funnel_event(
+            ux_events,
+            update,
+            "input_rejected",
+            funnel="audio",
+            media_kind="audio",
+            reject_reason="missing_file_id",
+        )
         await _reply_text(update, "Не смог прочитать аудиофайл")
         return
 
+    _log_media_funnel_event(
+        ux_events, update, "input_received", funnel="audio", media_kind=artifact.media_kind
+    )
+    _log_media_funnel_event(
+        ux_events,
+        update,
+        "transcription_pending",
+        funnel="audio",
+        media_kind=artifact.media_kind,
+    )
     await _reply_text(update, _audio_transcription_pending_text())
 
 
 async def _handle_document_after_authorized(
     update,
     session_store: LoopSessionStore,
+    ux_events: UxEventLog,
     tone,
 ) -> None:
     artifact = _audio_document_input_artifact_from_update(update)
     if artifact is None:
+        _log_media_funnel_event(
+            ux_events,
+            update,
+            "input_rejected",
+            funnel="audio_document",
+            media_kind="document",
+            reject_reason="unsupported_document",
+        )
         await _reply_text(update, "Поддерживаю только аудиофайлы")
         return
 
+    _log_media_funnel_event(
+        ux_events,
+        update,
+        "input_received",
+        funnel="audio_document",
+        media_kind=artifact.media_kind,
+    )
+    _log_media_funnel_event(
+        ux_events,
+        update,
+        "transcription_pending",
+        funnel="audio_document",
+        media_kind=artifact.media_kind,
+    )
     await _reply_text(update, _audio_transcription_pending_text())
 
 
@@ -1094,6 +1187,29 @@ def _telegram_user_profile(update) -> dict:
         for key, value in fields.items()
         if value is not None and value != ""
     }
+
+
+def _log_media_funnel_event(
+    ux_events: UxEventLog,
+    update,
+    event_type: str,
+    *,
+    funnel: str,
+    media_kind: str,
+    reject_reason: str | None = None,
+) -> None:
+    ux_events.append(
+        telegram_event(
+            event_type,
+            _telegram_update_user_id(update),
+            created_at=utc_now(),
+            chat_id=update.effective_chat.id,
+            message_kind=media_kind,
+            funnel=funnel,
+            media_kind=media_kind,
+            reject_reason=reject_reason,
+        )
+    )
 
 
 def _audio_transcription_pending_text() -> str:

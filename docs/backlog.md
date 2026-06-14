@@ -226,6 +226,19 @@ Acceptance:
 
 Add UX events for funnel comparison.
 
+Implementation split:
+
+- BL-10a: emit `input_received` and `draft_created` for draft-producing
+  text, hidden command, transcribed-artifact, and three-block funnels.
+- BL-10b: emit media rejection/transcription-pending events for voice, audio,
+  and document inputs that cannot yet create drafts.
+- BL-10c: add funnel/media summary counts to UX analytics markdown/json
+  reports.
+- BL-10d: document product-facing funnel success metrics and non-goals in
+  UX Analytics.
+- BL-10e: later add confirmation/save funnel metrics after the confirmation
+  boundary exists.
+
 Candidate events:
 
 ```text
@@ -237,6 +250,8 @@ draft_confirmed
 draft_discarded
 episode_saved
 transcription_failed
+transcription_pending
+input_rejected
 ```
 
 Acceptance:

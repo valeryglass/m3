@@ -38,6 +38,12 @@ def summarize_events(
     ]
     step_prompted = [e for e in events if e.get("event_type") == "step_prompted"]
     step_answered = [e for e in events if e.get("event_type") == "step_answered"]
+    input_received = [e for e in events if e.get("event_type") == "input_received"]
+    draft_created = [e for e in events if e.get("event_type") == "draft_created"]
+    transcription_pending = [
+        e for e in events if e.get("event_type") == "transcription_pending"
+    ]
+    input_rejected = [e for e in events if e.get("event_type") == "input_rejected"]
 
     started_count = len(sessions_started)
     completed_count = len(sessions_completed)
@@ -77,6 +83,24 @@ def summarize_events(
         ),
         "updates_by_message_kind": dict(
             Counter(e["message_kind"] for e in updates_received if "message_kind" in e)
+        ),
+        "inputs_by_funnel": dict(
+            Counter(e["funnel"] for e in input_received if "funnel" in e)
+        ),
+        "inputs_by_media_kind": dict(
+            Counter(e["media_kind"] for e in input_received if "media_kind" in e)
+        ),
+        "drafts_created_by_funnel": dict(
+            Counter(e["funnel"] for e in draft_created if "funnel" in e)
+        ),
+        "avg_draft_fields_by_funnel": _avg_by_funnel(
+            draft_created, "draft_fields"
+        ),
+        "transcription_pending_by_funnel": dict(
+            Counter(e["funnel"] for e in transcription_pending if "funnel" in e)
+        ),
+        "input_rejections_by_reason": dict(
+            Counter(e["reject_reason"] for e in input_rejected if "reject_reason" in e)
         ),
         "unauthorized_by_user": dict(
             Counter(e["user_id"] for e in unauthorized_attempts if "user_id" in e)
@@ -160,6 +184,42 @@ def render_markdown(summary: dict[str, Any]) -> str:
         f"- avg_session_duration_sec: {_format_float(summary.get('avg_session_duration_sec', 0.0))}",
         "",
     ]
+    lines.extend(
+        _render_mapping(
+            "## Inputs By Funnel",
+            summary.get("inputs_by_funnel", {}),
+        )
+    )
+    lines.extend(
+        _render_mapping(
+            "## Inputs By Media Kind",
+            summary.get("inputs_by_media_kind", {}),
+        )
+    )
+    lines.extend(
+        _render_mapping(
+            "## Drafts Created By Funnel",
+            summary.get("drafts_created_by_funnel", {}),
+        )
+    )
+    lines.extend(
+        _render_mapping(
+            "## Average Draft Fields By Funnel",
+            summary.get("avg_draft_fields_by_funnel", {}),
+        )
+    )
+    lines.extend(
+        _render_mapping(
+            "## Transcription Pending By Funnel",
+            summary.get("transcription_pending_by_funnel", {}),
+        )
+    )
+    lines.extend(
+        _render_mapping(
+            "## Input Rejections By Reason",
+            summary.get("input_rejections_by_reason", {}),
+        )
+    )
     lines.extend(
         _render_mapping(
             "## Sessions Per User",
@@ -322,6 +382,19 @@ def _avg_by_target(events: list[dict[str, Any]], key: str) -> dict[str, float]:
     return {
         target: _avg(values)
         for target, values in sorted(values_by_target.items(), key=lambda item: item[0])
+    }
+
+
+def _avg_by_funnel(events: list[dict[str, Any]], key: str) -> dict[str, float]:
+    values_by_funnel: dict[str, list[int]] = defaultdict(list)
+    for event in events:
+        funnel = event.get("funnel")
+        value = event.get(key)
+        if funnel and isinstance(value, int):
+            values_by_funnel[funnel].append(value)
+    return {
+        funnel: _avg(values)
+        for funnel, values in sorted(values_by_funnel.items(), key=lambda item: item[0])
     }
 
 

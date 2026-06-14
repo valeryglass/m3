@@ -641,11 +641,17 @@ def test_plain_text_without_session_starts_one_take_text_capture(tmp_path):
     assert message.replies == [
         f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
     ]
-    assert [event["event_type"] for event in ux_events.read()] == [
+    events = ux_events.read()
+    assert [event["event_type"] for event in events] == [
+        "input_received",
+        "draft_created",
         "session_started",
         "step_answered",
         "step_prompted",
     ]
+    assert events[0]["funnel"] == "one_take_text"
+    assert events[0]["media_kind"] == "text"
+    assert events[1]["draft_fields"] == 1
 
 
 def test_capture_command_without_text_does_not_create_session(tmp_path):
@@ -696,6 +702,8 @@ def test_capture_command_starts_session_from_one_take_text(tmp_path):
         f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
     ]
     assert [event["event_type"] for event in ux_events.read()] == [
+        "input_received",
+        "draft_created",
         "session_started",
         "step_answered",
         "step_prompted",
@@ -785,11 +793,17 @@ def test_capture3_command_starts_session_from_three_blocks(tmp_path):
         },
         "behavior": {"value": "я замолчал", "source_quote": "я замолчал"},
     }
-    assert [event["event_type"] for event in ux_events.read()] == [
+    events = ux_events.read()
+    assert [event["event_type"] for event in events] == [
+        "input_received",
+        "draft_created",
         "session_started",
         "step_answered",
         "step_prompted",
     ]
+    assert events[0]["funnel"] == "three_block"
+    assert events[0]["media_kind"] == "three_block"
+    assert events[1]["draft_fields"] == 3
     assert message.replies == [
         f"■■■□□□□□□□ 3/10\n\n{ToneEngine.default().target_prompt('trigger')}"
     ]
@@ -853,6 +867,7 @@ def test_voice_input_artifact_from_update_preserves_telegram_metadata():
 
 def test_voice_message_requires_transcription_before_session_creation(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage(
         "",
         voice=SimpleNamespace(
@@ -867,6 +882,7 @@ def test_voice_message_requires_transcription_before_session_creation(tmp_path):
         telegram_bot._handle_voice_after_authorized(
             _fake_update(123, message),
             session_store,
+            ux_events,
             ToneEngine.default(),
         )
     )
@@ -876,7 +892,13 @@ def test_voice_message_requires_transcription_before_session_creation(tmp_path):
         "Голос получил, но расшифровка еще не подключена. "
         "Пока пришли этот эпизод текстом."
     ]
-
+    events = ux_events.read()
+    assert [event["event_type"] for event in events] == [
+        "input_received",
+        "transcription_pending",
+    ]
+    assert events[0]["funnel"] == "voice"
+    assert events[0]["media_kind"] == "voice"
 
 
 def test_transcribed_voice_artifact_can_start_same_draft_session(tmp_path):
@@ -907,6 +929,8 @@ def test_transcribed_voice_artifact_can_start_same_draft_session(tmp_path):
     }
     assert loaded.target_index == 1
     assert [event["event_type"] for event in ux_events.read()] == [
+        "input_received",
+        "draft_created",
         "session_started",
         "step_answered",
         "step_prompted",
@@ -917,18 +941,23 @@ def test_transcribed_voice_artifact_can_start_same_draft_session(tmp_path):
 
 def test_voice_message_without_file_id_is_rejected(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage("", voice=SimpleNamespace(file_id=""))
 
     _run(
         telegram_bot._handle_voice_after_authorized(
             _fake_update(123, message),
             session_store,
+            ux_events,
             ToneEngine.default(),
         )
     )
 
     assert session_store.load_session(123) is None
     assert message.replies == ["Не смог прочитать голосовое сообщение"]
+    events = ux_events.read()
+    assert [event["event_type"] for event in events] == ["input_rejected"]
+    assert events[0]["reject_reason"] == "missing_file_id"
 
 
 def test_audio_input_artifact_from_update_preserves_metadata():
@@ -955,6 +984,7 @@ def test_audio_input_artifact_from_update_preserves_metadata():
 
 def test_audio_message_requires_transcription_before_session_creation(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage(
         "",
         audio=SimpleNamespace(
@@ -970,6 +1000,7 @@ def test_audio_message_requires_transcription_before_session_creation(tmp_path):
         telegram_bot._handle_audio_after_authorized(
             _fake_update(123, message),
             session_store,
+            ux_events,
             ToneEngine.default(),
         )
     )
@@ -979,6 +1010,13 @@ def test_audio_message_requires_transcription_before_session_creation(tmp_path):
         "Аудио получил, но расшифровка еще не подключена. "
         "Пока пришли этот эпизод текстом."
     ]
+    events = ux_events.read()
+    assert [event["event_type"] for event in events] == [
+        "input_received",
+        "transcription_pending",
+    ]
+    assert events[0]["funnel"] == "audio"
+    assert events[0]["media_kind"] == "audio"
 
 
 def test_audio_document_input_artifact_from_update_rejects_non_audio_document():
@@ -997,6 +1035,7 @@ def test_audio_document_input_artifact_from_update_rejects_non_audio_document():
 
 def test_audio_document_message_requires_transcription_before_session_creation(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage(
         "",
         document=SimpleNamespace(
@@ -1011,6 +1050,7 @@ def test_audio_document_message_requires_transcription_before_session_creation(t
         telegram_bot._handle_document_after_authorized(
             _fake_update(123, message),
             session_store,
+            ux_events,
             ToneEngine.default(),
         )
     )
@@ -1020,10 +1060,18 @@ def test_audio_document_message_requires_transcription_before_session_creation(t
         "Аудио получил, но расшифровка еще не подключена. "
         "Пока пришли этот эпизод текстом."
     ]
+    events = ux_events.read()
+    assert [event["event_type"] for event in events] == [
+        "input_received",
+        "transcription_pending",
+    ]
+    assert events[0]["funnel"] == "audio_document"
+    assert events[0]["media_kind"] == "document"
 
 
 def test_unsupported_document_message_is_rejected(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage(
         "",
         document=SimpleNamespace(
@@ -1038,12 +1086,16 @@ def test_unsupported_document_message_is_rejected(tmp_path):
         telegram_bot._handle_document_after_authorized(
             _fake_update(123, message),
             session_store,
+            ux_events,
             ToneEngine.default(),
         )
     )
 
     assert session_store.load_session(123) is None
     assert message.replies == ["Поддерживаю только аудиофайлы"]
+    events = ux_events.read()
+    assert [event["event_type"] for event in events] == ["input_rejected"]
+    assert events[0]["reject_reason"] == "unsupported_document"
 
 def test_cancel_without_session_reports_no_active_session(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes")
