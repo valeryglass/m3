@@ -13,7 +13,7 @@ from app.report_runner import (
     build_ux_report_text,
 )
 from app.user_report import render_details, render_summary
-from app.episode_drafts import draft_from_input_artifact
+from app.episode_drafts import draft_from_input_artifact, draft_from_three_blocks
 from app.input_funnels import (
     artifact_text,
     audio_document_input_artifact,
@@ -130,6 +130,15 @@ def main() -> None:
             update, session_store, ux_events, settings, tone
         )
 
+    async def capture3(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
+            return
+        await _handle_capture3_after_authorized(
+            update, session_store, ux_events, settings, tone
+        )
+
     async def voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
             update, settings, tone, ux_events, userlist, context.bot
@@ -224,6 +233,7 @@ def main() -> None:
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("profile", profile))
     application.add_handler(CommandHandler("capture", capture))
+    application.add_handler(CommandHandler("capture3", capture3))
     application.add_handler(CommandHandler("approve", approve))
     application.add_handler(CommandHandler("pause", pause))
     application.add_handler(CommandHandler("report_graph", report_graph))
@@ -244,6 +254,7 @@ REGISTERED_COMMANDS = (
     "help",
     "profile",
     "capture",
+    "capture3",
     "approve",
     "pause",
     "report_graph",
@@ -478,6 +489,34 @@ async def _start_input_artifact_capture_session(
     existing_session=None,
     cancel_reason: str | None = None,
 ) -> None:
+    capture_text = artifact_text(artifact)
+    await _start_episode_draft_capture_session(
+        update,
+        session_store,
+        ux_events,
+        tone,
+        chat_id=chat_id,
+        draft=draft_from_input_artifact(artifact),
+        answer_chars=len(capture_text),
+        now=now,
+        existing_session=existing_session,
+        cancel_reason=cancel_reason,
+    )
+
+
+async def _start_episode_draft_capture_session(
+    update,
+    session_store: LoopSessionStore,
+    ux_events: UxEventLog,
+    tone,
+    *,
+    chat_id: int,
+    draft,
+    answer_chars: int,
+    now,
+    existing_session=None,
+    cancel_reason: str | None = None,
+) -> None:
     if (
         cancel_reason is not None
         and existing_session is not None
@@ -492,8 +531,6 @@ async def _start_input_artifact_capture_session(
             )
         )
 
-    capture_text = artifact_text(artifact)
-    draft = draft_from_input_artifact(artifact)
     session = new_session_from_draft(
         chat_id,
         draft,
@@ -518,7 +555,7 @@ async def _start_input_artifact_capture_session(
             target_index=0,
             duration_sec=0,
             advanced=True,
-            answer_chars=len(capture_text),
+            answer_chars=answer_chars,
         )
     )
     _log_step_prompted(ux_events, session, str(chat_id), now=now)
@@ -569,6 +606,50 @@ async def _handle_capture_after_authorized(
         now=now,
         existing_session=existing_session,
         cancel_reason="capture_restart",
+    )
+
+
+async def _handle_capture3_after_authorized(
+    update,
+    session_store: LoopSessionStore,
+    ux_events: UxEventLog,
+    settings: Settings,
+    tone,
+) -> None:
+    chat_id = update.effective_chat.id
+    now = utc_now()
+    existing_session = session_store.load_session(chat_id)
+    if _expire_initial_session_if_stale(
+        session_store,
+        ux_events,
+        existing_session,
+        chat_id,
+        now,
+        settings.initial_session_ttl_sec,
+    ):
+        await _reply_text(update, _expired_initial_session_text(tone))
+        return
+
+    blocks = _capture3_blocks(getattr(update.message, "text", "") or "")
+    if blocks is None:
+        await _reply_text(
+            update,
+            "Используй /capture3 что случилось | что внутри | что сделал",
+        )
+        return
+
+    draft = draft_from_three_blocks(*blocks)
+    await _start_episode_draft_capture_session(
+        update,
+        session_store,
+        ux_events,
+        tone,
+        chat_id=chat_id,
+        draft=draft,
+        answer_chars=sum(len(block) for block in blocks),
+        now=now,
+        existing_session=existing_session,
+        cancel_reason="capture3_restart",
     )
 
 
@@ -1069,6 +1150,14 @@ def _voice_input_artifact_from_update(update):
         mime_type=getattr(voice, "mime_type", None),
         file_size=getattr(voice, "file_size", None),
     )
+
+
+def _capture3_blocks(text: str) -> tuple[str, str, str] | None:
+    payload = _command_argument_text(text)
+    parts = tuple(part.strip() for part in payload.split("|"))
+    if len(parts) != 3 or any(not part for part in parts):
+        return None
+    return parts
 
 
 def _command_argument_text(text: str) -> str:

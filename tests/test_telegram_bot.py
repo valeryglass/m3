@@ -36,6 +36,7 @@ def test_visible_command_menu_excludes_hidden_status():
         "help",
         "profile",
         "capture",
+        "capture3",
         "approve",
         "pause",
         "report_graph",
@@ -734,6 +735,98 @@ def test_capture_command_restarts_existing_session_with_cancel_event(tmp_path):
     assert events[0]["event_type"] == "session_cancelled"
     assert events[0]["cancel_reason"] == "capture_restart"
 
+
+
+def test_capture3_command_without_three_blocks_does_not_create_session(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("/capture3 only one block")
+
+    _run(
+        telegram_bot._handle_capture3_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+        )
+    )
+
+    assert session_store.load_session(123) is None
+    assert ux_events.read() == []
+    assert message.replies == [
+        "Используй /capture3 что случилось | что внутри | что сделал"
+    ]
+
+
+def test_capture3_command_starts_session_from_three_blocks(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("/capture3 факт | мысль внутри | я замолчал")
+
+    _run(
+        telegram_bot._handle_capture3_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = session_store.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == 1
+    assert loaded.observed == {
+        "situation": {"value": "факт", "source_quote": "факт"},
+        "automatic_thought": {
+            "value": "мысль внутри",
+            "source_quote": "мысль внутри",
+        },
+        "behavior": {"value": "я замолчал", "source_quote": "я замолчал"},
+    }
+    assert [event["event_type"] for event in ux_events.read()] == [
+        "session_started",
+        "step_answered",
+        "step_prompted",
+    ]
+    assert message.replies == [
+        f"■■■□□□□□□□ 3/10\n\n{ToneEngine.default().target_prompt('trigger')}"
+    ]
+
+
+def test_capture3_command_restarts_existing_session_with_cancel_event(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    existing = LoopSession(
+        chat_id=123,
+        session_id="session-old",
+        target_index=1,
+        episode_date="2026-05-03",
+        observed={"situation": {"value": "old", "source_quote": "old"}},
+    )
+    session_store.save_session(existing)
+    message = _FakeMessage("/capture3 новый факт | внутри | действие")
+
+    _run(
+        telegram_bot._handle_capture3_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = session_store.load_session(123)
+    assert loaded is not None
+    assert loaded.observed["situation"] == {
+        "value": "новый факт",
+        "source_quote": "новый факт",
+    }
+    events = ux_events.read()
+    assert events[0]["event_type"] == "session_cancelled"
+    assert events[0]["cancel_reason"] == "capture3_restart"
 
 def test_voice_input_artifact_from_update_preserves_telegram_metadata():
     voice = SimpleNamespace(

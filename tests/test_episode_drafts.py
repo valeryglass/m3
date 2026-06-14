@@ -3,9 +3,11 @@ from app.episode_drafts import (
     DRAFT_STATUS_COMPLETE,
     DRAFT_STATUS_PARTIAL,
     EpisodeDraft,
+    THREE_BLOCK_DEFAULT_FIELDS,
     completed_draft_field_count,
     draft_from_input_artifact,
     draft_from_text,
+    draft_from_three_blocks,
     draft_status,
     is_draft_complete,
     next_draft_target,
@@ -66,6 +68,64 @@ def test_draft_from_input_artifact_prefers_transcript_text():
         "situation": {"value": "spoken note", "source_quote": "spoken note"}
     }
 
+
+
+def test_draft_from_three_blocks_uses_default_field_mapping():
+    draft = draft_from_three_blocks(
+        "коллега резко ответил",
+        "я подумал что меня отвергли",
+        "я замолчал",
+    )
+
+    assert THREE_BLOCK_DEFAULT_FIELDS == (
+        "situation",
+        "automatic_thought",
+        "behavior",
+    )
+    assert draft.observed == {
+        "situation": {
+            "value": "коллега резко ответил",
+            "source_quote": "коллега резко ответил",
+        },
+        "automatic_thought": {
+            "value": "я подумал что меня отвергли",
+            "source_quote": "я подумал что меня отвергли",
+        },
+        "behavior": {"value": "я замолчал", "source_quote": "я замолчал"},
+    }
+
+
+def test_draft_from_three_blocks_skips_blank_blocks():
+    draft = draft_from_three_blocks("happened", "   ", "response")
+
+    assert draft.observed == {
+        "situation": {"value": "happened", "source_quote": "happened"},
+        "behavior": {"value": "response", "source_quote": "response"},
+    }
+
+
+def test_draft_from_three_blocks_can_use_custom_field_mapping():
+    draft = draft_from_three_blocks(
+        "s",
+        "e",
+        "st",
+        field_names=("situation", "emotion", "short_term_consequence"),
+    )
+
+    assert draft.observed == {
+        "situation": {"value": "s", "source_quote": "s"},
+        "emotion": {"value": "e", "source_quote": "e"},
+        "short_term_consequence": {"value": "st", "source_quote": "st"},
+    }
+
+
+def test_draft_from_three_blocks_requires_three_field_mapping():
+    try:
+        draft_from_three_blocks("s", "i", "r", field_names=("situation",))
+    except ValueError as exc:
+        assert "exactly three fields" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")
 
 def test_completed_draft_field_count_uses_declared_fields_only():
     observed = {

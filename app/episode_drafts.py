@@ -13,6 +13,7 @@ COMPLETE_TARGET = "complete"
 
 ObservedDraft = Mapping[str, Mapping[str, Any]]
 MutableObservedDraft = dict[str, dict[str, str]]
+THREE_BLOCK_DEFAULT_FIELDS = ("situation", "automatic_thought", "behavior")
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,24 @@ def draft_from_text(
         return EpisodeDraft()
     return EpisodeDraft(observed={field_name: observed_text_field(value)})
 
+
+
+def draft_from_three_blocks(
+    happened: str,
+    inside: str,
+    response: str,
+    *,
+    field_names: Sequence[str] = THREE_BLOCK_DEFAULT_FIELDS,
+) -> EpisodeDraft:
+    if len(field_names) != 3:
+        raise ValueError("three-block field mapping must contain exactly three fields")
+
+    observed = {}
+    for field_name, value in zip(field_names, (happened, inside, response)):
+        stripped = value.strip()
+        if stripped:
+            observed[field_name] = observed_text_field(stripped)
+    return EpisodeDraft(observed=observed)
 
 def draft_from_input_artifact(
     artifact: InputArtifact,

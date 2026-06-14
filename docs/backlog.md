@@ -208,6 +208,14 @@ Add a lighter guided capture strategy:
 3. What did you do / what changed after?
 ```
 
+Implementation split:
+
+- BL-09a: add passive three-block-to-draft construction with a default
+  canonical field mapping and no Telegram routing.
+- BL-09b: add hidden `/capture3 a | b | c` routing that creates a
+  three-block draft/session.
+- BL-09c: decide whether three-block should become a visible intake option.
+
 Acceptance:
 
 - three answers produce a draft.
