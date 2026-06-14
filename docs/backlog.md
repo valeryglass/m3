@@ -236,8 +236,8 @@ Implementation split:
   reports.
 - BL-10d: document product-facing funnel success metrics and non-goals in
   UX Analytics.
-- BL-10e: later add confirmation/save funnel metrics after the confirmation
-  boundary exists.
+- BL-10e: emit `gap_question_asked` events and summarize gap-question funnel
+  metrics.
 
 Candidate events:
 

@@ -38,6 +38,9 @@ def summarize_events(
     ]
     step_prompted = [e for e in events if e.get("event_type") == "step_prompted"]
     step_answered = [e for e in events if e.get("event_type") == "step_answered"]
+    gap_question_asked = [
+        e for e in events if e.get("event_type") == "gap_question_asked"
+    ]
     input_received = [e for e in events if e.get("event_type") == "input_received"]
     draft_created = [e for e in events if e.get("event_type") == "draft_created"]
     transcription_pending = [
@@ -112,6 +115,15 @@ def summarize_events(
         ),
         "steps_answered_by_target": dict(
             Counter(e["target"] for e in step_answered if "target" in e)
+        ),
+        "gap_questions_by_funnel": dict(
+            Counter(e["funnel"] for e in gap_question_asked if "funnel" in e)
+        ),
+        "gap_questions_by_target": dict(
+            Counter(e["target"] for e in gap_question_asked if "target" in e)
+        ),
+        "avg_gap_questions_by_funnel": _avg_event_count_by_funnel(
+            gap_question_asked
         ),
         "avg_step_duration_sec_by_target": _avg_by_target(
             step_answered, "duration_sec"
@@ -237,6 +249,24 @@ def render_markdown(summary: dict[str, Any]) -> str:
         _render_mapping(
             "## Steps Answered By Target",
             summary.get("steps_answered_by_target", {}),
+        )
+    )
+    lines.extend(
+        _render_mapping(
+            "## Gap Questions By Funnel",
+            summary.get("gap_questions_by_funnel", {}),
+        )
+    )
+    lines.extend(
+        _render_mapping(
+            "## Gap Questions By Target",
+            summary.get("gap_questions_by_target", {}),
+        )
+    )
+    lines.extend(
+        _render_mapping(
+            "## Average Gap Questions By Funnel",
+            summary.get("avg_gap_questions_by_funnel", {}),
         )
     )
     lines.extend(
@@ -395,6 +425,21 @@ def _avg_by_funnel(events: list[dict[str, Any]], key: str) -> dict[str, float]:
     return {
         funnel: _avg(values)
         for funnel, values in sorted(values_by_funnel.items(), key=lambda item: item[0])
+    }
+
+
+def _avg_event_count_by_funnel(events: list[dict[str, Any]]) -> dict[str, float]:
+    counts_by_funnel: dict[str, Counter[str]] = defaultdict(Counter)
+    for event in events:
+        funnel = event.get("funnel")
+        session_id = event.get("session_id")
+        if funnel and session_id:
+            counts_by_funnel[funnel][session_id] += 1
+    return {
+        funnel: _avg(list(session_counts.values()))
+        for funnel, session_counts in sorted(
+            counts_by_funnel.items(), key=lambda item: item[0]
+        )
     }
 
 

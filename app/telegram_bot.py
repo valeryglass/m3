@@ -24,6 +24,7 @@ from app.input_funnels import (
 from app.loop_extractor import (
     active_target,
     apply_user_reply,
+    completed_draft_field_count,
     completed_observed_count,
     new_session,
     new_session_from_draft,
@@ -543,6 +544,8 @@ async def _start_episode_draft_capture_session(
         draft,
         session_id=new_session_id(str(chat_id), now),
         episode_date=_episode_date_for_now(now),
+        capture_funnel=funnel,
+        media_kind=media_kind,
     )
     ux_events.append(
         base_event(
@@ -1320,6 +1323,8 @@ def _new_session_for_now(chat_id: int, now):
         chat_id,
         session_id=new_session_id(str(chat_id), now),
         episode_date=_episode_date_for_now(now),
+        capture_funnel="ten_question",
+        media_kind="text",
     )
 
 
@@ -1374,16 +1379,38 @@ def _log_step_prompted(
     ux_events: UxEventLog, session, user_id: str, *, now
 ) -> None:
     session.last_prompted_at = format_utc(now)
+    target = active_target(session)
+    target_index = session.target_index
     ux_events.append(
         base_event(
             "step_prompted",
             session.session_id,
             user_id,
             created_at=now,
-            target=active_target(session),
-            target_index=session.target_index,
+            target=target,
+            target_index=target_index,
         )
     )
+    if target != "complete":
+        ux_events.append(
+            base_event(
+                "gap_question_asked",
+                session.session_id,
+                user_id,
+                created_at=now,
+                target=target,
+                target_index=target_index,
+                draft_fields=completed_draft_field_count(session),
+                **_session_funnel_event_kwargs(session),
+            )
+        )
+
+
+def _session_funnel_event_kwargs(session: LoopSession) -> dict[str, str]:
+    return {
+        "funnel": session.capture_funnel or "ten_question",
+        "media_kind": session.media_kind or "text",
+    }
 
 
 def _duration_since_last_prompt(session, now) -> int:

@@ -35,6 +35,9 @@ inputs_by_funnel
 inputs_by_media_kind
 drafts_created_by_funnel
 avg_draft_fields_by_funnel
+gap_questions_by_funnel
+gap_questions_by_target
+avg_gap_questions_by_funnel
 transcription_pending_by_funnel
 input_rejections_by_reason
 ```
@@ -47,6 +50,10 @@ Interpretation rules:
   drafts.
 - `avg_draft_fields_by_funnel` is an early completeness signal, not a quality
   score.
+- `gap_questions_by_funnel` and `gap_questions_by_target` show how much
+  follow-up questioning each route creates.
+- `avg_gap_questions_by_funnel` averages follow-up questions per session for a
+  funnel.
 - `transcription_pending_by_funnel` shows where media support exists but cannot
   yet create drafts because transcription is unavailable.
 - `input_rejections_by_reason` separates unsupported or malformed input from
@@ -58,7 +65,6 @@ Metrics that may graduate later after confirmation/save boundaries exist:
 draft_confirmed_by_funnel
 draft_discarded_by_funnel
 episodes_saved_by_funnel
-avg_gap_questions_by_funnel
 ```
 
 Non-goals:

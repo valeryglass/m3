@@ -648,6 +648,7 @@ def test_plain_text_without_session_starts_one_take_text_capture(tmp_path):
         "session_started",
         "step_answered",
         "step_prompted",
+        "gap_question_asked",
     ]
     assert events[0]["funnel"] == "one_take_text"
     assert events[0]["media_kind"] == "text"
@@ -707,6 +708,7 @@ def test_capture_command_starts_session_from_one_take_text(tmp_path):
         "session_started",
         "step_answered",
         "step_prompted",
+        "gap_question_asked",
     ]
 
 
@@ -800,6 +802,7 @@ def test_capture3_command_starts_session_from_three_blocks(tmp_path):
         "session_started",
         "step_answered",
         "step_prompted",
+        "gap_question_asked",
     ]
     assert events[0]["funnel"] == "three_block"
     assert events[0]["media_kind"] == "three_block"
@@ -934,6 +937,7 @@ def test_transcribed_voice_artifact_can_start_same_draft_session(tmp_path):
         "session_started",
         "step_answered",
         "step_prompted",
+        "gap_question_asked",
     ]
     assert message.replies == [
         f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
@@ -1526,6 +1530,17 @@ def test_start_new_session_prompts_without_observed_answer(tmp_path):
         {
             "created_at": "2026-05-03T09:44:00Z",
             "event_type": "step_prompted",
+            "session_id": session.session_id,
+            "target": "situation",
+            "target_index": 0,
+            "user_id": "123",
+        },
+        {
+            "created_at": "2026-05-03T09:44:00Z",
+            "draft_fields": 0,
+            "event_type": "gap_question_asked",
+            "funnel": "ten_question",
+            "media_kind": "text",
             "session_id": session.session_id,
             "target": "situation",
             "target_index": 0,
