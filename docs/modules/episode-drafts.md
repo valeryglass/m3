@@ -51,6 +51,24 @@ EpisodeDraft:
 - saved episodes must still validate against the canonical schema.
 - draft fields should preserve source quotes where possible.
 
+
+## Confirmation Review
+
+A complete draft must be shown back to the user before persistence. The review
+artifact is a presentation of provisional observed fields, not a new source of
+truth.
+
+Rules:
+
+- review text is derived from draft observed fields.
+- review text may escape or format user values for the current surface.
+- confirming a review allows Episode Model + Storage to persist the observed
+  fields.
+- discarding a review must not create an episode file.
+- confirmation, discard, and save events may carry funnel metadata for UX
+  analytics.
+- review rendering must not introduce annotations, graph facts, or report facts.
+
 ## Ownership
 
 - producer: `episode_drafts`

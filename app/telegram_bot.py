@@ -904,8 +904,29 @@ async def _handle_episode_callback_after_authorized(
     now = utc_now()
     data = getattr(query, "data", "") if query is not None else ""
     if data == "episode:save":
+        event_kwargs = _session_funnel_event_kwargs(session)
+        ux_events.append(
+            base_event(
+                "draft_confirmed",
+                session.session_id,
+                str(chat_id),
+                created_at=now,
+                draft_fields=completed_draft_field_count(session),
+                **event_kwargs,
+            )
+        )
         storage.save_episode(session)
         episode_count = storage.episode_count_for_chat(chat_id)
+        ux_events.append(
+            base_event(
+                "episode_saved",
+                session.session_id,
+                str(chat_id),
+                created_at=now,
+                draft_fields=completed_draft_field_count(session),
+                **event_kwargs,
+            )
+        )
         ux_events.append(
             base_event(
                 "session_completed",
@@ -918,6 +939,17 @@ async def _handle_episode_callback_after_authorized(
         await _reply_to_callback(query, tone.saved_episode(tone.complete(), episode_count))
         return
     if data == "episode:cancel":
+        ux_events.append(
+            base_event(
+                "draft_discarded",
+                session.session_id,
+                str(chat_id),
+                created_at=now,
+                cancel_reason="review_cancel",
+                draft_fields=completed_draft_field_count(session),
+                **_session_funnel_event_kwargs(session),
+            )
+        )
         ux_events.append(
             _session_cancelled_event(
                 session,

@@ -43,6 +43,9 @@ def summarize_events(
     ]
     input_received = [e for e in events if e.get("event_type") == "input_received"]
     draft_created = [e for e in events if e.get("event_type") == "draft_created"]
+    draft_confirmed = [e for e in events if e.get("event_type") == "draft_confirmed"]
+    draft_discarded = [e for e in events if e.get("event_type") == "draft_discarded"]
+    episode_saved = [e for e in events if e.get("event_type") == "episode_saved"]
     transcription_pending = [
         e for e in events if e.get("event_type") == "transcription_pending"
     ]
@@ -98,6 +101,15 @@ def summarize_events(
         ),
         "avg_draft_fields_by_funnel": _avg_by_funnel(
             draft_created, "draft_fields"
+        ),
+        "draft_confirmed_by_funnel": dict(
+            Counter(e["funnel"] for e in draft_confirmed if "funnel" in e)
+        ),
+        "draft_discarded_by_funnel": dict(
+            Counter(e["funnel"] for e in draft_discarded if "funnel" in e)
+        ),
+        "episodes_saved_by_funnel": dict(
+            Counter(e["funnel"] for e in episode_saved if "funnel" in e)
         ),
         "transcription_pending_by_funnel": dict(
             Counter(e["funnel"] for e in transcription_pending if "funnel" in e)
@@ -218,6 +230,24 @@ def render_markdown(summary: dict[str, Any]) -> str:
         _render_mapping(
             "## Average Draft Fields By Funnel",
             summary.get("avg_draft_fields_by_funnel", {}),
+        )
+    )
+    lines.extend(
+        _render_mapping(
+            "## Draft Confirmed By Funnel",
+            summary.get("draft_confirmed_by_funnel", {}),
+        )
+    )
+    lines.extend(
+        _render_mapping(
+            "## Draft Discarded By Funnel",
+            summary.get("draft_discarded_by_funnel", {}),
+        )
+    )
+    lines.extend(
+        _render_mapping(
+            "## Episodes Saved By Funnel",
+            summary.get("episodes_saved_by_funnel", {}),
         )
     )
     lines.extend(

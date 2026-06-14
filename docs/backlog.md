@@ -259,6 +259,26 @@ Acceptance:
 - events avoid private content unless already allowed by UX event policy.
 - metrics can compare 10Q, one-take, voice, and three-block capture.
 
+### BL-11 Add draft confirmation boundary
+
+Make the save review an explicit draft confirmation boundary before the
+canonical episode is persisted.
+
+Implementation split:
+
+- BL-11a: add a passive draft-review renderer for complete draft summaries.
+- BL-11b: route the existing final save review through the draft-review
+  boundary without changing copy or buttons.
+- BL-11c: carry funnel metadata on draft sessions and emit confirmation, save,
+  and discard UX metrics.
+
+Acceptance:
+
+- complete drafts are shown back before persistence.
+- save and discard remain explicit user decisions.
+- review rendering does not create annotations, graph facts, or reports.
+- unconfirmed or discarded drafts do not become episode files.
+
 ## Now
 
 ### Add Set Signature / Co-signature

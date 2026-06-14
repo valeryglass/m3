@@ -79,6 +79,7 @@ modules:
     purpose: Stage provisional observed episode material before confirmation and persistence.
     owned_paths:
       - app/episode_drafts.py
+      - app/draft_review.py
       - docs/modules/episode-drafts.md
     inputs:
       - normalized input artifacts
