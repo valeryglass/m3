@@ -13,11 +13,14 @@ from app.report_runner import (
     build_ux_report_text,
 )
 from app.user_report import render_details, render_summary
+from app.episode_drafts import draft_from_input_artifact
+from app.input_funnels import text_input_artifact
 from app.loop_extractor import (
     active_target,
     apply_user_reply,
     completed_observed_count,
     new_session,
+    new_session_from_draft,
     prompt_for_current_target,
     status_text,
     target_fields,
@@ -112,6 +115,15 @@ def main() -> None:
             update, session_store, ux_events, settings, tone
         )
 
+    async def capture(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
+            return
+        await _handle_capture_after_authorized(
+            update, session_store, ux_events, settings, tone
+        )
+
     async def message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
             update, settings, tone, ux_events, userlist, context.bot
@@ -184,6 +196,7 @@ def main() -> None:
     application.add_handler(CommandHandler("cancel", cancel))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("profile", profile))
+    application.add_handler(CommandHandler("capture", capture))
     application.add_handler(CommandHandler("approve", approve))
     application.add_handler(CommandHandler("pause", pause))
     application.add_handler(CommandHandler("report_graph", report_graph))
@@ -200,6 +213,7 @@ REGISTERED_COMMANDS = (
     "cancel",
     "help",
     "profile",
+    "capture",
     "approve",
     "pause",
     "report_graph",
@@ -393,6 +407,115 @@ async def _handle_cancel_after_authorized(
     await _reply_text(update, tone.cancel())
 
 
+async def _start_text_capture_session(
+    update,
+    session_store: LoopSessionStore,
+    ux_events: UxEventLog,
+    tone,
+    *,
+    chat_id: int,
+    text: str,
+    now,
+    existing_session=None,
+    cancel_reason: str | None = None,
+) -> None:
+    if (
+        cancel_reason is not None
+        and existing_session is not None
+        and existing_session.session_id is not None
+    ):
+        ux_events.append(
+            _session_cancelled_event(
+                existing_session,
+                str(chat_id),
+                now=now,
+                cancel_reason=cancel_reason,
+            )
+        )
+
+    artifact = text_input_artifact(
+        text,
+        source_ref=_telegram_update_metadata(update),
+    )
+    draft = draft_from_input_artifact(artifact)
+    session = new_session_from_draft(
+        chat_id,
+        draft,
+        session_id=new_session_id(str(chat_id), now),
+        episode_date=_episode_date_for_now(now),
+    )
+    ux_events.append(
+        base_event(
+            "session_started",
+            session.session_id,
+            str(chat_id),
+            created_at=now,
+        )
+    )
+    ux_events.append(
+        base_event(
+            "step_answered",
+            session.session_id,
+            str(chat_id),
+            created_at=now,
+            target="situation",
+            target_index=0,
+            duration_sec=0,
+            advanced=True,
+            answer_chars=len(text),
+        )
+    )
+    _log_step_prompted(ux_events, session, str(chat_id), now=now)
+    session_store.save_session(session)
+    await _reply_text(
+        update,
+        tone.next_prompt_bridge(
+            completed_observed_count(session),
+            len(target_fields(session)),
+            prompt_for_current_target(session, tone),
+        ),
+    )
+
+
+async def _handle_capture_after_authorized(
+    update,
+    session_store: LoopSessionStore,
+    ux_events: UxEventLog,
+    settings: Settings,
+    tone,
+) -> None:
+    chat_id = update.effective_chat.id
+    now = utc_now()
+    existing_session = session_store.load_session(chat_id)
+    if _expire_initial_session_if_stale(
+        session_store,
+        ux_events,
+        existing_session,
+        chat_id,
+        now,
+        settings.initial_session_ttl_sec,
+    ):
+        await _reply_text(update, _expired_initial_session_text(tone))
+        return
+
+    text = _command_argument_text(getattr(update.message, "text", "") or "")
+    if not text:
+        await _reply_text(update, "Используй /capture текст эпизода")
+        return
+
+    await _start_text_capture_session(
+        update,
+        session_store,
+        ux_events,
+        tone,
+        chat_id=chat_id,
+        text=text,
+        now=now,
+        existing_session=existing_session,
+        cancel_reason="capture_restart",
+    )
+
+
 async def _handle_message_after_authorized(
     update,
     session_store: LoopSessionStore,
@@ -409,7 +532,19 @@ async def _handle_message_after_authorized(
         await _reply_text(update, _expired_initial_session_text(tone))
         return
     if session is None:
-        await _reply_text(update, tone.no_active_loop_start())
+        text = (getattr(update.message, "text", "") or "").strip()
+        if not text:
+            await _reply_text(update, tone.no_active_loop_start())
+            return
+        await _start_text_capture_session(
+            update,
+            session_store,
+            ux_events,
+            tone,
+            chat_id=chat_id,
+            text=text,
+            now=now,
+        )
         return
     if session.awaiting_save_confirmation:
         await _reply_text(
@@ -777,6 +912,13 @@ def _telegram_user_profile(update) -> dict:
         for key, value in fields.items()
         if value is not None and value != ""
     }
+
+
+def _command_argument_text(text: str) -> str:
+    parts = text.split(maxsplit=1)
+    if len(parts) < 2:
+        return ""
+    return parts[1].strip()
 
 
 def _telegram_update_metadata(update) -> dict:

@@ -9,6 +9,7 @@ from app.derived_normalizer import empty_derived
 from app.episode_drafts import (
     DRAFT_STATUS_COMPLETE,
     DRAFT_STATUS_PARTIAL,
+    EpisodeDraft,
     completed_draft_field_count as _completed_draft_field_count,
     draft_status as _draft_status,
     is_draft_complete as _is_draft_complete,
@@ -85,6 +86,25 @@ def new_session(
         flow_mode=_normalize_flow_mode(flow_mode),
         session_id=session_id,
         episode_date=episode_date or date.today().isoformat(),
+    )
+
+
+def new_session_from_draft(
+    chat_id: int,
+    draft: EpisodeDraft,
+    session_id: str | None = None,
+    episode_date: str | None = None,
+    flow_mode: str = FLOW_UNIFIED,
+) -> LoopSession:
+    normalized_flow_mode = _normalize_flow_mode(flow_mode)
+    observed = _normalize_observed_keys(dict(draft.observed))
+    return LoopSession(
+        chat_id=chat_id,
+        flow_mode=normalized_flow_mode,
+        session_id=session_id,
+        target_index=_target_index_for_observed(observed, normalized_flow_mode),
+        episode_date=episode_date or date.today().isoformat(),
+        observed=observed,
     )
 
 

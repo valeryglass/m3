@@ -2,15 +2,69 @@ from app.episode_drafts import (
     COMPLETE_TARGET,
     DRAFT_STATUS_COMPLETE,
     DRAFT_STATUS_PARTIAL,
+    EpisodeDraft,
     completed_draft_field_count,
+    draft_from_input_artifact,
+    draft_from_text,
     draft_status,
     is_draft_complete,
     next_draft_target,
     next_missing_draft_field,
+    observed_text_field,
 )
+from app.input_funnels import InputArtifact, MEDIA_KIND_VOICE, text_input_artifact
 
 
 FIELDS = ("situation", "trigger", "emotion")
+
+
+def test_observed_text_field_preserves_source_quote():
+    assert observed_text_field("hello") == {"value": "hello", "source_quote": "hello"}
+
+
+def test_draft_from_text_creates_situation_draft_by_default():
+    draft = draft_from_text("  something happened  ")
+
+    assert isinstance(draft, EpisodeDraft)
+    assert draft.observed == {
+        "situation": {
+            "value": "something happened",
+            "source_quote": "something happened",
+        }
+    }
+
+
+def test_draft_from_text_can_target_a_specific_field():
+    draft = draft_from_text("felt shame", field_name="emotion")
+
+    assert draft.observed == {
+        "emotion": {"value": "felt shame", "source_quote": "felt shame"}
+    }
+
+
+def test_draft_from_text_returns_empty_draft_for_blank_text():
+    assert draft_from_text("   ").observed == {}
+
+
+def test_draft_from_input_artifact_uses_artifact_text():
+    draft = draft_from_input_artifact(text_input_artifact("one take"))
+
+    assert draft.observed == {
+        "situation": {"value": "one take", "source_quote": "one take"}
+    }
+
+
+def test_draft_from_input_artifact_prefers_transcript_text():
+    artifact = InputArtifact(
+        source="telegram",
+        media_kind=MEDIA_KIND_VOICE,
+        raw_text="caption",
+        transcript="spoken note",
+    )
+
+    assert draft_from_input_artifact(artifact).observed == {
+        "situation": {"value": "spoken note", "source_quote": "spoken note"}
+    }
 
 
 def test_completed_draft_field_count_uses_declared_fields_only():

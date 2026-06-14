@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from typing import Any
+
+from app.input_funnels import InputArtifact, artifact_text
 
 
 DRAFT_STATUS_PARTIAL = "partial"
@@ -9,6 +12,35 @@ DRAFT_STATUS_COMPLETE = "complete"
 COMPLETE_TARGET = "complete"
 
 ObservedDraft = Mapping[str, Mapping[str, Any]]
+MutableObservedDraft = dict[str, dict[str, str]]
+
+
+@dataclass(frozen=True)
+class EpisodeDraft:
+    observed: MutableObservedDraft = field(default_factory=dict)
+
+
+def observed_text_field(value: str) -> dict[str, str]:
+    return {"value": value, "source_quote": value}
+
+
+def draft_from_text(
+    text: str,
+    *,
+    field_name: str = "situation",
+) -> EpisodeDraft:
+    value = text.strip()
+    if not value:
+        return EpisodeDraft()
+    return EpisodeDraft(observed={field_name: observed_text_field(value)})
+
+
+def draft_from_input_artifact(
+    artifact: InputArtifact,
+    *,
+    field_name: str = "situation",
+) -> EpisodeDraft:
+    return draft_from_text(artifact_text(artifact), field_name=field_name)
 
 
 def completed_draft_field_count(

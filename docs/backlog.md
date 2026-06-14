@@ -138,6 +138,20 @@ Acceptance:
 
 Allow one text message to produce a provisional episode draft.
 
+Implementation split:
+
+- BL-06a: introduce a runtime `InputArtifact` boundary for text, voice, audio,
+  and document inputs without changing Telegram behavior.
+- BL-06b: add passive one-take text-to-draft construction behind explicit
+  routing.
+- BL-06c: add a draft-to-session bridge so one-take drafts can enter the
+  existing LoopSession runtime without Telegram routing changes.
+- BL-06d: add explicit hidden `/capture <text>` Telegram routing into the
+  one-take draft/session bridge while leaving plain text without session
+  unchanged.
+- BL-06e: route natural plain text without an active session into one-take
+  draft/session capture while keeping `/start` as an explicit guided entry.
+
 Acceptance:
 
 - one-take text can create a partial draft.

@@ -34,6 +34,7 @@ def test_visible_command_menu_excludes_hidden_status():
         "cancel",
         "help",
         "profile",
+        "capture",
         "approve",
         "pause",
         "report_graph",
@@ -613,11 +614,11 @@ def test_admin_decision_requires_chat_id(tmp_path):
     assert message.replies == ["Используй /approve &lt;chat_id&gt;"]
 
 
-def test_plain_text_without_session_requires_start(tmp_path):
+def test_plain_text_without_session_starts_one_take_text_capture(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes")
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    message = _FakeMessage("hi")
+    message = _FakeMessage("коллега резко ответил в чате")
     update = _fake_update(123, message)
 
     _run(
@@ -626,11 +627,111 @@ def test_plain_text_without_session_requires_start(tmp_path):
         )
     )
 
+    loaded = session_store.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == 1
+    assert loaded.observed == {
+        "situation": {
+            "value": "коллега резко ответил в чате",
+            "source_quote": "коллега резко ответил в чате",
+        }
+    }
+    assert message.replies == [
+        f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
+    ]
+    assert [event["event_type"] for event in ux_events.read()] == [
+        "session_started",
+        "step_answered",
+        "step_prompted",
+    ]
+
+
+def test_capture_command_without_text_does_not_create_session(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("/capture")
+
+    _run(
+        telegram_bot._handle_capture_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+        )
+    )
+
     assert session_store.load_session(123) is None
     assert ux_events.read() == []
+    assert message.replies == ["Используй /capture текст эпизода"]
+
+
+def test_capture_command_starts_session_from_one_take_text(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("/capture коллега резко ответил в чате")
+
+    _run(
+        telegram_bot._handle_capture_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = session_store.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == 1
+    assert loaded.observed == {
+        "situation": {
+            "value": "коллега резко ответил в чате",
+            "source_quote": "коллега резко ответил в чате",
+        }
+    }
     assert message.replies == [
-        "Сейчас активной сессии нет. Отправь /start, чтобы начать новый эпизод",
+        f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
     ]
+    assert [event["event_type"] for event in ux_events.read()] == [
+        "session_started",
+        "step_answered",
+        "step_prompted",
+    ]
+
+
+def test_capture_command_restarts_existing_session_with_cancel_event(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    existing = LoopSession(
+        chat_id=123,
+        session_id="session-old",
+        target_index=1,
+        episode_date="2026-05-03",
+        observed={"situation": {"value": "old", "source_quote": "old"}},
+    )
+    session_store.save_session(existing)
+    message = _FakeMessage("/capture новый эпизод")
+
+    _run(
+        telegram_bot._handle_capture_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+        )
+    )
+
+    loaded = session_store.load_session(123)
+    assert loaded is not None
+    assert loaded.observed["situation"] == {
+        "value": "новый эпизод",
+        "source_quote": "новый эпизод",
+    }
+    events = ux_events.read()
+    assert events[0]["event_type"] == "session_cancelled"
+    assert events[0]["cancel_reason"] == "capture_restart"
 
 
 def test_cancel_without_session_reports_no_active_session(tmp_path):

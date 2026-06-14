@@ -12,11 +12,13 @@ from app.loop_extractor import (
     draft_status,
     is_draft_complete,
     new_session,
+    new_session_from_draft,
     next_draft_target,
     next_missing_draft_field,
     target_fields,
 )
 from app.derived_normalizer import empty_derived
+from app.episode_drafts import EpisodeDraft, draft_from_text
 
 
 def test_loop_starts_with_situation_and_creation_date():
@@ -24,6 +26,46 @@ def test_loop_starts_with_situation_and_creation_date():
 
     assert session.episode_date == "2026-05-03"
     assert active_target(session) == "situation"
+
+
+def test_new_session_from_partial_draft_starts_at_next_missing_field():
+    draft = draft_from_text("one-take situation")
+
+    session = new_session_from_draft(
+        chat_id=123,
+        draft=draft,
+        session_id="session-123",
+        episode_date="2026-05-03",
+    )
+
+    assert session.session_id == "session-123"
+    assert session.episode_date == "2026-05-03"
+    assert session.observed == {
+        "situation": {
+            "value": "one-take situation",
+            "source_quote": "one-take situation",
+        }
+    }
+    assert session.target_index == 1
+    assert active_target(session) == "trigger"
+
+
+def test_new_session_from_complete_draft_starts_complete():
+    draft = EpisodeDraft(
+        observed={
+            field_name: {"value": field_name, "source_quote": field_name}
+            for field_name in target_fields(LoopSession(chat_id=123))
+        }
+    )
+
+    session = new_session_from_draft(
+        chat_id=123,
+        draft=draft,
+        episode_date="2026-05-03",
+    )
+
+    assert session.target_index == len(target_fields(session))
+    assert active_target(session) == "complete"
 
 
 def test_story_first_target_progression():
