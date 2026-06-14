@@ -9,6 +9,7 @@ from app.session_store import LoopSessionStore
 from app.storage import JsonStorage
 from app.tone_engine import ToneEngine
 from app.userlist import APPROVED, PAUSED, WAITLISTED, JsonUserList
+from app.input_funnels import voice_input_artifact
 from app.ux_events import UxEventLog, format_utc
 
 
@@ -734,6 +735,223 @@ def test_capture_command_restarts_existing_session_with_cancel_event(tmp_path):
     assert events[0]["cancel_reason"] == "capture_restart"
 
 
+def test_voice_input_artifact_from_update_preserves_telegram_metadata():
+    voice = SimpleNamespace(
+        file_id="voice-file-id",
+        duration=9,
+        mime_type="audio/ogg",
+        file_size=4096,
+    )
+    message = _FakeMessage("", voice=voice)
+
+    artifact = telegram_bot._voice_input_artifact_from_update(_fake_update(123, message))
+
+    assert artifact is not None
+    assert artifact.media_kind == "voice"
+    assert artifact.file_id == "voice-file-id"
+    assert artifact.duration_seconds == 9
+    assert artifact.mime_type == "audio/ogg"
+    assert artifact.file_size == 4096
+    assert artifact.source_ref == {
+        "chat_id": 123,
+        "message_kind": "voice",
+    }
+
+
+def test_voice_message_requires_transcription_before_session_creation(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    message = _FakeMessage(
+        "",
+        voice=SimpleNamespace(
+            file_id="voice-file-id",
+            duration=9,
+            mime_type="audio/ogg",
+            file_size=4096,
+        ),
+    )
+
+    _run(
+        telegram_bot._handle_voice_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ToneEngine.default(),
+        )
+    )
+
+    assert session_store.load_session(123) is None
+    assert message.replies == [
+        "Голос получил, но расшифровка еще не подключена. "
+        "Пока пришли этот эпизод текстом."
+    ]
+
+
+
+def test_transcribed_voice_artifact_can_start_same_draft_session(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    artifact = voice_input_artifact("voice-file-id", transcript="голосовой эпизод")
+    message = _FakeMessage("", voice=SimpleNamespace(file_id="voice-file-id"))
+
+    _run(
+        telegram_bot._start_input_artifact_capture_session(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            chat_id=123,
+            artifact=artifact,
+            now=datetime(2026, 5, 3, 9, 44, tzinfo=timezone.utc),
+        )
+    )
+
+    loaded = session_store.load_session(123)
+    assert loaded is not None
+    assert loaded.observed == {
+        "situation": {
+            "value": "голосовой эпизод",
+            "source_quote": "голосовой эпизод",
+        }
+    }
+    assert loaded.target_index == 1
+    assert [event["event_type"] for event in ux_events.read()] == [
+        "session_started",
+        "step_answered",
+        "step_prompted",
+    ]
+    assert message.replies == [
+        f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
+    ]
+
+def test_voice_message_without_file_id_is_rejected(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    message = _FakeMessage("", voice=SimpleNamespace(file_id=""))
+
+    _run(
+        telegram_bot._handle_voice_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ToneEngine.default(),
+        )
+    )
+
+    assert session_store.load_session(123) is None
+    assert message.replies == ["Не смог прочитать голосовое сообщение"]
+
+
+def test_audio_input_artifact_from_update_preserves_metadata():
+    audio = SimpleNamespace(
+        file_id="audio-file-id",
+        duration=33,
+        mime_type="audio/mpeg",
+        file_size=8192,
+        file_name="note.mp3",
+    )
+    message = _FakeMessage("", audio=audio)
+
+    artifact = telegram_bot._audio_input_artifact_from_update(_fake_update(123, message))
+
+    assert artifact is not None
+    assert artifact.media_kind == "audio"
+    assert artifact.file_id == "audio-file-id"
+    assert artifact.duration_seconds == 33
+    assert artifact.mime_type == "audio/mpeg"
+    assert artifact.file_size == 8192
+    assert artifact.file_name == "note.mp3"
+    assert artifact.source_ref == {"chat_id": 123, "message_kind": "audio"}
+
+
+def test_audio_message_requires_transcription_before_session_creation(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    message = _FakeMessage(
+        "",
+        audio=SimpleNamespace(
+            file_id="audio-file-id",
+            duration=33,
+            mime_type="audio/mpeg",
+            file_size=8192,
+            file_name="note.mp3",
+        ),
+    )
+
+    _run(
+        telegram_bot._handle_audio_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ToneEngine.default(),
+        )
+    )
+
+    assert session_store.load_session(123) is None
+    assert message.replies == [
+        "Аудио получил, но расшифровка еще не подключена. "
+        "Пока пришли этот эпизод текстом."
+    ]
+
+
+def test_audio_document_input_artifact_from_update_rejects_non_audio_document():
+    document = SimpleNamespace(
+        file_id="document-file-id",
+        mime_type="application/pdf",
+        file_size=4096,
+        file_name="doc.pdf",
+    )
+    message = _FakeMessage("", document=document)
+
+    assert telegram_bot._audio_document_input_artifact_from_update(
+        _fake_update(123, message)
+    ) is None
+
+
+def test_audio_document_message_requires_transcription_before_session_creation(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    message = _FakeMessage(
+        "",
+        document=SimpleNamespace(
+            file_id="document-file-id",
+            mime_type="audio/ogg",
+            file_size=4096,
+            file_name="note.ogg",
+        ),
+    )
+
+    _run(
+        telegram_bot._handle_document_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ToneEngine.default(),
+        )
+    )
+
+    assert session_store.load_session(123) is None
+    assert message.replies == [
+        "Аудио получил, но расшифровка еще не подключена. "
+        "Пока пришли этот эпизод текстом."
+    ]
+
+
+def test_unsupported_document_message_is_rejected(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    message = _FakeMessage(
+        "",
+        document=SimpleNamespace(
+            file_id="document-file-id",
+            mime_type="application/pdf",
+            file_size=4096,
+            file_name="doc.pdf",
+        ),
+    )
+
+    _run(
+        telegram_bot._handle_document_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ToneEngine.default(),
+        )
+    )
+
+    assert session_store.load_session(123) is None
+    assert message.replies == ["Поддерживаю только аудиофайлы"]
+
 def test_cancel_without_session_reports_no_active_session(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes")
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
@@ -1203,8 +1421,11 @@ def test_restart_cancel_event_uses_current_target():
 
 
 class _FakeMessage:
-    def __init__(self, text: str) -> None:
+    def __init__(self, text: str, *, voice=None, audio=None, document=None) -> None:
         self.text = text
+        self.voice = voice
+        self.audio = audio
+        self.document = document
         self.replies = []
         self.reply_options = []
 

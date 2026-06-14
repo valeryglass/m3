@@ -14,7 +14,13 @@ from app.report_runner import (
 )
 from app.user_report import render_details, render_summary
 from app.episode_drafts import draft_from_input_artifact
-from app.input_funnels import text_input_artifact
+from app.input_funnels import (
+    artifact_text,
+    audio_document_input_artifact,
+    audio_input_artifact,
+    text_input_artifact,
+    voice_input_artifact,
+)
 from app.loop_extractor import (
     active_target,
     apply_user_reply,
@@ -124,6 +130,27 @@ def main() -> None:
             update, session_store, ux_events, settings, tone
         )
 
+    async def voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
+            return
+        await _handle_voice_after_authorized(update, session_store, tone)
+
+    async def audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
+            return
+        await _handle_audio_after_authorized(update, session_store, tone)
+
+    async def document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
+            return
+        await _handle_document_after_authorized(update, session_store, tone)
+
     async def message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
             update, settings, tone, ux_events, userlist, context.bot
@@ -203,6 +230,9 @@ def main() -> None:
     application.add_handler(CommandHandler("report_ux", report_ux))
     application.add_handler(CallbackQueryHandler(episode_callback, pattern="^episode:"))
     application.add_handler(CallbackQueryHandler(profile_callback, pattern="^profile:"))
+    application.add_handler(MessageHandler(filters.VOICE, voice))
+    application.add_handler(MessageHandler(filters.AUDIO, audio))
+    application.add_handler(MessageHandler(filters.Document.ALL, document))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
     application.run_polling(bootstrap_retries=-1)
 
@@ -419,6 +449,35 @@ async def _start_text_capture_session(
     existing_session=None,
     cancel_reason: str | None = None,
 ) -> None:
+    artifact = text_input_artifact(
+        text,
+        source_ref=_telegram_update_metadata(update),
+    )
+    await _start_input_artifact_capture_session(
+        update,
+        session_store,
+        ux_events,
+        tone,
+        chat_id=chat_id,
+        artifact=artifact,
+        now=now,
+        existing_session=existing_session,
+        cancel_reason=cancel_reason,
+    )
+
+
+async def _start_input_artifact_capture_session(
+    update,
+    session_store: LoopSessionStore,
+    ux_events: UxEventLog,
+    tone,
+    *,
+    chat_id: int,
+    artifact,
+    now,
+    existing_session=None,
+    cancel_reason: str | None = None,
+) -> None:
     if (
         cancel_reason is not None
         and existing_session is not None
@@ -433,10 +492,7 @@ async def _start_text_capture_session(
             )
         )
 
-    artifact = text_input_artifact(
-        text,
-        source_ref=_telegram_update_metadata(update),
-    )
+    capture_text = artifact_text(artifact)
     draft = draft_from_input_artifact(artifact)
     session = new_session_from_draft(
         chat_id,
@@ -462,7 +518,7 @@ async def _start_text_capture_session(
             target_index=0,
             duration_sec=0,
             advanced=True,
-            answer_chars=len(text),
+            answer_chars=len(capture_text),
         )
     )
     _log_step_prompted(ux_events, session, str(chat_id), now=now)
@@ -514,6 +570,51 @@ async def _handle_capture_after_authorized(
         existing_session=existing_session,
         cancel_reason="capture_restart",
     )
+
+
+async def _handle_voice_after_authorized(
+    update,
+    session_store: LoopSessionStore,
+    tone,
+) -> None:
+    artifact = _voice_input_artifact_from_update(update)
+    if artifact is None:
+        await _reply_text(update, "Не смог прочитать голосовое сообщение")
+        return
+
+    # Voice is accepted as an input artifact, but it must not advance or create
+    # an episode draft until transcription is available.
+    await _reply_text(
+        update,
+        "Голос получил, но расшифровка еще не подключена. "
+        "Пока пришли этот эпизод текстом.",
+    )
+
+
+async def _handle_audio_after_authorized(
+    update,
+    session_store: LoopSessionStore,
+    tone,
+) -> None:
+    artifact = _audio_input_artifact_from_update(update)
+    if artifact is None:
+        await _reply_text(update, "Не смог прочитать аудиофайл")
+        return
+
+    await _reply_text(update, _audio_transcription_pending_text())
+
+
+async def _handle_document_after_authorized(
+    update,
+    session_store: LoopSessionStore,
+    tone,
+) -> None:
+    artifact = _audio_document_input_artifact_from_update(update)
+    if artifact is None:
+        await _reply_text(update, "Поддерживаю только аудиофайлы")
+        return
+
+    await _reply_text(update, _audio_transcription_pending_text())
 
 
 async def _handle_message_after_authorized(
@@ -914,6 +1015,62 @@ def _telegram_user_profile(update) -> dict:
     }
 
 
+def _audio_transcription_pending_text() -> str:
+    return (
+        "Аудио получил, но расшифровка еще не подключена. "
+        "Пока пришли этот эпизод текстом."
+    )
+
+
+def _audio_input_artifact_from_update(update):
+    audio = getattr(update.message, "audio", None)
+    if audio is None:
+        return None
+    file_id = getattr(audio, "file_id", "") or ""
+    if not file_id:
+        return None
+    return audio_input_artifact(
+        file_id,
+        source_ref=_telegram_update_metadata(update),
+        duration_seconds=getattr(audio, "duration", None),
+        mime_type=getattr(audio, "mime_type", None),
+        file_size=getattr(audio, "file_size", None),
+        file_name=getattr(audio, "file_name", None),
+    )
+
+
+def _audio_document_input_artifact_from_update(update):
+    document = getattr(update.message, "document", None)
+    if document is None:
+        return None
+    try:
+        return audio_document_input_artifact(
+            getattr(document, "file_id", "") or "",
+            source_ref=_telegram_update_metadata(update),
+            mime_type=getattr(document, "mime_type", None),
+            file_size=getattr(document, "file_size", None),
+            file_name=getattr(document, "file_name", None),
+        )
+    except ValueError:
+        return None
+
+
+def _voice_input_artifact_from_update(update):
+    voice = getattr(update.message, "voice", None)
+    if voice is None:
+        return None
+    file_id = getattr(voice, "file_id", "") or ""
+    if not file_id:
+        return None
+    return voice_input_artifact(
+        file_id,
+        source_ref=_telegram_update_metadata(update),
+        duration_seconds=getattr(voice, "duration", None),
+        mime_type=getattr(voice, "mime_type", None),
+        file_size=getattr(voice, "file_size", None),
+    )
+
+
 def _command_argument_text(text: str) -> str:
     parts = text.split(maxsplit=1)
     if len(parts) < 2:
@@ -926,8 +1083,22 @@ def _telegram_update_metadata(update) -> dict:
     user = update.effective_user
     message = update.message
     text = (getattr(message, "text", None) or "").strip() if message else ""
+    voice = getattr(message, "voice", None) if message else None
+    audio = getattr(message, "audio", None) if message else None
+    document = getattr(message, "document", None) if message else None
     command = text.split(maxsplit=1)[0] if text.startswith("/") else None
-    message_kind = "command" if command else "text" if text else None
+    if command:
+        message_kind = "command"
+    elif text:
+        message_kind = "text"
+    elif voice:
+        message_kind = "voice"
+    elif audio:
+        message_kind = "audio"
+    elif document:
+        message_kind = "document"
+    else:
+        message_kind = None
 
     metadata = {
         "chat_id": chat.id if chat is not None else None,

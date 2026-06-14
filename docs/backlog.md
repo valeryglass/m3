@@ -162,6 +162,17 @@ Acceptance:
 
 Accept Telegram voice notes as input artifacts.
 
+Implementation split:
+
+- BL-07a: add a passive voice `InputArtifact` factory that carries Telegram
+  file metadata and optional transcript text without storing raw audio.
+- BL-07b: route Telegram `voice` messages into voice input artifacts and
+  reject them before draft construction until transcription is available.
+- BL-07c: add transcript-to-draft/session routing so voice can enter the
+  same draft path as text after transcription.
+- BL-07d: add a passive transcription boundary that can attach transcript
+  support text to audio artifacts without choosing a provider yet.
+
 Acceptance:
 
 - voice input enters the same draft path as text.
@@ -172,6 +183,13 @@ Acceptance:
 ### BL-08 Add audio/document fallback
 
 Accept uploaded audio files as a fallback to voice notes.
+
+Implementation split:
+
+- BL-08a: add passive `audio` and audio-like `document` input artifact
+  factories without Telegram routing changes.
+- BL-08b: route Telegram `audio` and audio-like `document` messages into
+  input artifacts and reject unsupported files before transcription.
 
 Acceptance:
 

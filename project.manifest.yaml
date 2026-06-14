@@ -59,6 +59,7 @@ modules:
     purpose: Normalize user input surfaces into pre-episode capture artifacts.
     owned_paths:
       - app/input_funnels.py
+      - app/transcription.py
       - docs/modules/input-funnels.md
     inputs:
       - Telegram text messages
