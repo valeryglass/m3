@@ -30,22 +30,58 @@ def test_render_html_draws_cells_regions_paths_fields_anchors_and_summary():
     assert "<span>paths</span><strong>1</strong>" in html
 
 
-def test_boundaries_are_hidden_by_default():
+def test_render_html_includes_layer_controls_for_all_layers():
     html = render_html(_world())
 
-    assert "boundary-line" in html
-    assert 'data-layer="boundaries"' not in html
-    assert 'data-boundary-id="boundary:one:two"' not in html
+    assert "Layers" in html
+    for layer in ("substrate", "regions", "paths", "fields", "anchors", "labels", "boundaries"):
+        assert f'data-layer-toggle value="{layer}"' in html
+
+
+def test_render_html_emits_all_svg_layer_groups():
+    html = render_html(_world())
+
+    for layer in ("substrate", "regions", "paths", "fields", "anchors", "labels", "boundaries"):
+        assert f'data-layer="{layer}"' in html
+
+
+def test_boundaries_are_hidden_by_default_but_present():
+    html = render_html(_world())
+
+    assert 'data-layer="boundaries" data-hidden="true"' in html
+    assert 'data-boundary-id="boundary:one:two"' in html
     assert "boundaries: hidden" in html
 
 
-def test_boundaries_render_when_enabled():
+def test_boundaries_are_visible_initially_when_enabled():
     html = render_html(_world(), show_boundaries=True)
 
-    assert 'data-layer="boundaries"' in html
+    assert 'data-layer="boundaries" data-hidden="false"' in html
     assert 'class="boundary-line"' in html
     assert 'data-boundary-id="boundary:one:two"' in html
     assert "boundaries: shown" in html
+    assert 'data-layer-toggle value="boundaries" checked' in html
+
+
+def test_style_controls_and_inline_js_are_present():
+    html = render_html(_world())
+
+    for variable in ("--region-opacity", "--field-opacity", "--path-opacity"):
+        assert variable in html
+
+    assert "data-style-var" in html
+    assert "data-label-mode-select" in html
+    assert "data-layer-toggle" in html
+    assert "layer.dataset.hidden" in html
+    assert "style.setProperty(control.dataset.styleVar" in html
+    assert "previewSvg.dataset.labelMode" in html
+
+
+def test_label_mode_selector_contains_all_modes():
+    html = render_html(_world())
+
+    for mode in ("none", "id", "short", "full"):
+        assert f'<option value="{mode}"' in html
 
 
 def test_missing_optional_sections_do_not_crash():
@@ -56,6 +92,8 @@ def test_missing_optional_sections_do_not_crash():
     html = render_html(world)
 
     assert "<svg" in html
+    for layer in ("substrate", "regions", "paths", "fields", "anchors", "labels", "boundaries"):
+        assert f'data-layer="{layer}"' in html
     assert "<span>fields</span><strong>0</strong>" in html
     assert "<span>anchors</span><strong>0</strong>" in html
     assert "<span>boundaries</span><strong>0</strong>" in html
@@ -74,6 +112,9 @@ def test_render_html_escapes_labels_and_ids():
     assert "&lt;source&gt;" in html
     assert "&lt;b&gt;region&lt;/b&gt;" in html
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+    assert 'data-label-mode="id"' in html
+    assert 'data-label-mode="short"' in html
+    assert 'data-label-mode="full"' in html
 
 
 def test_write_html_writes_requested_output(tmp_path):

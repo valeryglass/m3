@@ -19,6 +19,15 @@ from typing import Any
 
 DEFAULT_CELL_SIZE = 28.0
 SVG_PADDING = 72.0
+LAYER_CONTROLS = (
+    ("substrate", "Substrate cells", True),
+    ("regions", "Region ownership", True),
+    ("paths", "Paths", True),
+    ("fields", "Fields / climate", True),
+    ("anchors", "Anchors", True),
+    ("labels", "Labels", True),
+    ("boundaries", "Boundaries", False),
+)
 
 
 def render_html(world: dict[str, Any], show_boundaries: bool = False) -> str:
@@ -32,7 +41,6 @@ def render_html(world: dict[str, Any], show_boundaries: bool = False) -> str:
     grid = world.get("grid", {}) or {}
     cell_size = _safe_float(grid.get("cell_size"), DEFAULT_CELL_SIZE)
     cell_by_id = {str(cell.get("id") or ""): cell for cell in cells}
-    region_by_id = {str(region.get("id") or ""): region for region in regions}
     bounds = _svg_bounds(cells, cell_size)
     owned_count = sum(1 for cell in cells if cell.get("owner_id"))
 
@@ -55,11 +63,12 @@ def render_html(world: dict[str, Any], show_boundaries: bool = False) -> str:
         anchors=anchors,
         boundaries=boundaries,
         cell_by_id=cell_by_id,
-        region_by_id=region_by_id,
         cell_size=cell_size,
         bounds=bounds,
         show_boundaries=show_boundaries,
     )
+    layer_controls = _render_layer_controls(show_boundaries=show_boundaries)
+    style_controls = _render_style_controls()
     summary = "\n".join(
         f"<li><span>{escape(label)}</span><strong>{escape(str(value))}</strong></li>"
         for label, value in summary_items.items()
@@ -74,6 +83,11 @@ def render_html(world: dict[str, Any], show_boundaries: bool = False) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{escape(title)}</title>
   <style>
+    :root {{
+      --region-opacity: 0.62;
+      --field-opacity: 0.28;
+      --path-opacity: 0.55;
+    }}
     body {{
       margin: 0;
       background: #f6f5f1;
@@ -117,6 +131,11 @@ def render_html(world: dict[str, Any], show_boundaries: bool = False) -> str:
       border: 1px solid #d9d4ca;
       background: #fbfaf6;
     }}
+    svg [data-layer][data-hidden="true"] {{ display: none; }}
+    svg [data-label-mode] {{ display: none; }}
+    svg[data-label-mode="id"] [data-label-mode="id"],
+    svg[data-label-mode="short"] [data-label-mode="short"],
+    svg[data-label-mode="full"] [data-label-mode="full"] {{ display: block; }}
     .substrate-cell {{
       fill: #fbfaf7;
       stroke: rgba(108, 117, 125, 0.24);
@@ -125,10 +144,12 @@ def render_html(world: dict[str, Any], show_boundaries: bool = False) -> str:
     .owned-cell {{
       stroke: rgba(38, 50, 56, 0.18);
       stroke-width: 0.8;
+      opacity: var(--region-opacity);
     }}
     .field-cell {{
       stroke: none;
       mix-blend-mode: multiply;
+      opacity: var(--field-opacity);
     }}
     .hex-path {{
       fill: none;
@@ -136,6 +157,7 @@ def render_html(world: dict[str, Any], show_boundaries: bool = False) -> str:
       stroke-width: 5;
       stroke-linecap: round;
       stroke-linejoin: round;
+      opacity: var(--path-opacity);
     }}
     .anchor-marker {{
       fill: #111827;
@@ -166,8 +188,31 @@ def render_html(world: dict[str, Any], show_boundaries: bool = False) -> str:
       stroke-linejoin: round;
     }}
     h2 {{
-      margin: 0 0 10px;
+      margin: 18px 0 10px;
       font-size: 14px;
+    }}
+    aside h2:first-child {{ margin-top: 0; }}
+    .control-grid {{
+      display: grid;
+      gap: 8px;
+    }}
+    .layer-control,
+    .style-control {{
+      display: grid;
+      gap: 5px;
+      color: #475467;
+      font-size: 12px;
+    }}
+    .layer-control {{
+      grid-template-columns: 18px 1fr;
+      align-items: center;
+    }}
+    .style-control input,
+    .style-control select {{
+      width: 100%;
+    }}
+    .style-control select {{
+      min-height: 30px;
     }}
     ul {{
       list-style: none;
@@ -201,10 +246,43 @@ def render_html(world: dict[str, Any], show_boundaries: bool = False) -> str:
       {svg}
     </section>
     <aside>
+      <h2>Layers</h2>
+      <div class="control-grid">{layer_controls}</div>
+      <h2>Styles</h2>
+      <div class="control-grid">{style_controls}</div>
       <h2>Summary</h2>
       <ul>{summary}</ul>
     </aside>
   </main>
+  <script>
+    document.querySelectorAll('[data-layer-toggle]').forEach((control) => {{
+      const applyLayerState = () => {{
+        document.querySelectorAll(`[data-layer="${{control.value}}"]`).forEach((layer) => {{
+          layer.dataset.hidden = control.checked ? 'false' : 'true';
+        }});
+      }};
+      control.addEventListener('change', applyLayerState);
+      applyLayerState();
+    }});
+
+    document.querySelectorAll('[data-style-var]').forEach((control) => {{
+      const applyStyleValue = () => {{
+        document.documentElement.style.setProperty(control.dataset.styleVar, control.value);
+      }};
+      control.addEventListener('input', applyStyleValue);
+      applyStyleValue();
+    }});
+
+    const labelMode = document.querySelector('[data-label-mode-select]');
+    const previewSvg = document.querySelector('svg[data-label-mode]');
+    if (labelMode && previewSvg) {{
+      const applyLabelMode = () => {{
+        previewSvg.dataset.labelMode = labelMode.value;
+      }};
+      labelMode.addEventListener('change', applyLabelMode);
+      applyLabelMode();
+    }}
+  </script>
 </body>
 </html>
 """
@@ -231,6 +309,45 @@ def main() -> None:
     print(path.as_posix())
 
 
+def _render_layer_controls(*, show_boundaries: bool) -> str:
+    controls: list[str] = []
+    for layer_id, label, default_checked in LAYER_CONTROLS:
+        checked = default_checked or (layer_id == "boundaries" and show_boundaries)
+        controls.append(
+            (
+                '<label class="layer-control">'
+                f'<input type="checkbox" data-layer-toggle value="{escape(layer_id)}"{" checked" if checked else ""}> '
+                f'<span>{escape(label)}</span>'
+                "</label>"
+            )
+        )
+    return "\n".join(controls)
+
+
+def _render_style_controls() -> str:
+    return """<label class="style-control">
+  <span>Region opacity</span>
+  <input type="range" min="0" max="1" step="0.05" value="0.62" data-style-var="--region-opacity">
+</label>
+<label class="style-control">
+  <span>Field opacity</span>
+  <input type="range" min="0" max="1" step="0.05" value="0.28" data-style-var="--field-opacity">
+</label>
+<label class="style-control">
+  <span>Path opacity</span>
+  <input type="range" min="0" max="1" step="0.05" value="0.55" data-style-var="--path-opacity">
+</label>
+<label class="style-control">
+  <span>Label mode</span>
+  <select data-label-mode-select>
+    <option value="none">none</option>
+    <option value="id">id</option>
+    <option value="short" selected>short</option>
+    <option value="full">full</option>
+  </select>
+</label>"""
+
+
 def _render_svg(
     *,
     cells: list[dict[str, Any]],
@@ -240,42 +357,37 @@ def _render_svg(
     anchors: list[dict[str, Any]],
     boundaries: list[dict[str, Any]],
     cell_by_id: dict[str, dict[str, Any]],
-    region_by_id: dict[str, dict[str, Any]],
     cell_size: float,
     bounds: tuple[float, float, float, float],
     show_boundaries: bool,
 ) -> str:
     min_x, min_y, width, height = bounds
+    boundary_hidden = "false" if show_boundaries else "true"
     parts = [
-        f'<svg viewBox="{_fmt(min_x)} {_fmt(min_y)} {_fmt(width)} {_fmt(height)}" role="img" aria-label="Hex world diagnostic preview">',
-        '<g data-layer="substrate">',
+        f'<svg viewBox="{_fmt(min_x)} {_fmt(min_y)} {_fmt(width)} {_fmt(height)}" role="img" aria-label="Hex world diagnostic preview" data-label-mode="short">',
+        '<g data-layer="substrate" data-hidden="false">',
         *_render_cells(cells, cell_size, owned=False),
         "</g>",
-        '<g data-layer="regions">',
+        '<g data-layer="regions" data-hidden="false">',
         *_render_cells(cells, cell_size, owned=True),
         "</g>",
-        '<g data-layer="paths">',
+        '<g data-layer="paths" data-hidden="false">',
         *_render_paths(paths, cell_by_id),
         "</g>",
-        '<g data-layer="fields">',
+        '<g data-layer="fields" data-hidden="false">',
         *_render_fields(fields, cell_by_id, cell_size),
         "</g>",
-        '<g data-layer="anchors">',
+        '<g data-layer="anchors" data-hidden="false">',
         *_render_anchors(anchors, cell_by_id),
         "</g>",
-        '<g data-layer="labels">',
+        '<g data-layer="labels" data-hidden="false">',
         *_render_region_labels(regions, cell_by_id),
         *_render_anchor_labels(anchors, cell_by_id),
         "</g>",
+        f'<g data-layer="boundaries" data-hidden="{boundary_hidden}">',
+        *_render_boundaries(boundaries, cell_by_id),
+        "</g>",
     ]
-    if show_boundaries:
-        parts.extend(
-            [
-                '<g data-layer="boundaries">',
-                *_render_boundaries(boundaries, cell_by_id),
-                "</g>",
-            ]
-        )
     parts.append("</svg>")
     return "".join(parts)
 
@@ -365,9 +477,18 @@ def _render_region_labels(
             continue
         x, y = _cell_center(cell)
         region_id = str(region.get("id") or "")
-        label = str(region.get("label") or region_id)
-        parts.append(
-            f'<text class="region-label" data-region-id="{escape(region_id)}" x="{_fmt(x + 8)}" y="{_fmt(y - 10)}">{escape(_truncate(label, 34))}</text>'
+        full_label = str(region.get("label") or region_id)
+        parts.extend(
+            _label_variants(
+                class_name="region-label",
+                data_name="region-id",
+                data_value=region_id,
+                x=x + 8,
+                y=y - 10,
+                identity=region_id,
+                label=full_label,
+                short_limit=34,
+            )
         )
     return parts
 
@@ -383,11 +504,49 @@ def _render_anchor_labels(
             continue
         x, y = _cell_center(cell)
         anchor_id = str(anchor.get("id") or "")
-        label = str(anchor.get("label") or anchor_id)
-        parts.append(
-            f'<text class="anchor-label" data-anchor-id="{escape(anchor_id)}" x="{_fmt(x + 8)}" y="{_fmt(y + 18)}">{escape(_truncate(label, 28))}</text>'
+        full_label = str(anchor.get("label") or anchor_id)
+        parts.extend(
+            _label_variants(
+                class_name="anchor-label",
+                data_name="anchor-id",
+                data_value=anchor_id,
+                x=x + 8,
+                y=y + 18,
+                identity=anchor_id,
+                label=full_label,
+                short_limit=28,
+            )
         )
     return parts
+
+
+def _label_variants(
+    *,
+    class_name: str,
+    data_name: str,
+    data_value: str,
+    x: float,
+    y: float,
+    identity: str,
+    label: str,
+    short_limit: int,
+) -> list[str]:
+    escaped_data_value = escape(data_value)
+    return [
+        (
+            f'<text class="{class_name}" data-{data_name}="{escaped_data_value}" data-label-mode="id" '
+            f'x="{_fmt(x)}" y="{_fmt(y)}">{escape(identity)}</text>'
+        ),
+        (
+            f'<text class="{class_name}" data-{data_name}="{escaped_data_value}" data-label-mode="short" '
+            f'x="{_fmt(x)}" y="{_fmt(y)}">{escape(_truncate(label, short_limit))}</text>'
+        ),
+        (
+            f'<text class="{class_name}" data-{data_name}="{escaped_data_value}" data-label-mode="full" '
+            f'x="{_fmt(x)}" y="{_fmt(y)}">{escape(label)}</text>'
+        ),
+    ]
+
 
 
 def _render_boundaries(
