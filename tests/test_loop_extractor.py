@@ -1,11 +1,19 @@
 from app.loop_extractor import (
+    DRAFT_STATUS_COMPLETE,
+    DRAFT_STATUS_PARTIAL,
     FLOW_UNIFIED,
     LoopSession,
     OBSERVED_FIELDS,
     active_target,
     apply_user_reply,
+    completed_draft_field_count,
     completed_observed_count,
+    draft_observed_fields,
+    draft_status,
+    is_draft_complete,
     new_session,
+    next_draft_target,
+    next_missing_draft_field,
     target_fields,
 )
 from app.derived_normalizer import empty_derived
@@ -27,6 +35,81 @@ def test_story_first_target_progression():
     apply_user_reply(session, "Sharp comment.")
     assert active_target(session) == "actor"
     assert completed_observed_count(session) == 2
+
+
+def test_draft_vocabulary_aliases_current_observed_session_state():
+    session = LoopSession(
+        chat_id=123,
+        observed={
+            "situation": {"value": "s", "source_quote": "s"},
+            "trigger": {"value": "t", "source_quote": "t"},
+        },
+    )
+
+    assert draft_observed_fields(session) is session.observed
+    assert completed_draft_field_count(session) == 2
+    assert completed_observed_count(session) == 2
+    assert draft_status(session) == DRAFT_STATUS_PARTIAL
+    assert is_draft_complete(session) is False
+
+
+def test_complete_draft_status_reuses_existing_observed_completion_rule():
+    session = LoopSession(
+        chat_id=123,
+        observed={
+            field_name: {"value": field_name, "source_quote": field_name}
+            for field_name in target_fields(LoopSession(chat_id=123))
+        },
+    )
+
+    assert completed_draft_field_count(session) == len(target_fields(session))
+    assert draft_status(session) == DRAFT_STATUS_COMPLETE
+    assert is_draft_complete(session) is True
+
+
+def test_next_draft_target_preserves_current_order_index_rule():
+    session = LoopSession(
+        chat_id=123,
+        target_index=5,
+        observed={
+            "situation": {"value": "s", "source_quote": "s"},
+            "actor": {"value": "a", "source_quote": "a"},
+        },
+    )
+
+    assert next_missing_draft_field(session) == "trigger"
+    assert next_draft_target(session) == "emotion"
+    assert active_target(session) == "emotion"
+
+
+def test_next_draft_target_falls_back_to_gap_selector_when_index_is_filled():
+    session = LoopSession(
+        chat_id=123,
+        target_index=1,
+        observed={
+            "situation": {"value": "s", "source_quote": "s"},
+            "trigger": {"value": "tr", "source_quote": "tr"},
+            "actor": {"value": "ac", "source_quote": "ac"},
+        },
+    )
+
+    assert next_missing_draft_field(session) == "quote"
+    assert next_draft_target(session) == "quote"
+    assert active_target(session) == "quote"
+
+
+def test_next_draft_target_returns_complete_when_no_gaps_remain():
+    session = LoopSession(
+        chat_id=123,
+        observed={
+            field_name: {"value": field_name, "source_quote": field_name}
+            for field_name in target_fields(LoopSession(chat_id=123))
+        },
+    )
+
+    assert next_missing_draft_field(session) is None
+    assert next_draft_target(session) == "complete"
+    assert active_target(session) == "complete"
 
 
 def test_session_from_dict_normalizes_legacy_target_index():

@@ -6,13 +6,19 @@ from typing import Any
 
 from app.messages import TARGETS
 from app.derived_normalizer import empty_derived
+from app.episode_drafts import (
+    DRAFT_STATUS_COMPLETE,
+    DRAFT_STATUS_PARTIAL,
+    completed_draft_field_count as _completed_draft_field_count,
+    draft_status as _draft_status,
+    is_draft_complete as _is_draft_complete,
+)
+from app.gap_hydration import missing_draft_gaps, select_next_gap
 from app.tone_engine import ToneEngine
 
 
 FLOW_UNIFIED = "uniflow"
 OBSERVED_FIELDS = TARGETS
-
-
 @dataclass
 class LoopSession:
     chat_id: int
@@ -83,10 +89,7 @@ def new_session(
 
 
 def active_target(session: LoopSession) -> str:
-    targets = target_fields(session)
-    if session.target_index >= len(targets):
-        return "complete"
-    return targets[session.target_index]
+    return next_draft_target(session)
 
 
 def target_fields(session: LoopSession) -> tuple[str, ...]:
@@ -100,8 +103,44 @@ def prompt_for_current_target(
     return _tone(tone).target_prompt(target)
 
 
+def next_missing_draft_field(session: LoopSession) -> str | None:
+    gaps = missing_draft_gaps(draft_observed_fields(session), target_fields(session))
+    if not gaps:
+        return None
+    return gaps[0].field_name
+
+
+def next_draft_target(session: LoopSession) -> str:
+    gap = select_next_gap(
+        draft_observed_fields(session),
+        target_fields(session),
+        target_index=session.target_index,
+        current_order_only=True,
+    )
+    if gap is None:
+        return "complete"
+    return gap.field_name
+
+
+def draft_observed_fields(session: LoopSession) -> dict[str, dict[str, Any]]:
+    """Return the current provisional observed fields for the episode draft."""
+    return session.observed
+
+
+def completed_draft_field_count(session: LoopSession) -> int:
+    return _completed_draft_field_count(draft_observed_fields(session), target_fields(session))
+
+
+def draft_status(session: LoopSession) -> str:
+    return _draft_status(draft_observed_fields(session), target_fields(session))
+
+
+def is_draft_complete(session: LoopSession) -> bool:
+    return _is_draft_complete(draft_observed_fields(session), target_fields(session))
+
+
 def completed_observed_count(session: LoopSession) -> int:
-    return sum(1 for field_name in target_fields(session) if field_name in session.observed)
+    return completed_draft_field_count(session)
 
 
 def status_text(session: LoopSession, tone: ToneEngine | None = None) -> str:
@@ -123,20 +162,20 @@ def apply_user_reply(
         return LoopResult(reply=tone.already_complete())
 
     if target in target_fields(session):
-        return _apply_observed_field(session, target, value, tone)
+        return _apply_draft_field(session, target, value, tone)
 
     raise ValueError(f"Unknown target: {target}")
 
 
-def _apply_observed_field(
+def _apply_draft_field(
     session: LoopSession, target: str, value: str, tone: ToneEngine
 ) -> LoopResult:
-    session.observed[target] = {
+    draft_observed_fields(session)[target] = {
         "value": value,
         "source_quote": value,
     }
     session.target_index += 1
-    if active_target(session) == "complete":
+    if is_draft_complete(session):
         return LoopResult(reply=tone.complete(), should_save=True)
     return LoopResult(reply=prompt_for_current_target(session, tone))
 

@@ -76,6 +76,7 @@ modules:
     enabled: true
     purpose: Stage provisional observed episode material before confirmation and persistence.
     owned_paths:
+      - app/episode_drafts.py
       - docs/modules/episode-drafts.md
     inputs:
       - normalized input artifacts
@@ -97,6 +98,7 @@ modules:
     enabled: true
     purpose: Select the smallest useful next question for incomplete episode drafts.
     owned_paths:
+      - app/gap_hydration.py
       - docs/modules/gap-hydration.md
     inputs:
       - episode drafts

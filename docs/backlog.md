@@ -112,6 +112,22 @@ Acceptance:
 
 Treat the existing 10-question sequence as one way to fill an Episode Draft.
 
+Implementation split:
+
+- BL-05a: introduce draft vocabulary around the existing `LoopSession` observed
+  in-progress state without behavior, schema, or persistence changes.
+- BL-05b: route current question progression through a reusable draft/gap
+  selector once the draft boundary is explicit.
+- BL-05c: move draft counting, status, and target-selection primitives into
+  `app/episode_drafts.py` while keeping `LoopSession` as the current runtime
+  holder.
+- BL-05d: introduce a passive `app/gap_hydration.py` runtime boundary that
+  can report/select draft gaps without changing current 10Q behavior.
+- BL-05e: wire missing-field discovery in `loop_extractor` through passive
+  Gap Hydration while keeping active target selection current-order.
+- BL-05f: route active target selection through Gap Hydration while keeping
+  the current-order strategy for normal active sessions.
+
 Acceptance:
 
 - each answer updates a draft field.
