@@ -24,7 +24,8 @@ The project has working layers:
 
 `docs/methodology/` is for draft methodology notes. Drafts are not accepted
 model knowledge until they are promoted into `model/` through an explicit
-change.
+change. `docs/roadmap.md` tracks implementation-readiness slices and should not
+be treated as a schema or data contract.
 
 ## Current Focus
 

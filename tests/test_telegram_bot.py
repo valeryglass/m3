@@ -147,9 +147,12 @@ def test_profile_command_replies_with_current_report(tmp_path):
     assert "дистанцироваться" in message.replies[0]
     _assert_no_internal_profile_terms(message.replies[0])
     assert "parse_mode" not in message.reply_options[0]
-    reply_markup = message.reply_options[0]["reply_markup"]
-    assert reply_markup.inline_keyboard[0][0].text == "Подробнее"
-    assert reply_markup.inline_keyboard[0][0].callback_data == "profile:details"
+    reply_markup = message.reply_options[0].get("reply_markup")
+    if reply_markup is None:
+        assert telegram_bot._profile_details_reply_markup() is None
+    else:
+        assert reply_markup.inline_keyboard[0][0].text == "Подробнее"
+        assert reply_markup.inline_keyboard[0][0].callback_data == "profile:details"
 
 
 def test_profile_command_uses_latest_annotation_run(tmp_path):
@@ -1335,7 +1338,9 @@ def test_final_answer_opens_save_review_with_all_fields(tmp_path):
         "потом: lt\n\n"
         "Сохраняем?"
     ]
-    assert message.reply_options[0]["reply_markup"] is not None
+    reply_markup = message.reply_options[0].get("reply_markup")
+    if reply_markup is None:
+        assert telegram_bot._review_reply_markup() is None
     assert ux_events.read()[-1]["event_type"] == "step_answered"
 
     followup = _FakeMessage("next")

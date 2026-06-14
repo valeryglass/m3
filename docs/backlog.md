@@ -279,6 +279,84 @@ Acceptance:
 - review rendering does not create annotations, graph facts, or reports.
 - unconfirmed or discarded drafts do not become episode files.
 
+
+## Production Readiness Slices
+
+Status: active after the input-funnel alpha foundation patch train.
+
+These slices prepare the feature set for production use. They do not change the
+canonical episode schema unless a later ADR explicitly says so.
+
+### PR-00 Full-suite test hygiene
+
+Intent: make the current patch train test-clean in the local dev environment.
+
+Acceptance:
+
+- full `tests/test_telegram_bot.py` passes.
+- optional Telegram UI dependency fallback is explicit in tests.
+- gap-question events are included in expected UX event sequences.
+
+### PR-01 Release status and operator notes
+
+Intent: prevent alpha placeholders from being confused with finished features.
+
+Acceptance:
+
+- docs distinguish active one-take text from pending audio transcription.
+- hidden `/capture` and `/capture3` are described as alpha/manual tools.
+- voice/audio UX says received but not transcribed until provider wiring lands.
+
+### PR-02 Transcription provider boundary
+
+Intent: wire a real provider behind `app.transcription`.
+
+Acceptance:
+
+- voice/audio can produce a `TranscriptResult`.
+- provider failures do not create drafts.
+- transcript text remains support evidence, not a canonical episode.
+
+### PR-03 Voice/audio draft creation
+
+Intent: let transcribed media create episode drafts through the same path as
+text.
+
+Acceptance:
+
+- transcribed voice, audio, and audio-document inputs can create drafts.
+- untranscribed media remains blocked before draft creation.
+- confirmation remains required before persistence.
+
+### PR-04 Production smoke checklist
+
+Intent: define the operator verification before deploy.
+
+Acceptance:
+
+- smoke covers `/start`, plain text, `/capture`, `/capture3`, voice, audio,
+  unsupported document, save, cancel, `/profile`, and `/report_ux`.
+- expected UX events are listed for each flow.
+
+### PR-05 Runtime compatibility and rollback
+
+Intent: document safe deployment of optional session metadata.
+
+Acceptance:
+
+- legacy sessions without `capture_funnel` and `media_kind` keep working.
+- rollback note says no episode schema migration is required.
+
+### PR-06 Production retention and privacy policy
+
+Intent: decide media/transcript privacy before real audio capture is enabled.
+
+Acceptance:
+
+- retention periods are defined for raw audio, transcripts, UX events, and
+  runtime sessions.
+- raw audio is not persisted by default unless a later ADR changes it.
+
 ## Now
 
 ### Add Set Signature / Co-signature

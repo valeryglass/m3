@@ -4,6 +4,7 @@ project:
   structural_ssot: project.manifest.yaml
   architecture_doc: docs/architecture.md
   lifecycle_doc: docs/lifecycle.md
+  roadmap_doc: docs/roadmap.md
   domain_ssot:
     - model/cbt.md
     - model/graph.md
