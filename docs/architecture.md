@@ -51,6 +51,8 @@ Episode Drafts, and Gap Hydration before confirmation.
   event emission for the current runtime.
 - Input Funnels normalize Telegram text, voice, audio, and future capture
   surfaces into pre-episode input artifacts.
+- Telegram Media is the planned temporary download/cleanup boundary for
+  Telegram voice, audio, and audio-like documents before transcription.
 - Episode Drafts stage partial observed fields before confirmation and
   persistence.
 - Gap Hydration selects the smallest useful next question for incomplete or

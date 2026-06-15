@@ -54,6 +54,24 @@ modules:
       - user_profile_report_rendering
       - private_runtime_session_memory
 
+  telegram_media:
+    stage: draft
+    enabled: false
+    purpose: Planned temporary download and cleanup boundary for Telegram voice/audio media before transcription.
+    owned_paths:
+      - docs/modules/telegram-media.md
+    inputs:
+      - Telegram voice file metadata
+      - Telegram audio file metadata
+      - Telegram audio-like document metadata
+    outputs:
+      - temporary media material for transcription
+      - media rejection and download failure reasons
+    capabilities:
+      - telegram_file_download_boundary
+      - media_size_mime_and_duration_guards
+      - raw_audio_temp_cleanup
+
   input_funnels:
     stage: draft
     enabled: true

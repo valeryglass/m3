@@ -32,83 +32,92 @@ Not yet production feature status:
 - episode schema, annotation runs, graph reports, and map payload behavior are
   intentionally unchanged.
 
-## Production Readiness Track
+## MVP2 Audio Input Track
 
-### PR-00 Full-suite test hygiene
+Branch base:
 
-Goal: make the current patch train pass the full local focused test surface
-without environment-dependent assertion failures.
+```text
+epic/input-funnel-alpha -> mvp2/audio-input
+```
 
-Acceptance:
+Goal: turn media intake placeholders into production audio draft capture on
+`mvp2/audio-input` without weakening the episode schema or retaining raw audio
+by default.
 
-- full `tests/test_telegram_bot.py` passes in the local dev environment.
-- fallback behavior without optional Telegram UI classes is explicit in tests.
-- gap-question events are reflected in expected UX event sequences.
+### PR-A0 Audio transcription ADR
 
-### PR-01 Release status and operator notes
-
-Goal: document the actual shipped feature state so alpha operators do not market
-placeholder audio as full audio capture.
-
-Acceptance:
-
-- README or operator docs distinguish `alpha foundation`, `active text capture`,
-  and `media pending transcription`.
-- `/capture` and `/capture3` are documented as hidden/manual alpha tools.
-- audio/voice status says `received, not transcribed yet`.
-
-### PR-02 Transcription provider boundary
-
-Goal: choose and wire a real transcription provider behind the existing passive
-`app.transcription` boundary.
+Goal: accept ADR `0008-audio-transcription-provider-and-retention` before
+provider wiring.
 
 Acceptance:
 
-- voice/audio files can produce `TranscriptResult` or a clear failure.
-- raw audio is not persisted by default.
-- transcript text is treated as support evidence, not canonical episode data.
-- provider errors emit UX events without creating drafts.
+- MVP provider is Whisper, behind a cross-provider configuration boundary.
+- raw Telegram audio is temporary-only by default.
+- no transcript means no draft; no silent fallback.
+- soft duration target is 3 minutes; hard cap is 5 minutes for MVP2.
+- transcript text is support evidence for draft construction.
+- failure/retry behavior is explicit.
+- UX events do not store raw audio or full transcripts.
+- default retention is temporary raw audio only, with no raw archive.
 
-### PR-03 Voice/audio draft creation
+### PR-A1 Telegram media download boundary
 
-Goal: allow transcribed media to enter the same draft/session path as text.
+Goal: add a dedicated Telegram media boundary before provider integration.
 
 Acceptance:
 
-- Telegram `voice` with transcript creates an episode draft.
-- Telegram `audio` and audio-like `document` with transcript create drafts.
-- missing transcript still blocks draft creation.
+- voice, audio, and audio-like document `file_id` values can be downloaded in
+  tests with fake Telegram file objects.
+- size, MIME, and duration guards reject unsupported media before provider calls.
+- temporary media is cleaned after success or failure.
+- download failures emit safe UX events and do not create drafts.
+
+### PR-A2 Transcription provider interface
+
+Goal: upgrade the passive transcription module into a provider interface.
+
+Acceptance:
+
+- provider success returns `TranscriptResult`.
+- empty transcripts are rejected.
+- provider failures emit `transcription_failed`.
+- no draft is created on provider failure.
+
+### PR-A3 Voice to draft
+
+Goal: let Telegram voice notes create drafts only after transcription succeeds.
+
+Acceptance:
+
+- voice note -> download -> transcribe -> attach transcript -> draft session.
 - confirmation remains required before persistence.
+- raw audio is not saved.
+- UX events include input, transcript, draft, gap, confirmation/save/discard.
 
-### PR-04 Production smoke checklist
+### PR-A4 Audio/document fallback to draft
 
-Goal: define a small operator checklist for deploy readiness.
-
-Acceptance:
-
-- manual smoke covers `/start`, plain text, `/capture`, `/capture3`, voice,
-  audio, unsupported document, save, cancel, `/profile`, and `/report_ux`.
-- smoke test avoids private source data and generated export snapshots.
-- expected UX events are listed for each flow.
-
-### PR-05 Runtime compatibility and rollback
-
-Goal: make the runtime-session changes safe to deploy and roll back.
+Goal: give uploaded audio and audio-like documents the same downstream behavior
+as voice notes.
 
 Acceptance:
 
-- legacy sessions without `capture_funnel` and `media_kind` keep working.
-- rollback note explains that these session fields are optional metadata.
-- no episode schema migration is required.
+- `message.audio` can create a draft after transcript.
+- audio-like document can create a draft after transcript.
+- unsupported documents remain politely rejected.
+- oversized files remain blocked before provider calls.
 
-### PR-06 Production retention and privacy policy
+### PR-A5 Production smoke, operator notes, and rollback
 
-Goal: define production behavior for audio/transcripts before real media capture
-is enabled.
+Goal: make deploy readiness observable.
 
 Acceptance:
 
-- retention periods are defined for raw audio, transcripts, UX events, and
-  runtime sessions.
-- default is no raw audio persistence unless a later ADR changes it.
-- user export/delete expectations are documented.
+- full local test suite passes before rollout.
+- smoke covers `/start`, plain text, `/capture`, `/capture3`, voice, audio,
+  audio document, unsupported document, save, cancel, `/profile`, and
+  `/report_ux`.
+- operator notes distinguish alpha text capture, media pending transcription,
+  and production audio draft capture.
+- expected UX events are listed for each smoke flow.
+- legacy sessions without optional funnel/media metadata keep working.
+- rollback note confirms no episode schema migration is required.

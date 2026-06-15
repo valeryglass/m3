@@ -280,82 +280,108 @@ Acceptance:
 - unconfirmed or discarded drafts do not become episode files.
 
 
-## Production Readiness Slices
+## MVP2 Audio Input
 
-Status: active after the input-funnel alpha foundation patch train.
+Status: next branch after `epic/input-funnel-alpha`.
 
-These slices prepare the feature set for production use. They do not change the
-canonical episode schema unless a later ADR explicitly says so.
+Branch:
 
-### PR-00 Full-suite test hygiene
+```text
+mvp2/audio-input from epic/input-funnel-alpha
+```
 
-Intent: make the current patch train test-clean in the local dev environment.
+Intent: turn voice/audio/document intake placeholders into production audio
+draft capture without changing the canonical episode schema.
 
-Acceptance:
+Global acceptance:
 
-- full `tests/test_telegram_bot.py` passes.
-- optional Telegram UI dependency fallback is explicit in tests.
-- gap-question events are included in expected UX event sequences.
+- no audio-specific episode type.
+- no draft creation from media without transcript.
+- no raw audio persistence by default.
+- no silent fallback: failed or empty transcript never creates a draft.
+- MVP2 soft duration target is 3 minutes; hard cap is 5 minutes.
+- confirmed observed episode remains the canonical source artifact.
+- provider failures are safe and observable.
+- legacy sessions without optional funnel/media metadata keep working.
 
-### PR-01 Release status and operator notes
+### PR-A0 Audio transcription ADR
 
-Intent: prevent alpha placeholders from being confused with finished features.
+Status: planned.
 
-Acceptance:
-
-- docs distinguish active one-take text from pending audio transcription.
-- hidden `/capture` and `/capture3` are described as alpha/manual tools.
-- voice/audio UX says received but not transcribed until provider wiring lands.
-
-### PR-02 Transcription provider boundary
-
-Intent: wire a real provider behind `app.transcription`.
-
-Acceptance:
-
-- voice/audio can produce a `TranscriptResult`.
-- provider failures do not create drafts.
-- transcript text remains support evidence, not a canonical episode.
-
-### PR-03 Voice/audio draft creation
-
-Intent: let transcribed media create episode drafts through the same path as
-text.
+Create and accept `docs/adr/0008-audio-transcription-provider-and-retention.md`.
 
 Acceptance:
 
-- transcribed voice, audio, and audio-document inputs can create drafts.
-- untranscribed media remains blocked before draft creation.
-- confirmation remains required before persistence.
+- provider choice is explicit: Whisper first, cross-provider boundary.
+- retention policy is explicit.
+- transcript role is support evidence, not canonical episode data.
+- failure and retry behavior is explicit.
+- raw audio is temporary-only by default.
 
-### PR-04 Production smoke checklist
+### PR-A1 Telegram media boundary
 
-Intent: define the operator verification before deploy.
+Status: planned.
 
-Acceptance:
-
-- smoke covers `/start`, plain text, `/capture`, `/capture3`, voice, audio,
-  unsupported document, save, cancel, `/profile`, and `/report_ux`.
-- expected UX events are listed for each flow.
-
-### PR-05 Runtime compatibility and rollback
-
-Intent: document safe deployment of optional session metadata.
+Add the download/cleanup boundary before provider wiring.
 
 Acceptance:
 
-- legacy sessions without `capture_funnel` and `media_kind` keep working.
+- voice/audio/audio-document files can be fetched via fake Telegram file tests.
+- unsupported media is rejected before provider calls.
+- oversized or over-duration media is rejected before provider calls.
+- temp files or bytes are cleaned after success/failure.
+
+### PR-A2 Transcription provider interface
+
+Status: planned.
+
+Upgrade `app.transcription` from passive placeholder to provider boundary.
+
+Acceptance:
+
+- `TranscriptResult` is produced on success.
+- empty transcript is failure.
+- provider errors emit safe UX events.
+- failed transcription does not create drafts.
+
+### PR-A3 Voice draft creation
+
+Status: planned.
+
+Wire Telegram voice notes into the existing transcript-to-draft/session path.
+
+Acceptance:
+
+- voice note can create a draft after transcription.
+- missing transcript keeps current `transcription_pending` behavior.
+- draft confirmation remains required.
+
+### PR-A4 Uploaded audio draft creation
+
+Status: planned.
+
+Wire `message.audio` and audio-like documents into the same path as voice.
+
+Acceptance:
+
+- uploaded audio can create a draft after transcription.
+- audio-like document can create a draft after transcription.
+- unsupported documents remain rejected.
+
+### PR-A5 Production smoke, operator notes, and rollback
+
+Status: planned.
+
+Acceptance:
+
+- full local test suite passes before rollout.
+- smoke checklist covers text, hidden commands, media, save/cancel, profile, and
+  UX report.
+- operator notes distinguish placeholder media intake from production audio
+  draft capture.
+- expected UX events are listed for each smoke flow.
+- legacy sessions without optional metadata keep working.
 - rollback note says no episode schema migration is required.
-
-### PR-06 Production retention and privacy policy
-
-Intent: decide media/transcript privacy before real audio capture is enabled.
-
-Acceptance:
-
-- retention periods are defined for raw audio, transcripts, UX events, and
-  runtime sessions.
-- raw audio is not persisted by default unless a later ADR changes it.
 
 ## Now
 
