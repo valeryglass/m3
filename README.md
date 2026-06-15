@@ -70,6 +70,18 @@ docker compose up bot
 Runtime episode artifacts, session memory, and alpha userlist records are stored
 under `data/` and are ignored by git.
 
+## Local Dev Checks
+
+Use the repo-local virtualenv for Codex and patch validation:
+
+```bash
+make venv
+make check
+```
+
+Docker remains the runtime capsule for the bot; `.venv` is for local tests and
+development checks.
+
 Analytics can use versioned derived annotations from `data/annotation-runs/`.
 Set `M3_ANNOTATION_RUN_DIR` to force one run, or leave it empty to use the
 latest valid `run-*` under `M3_ANNOTATION_RUN_ROOT`.

@@ -1,4 +1,7 @@
 PYTHON ?= python3
+VENV ?= .venv
+VENV_PYTHON := $(VENV)/bin/python
+VENV_PIP := $(VENV)/bin/pip
 BOT_MODULE := app.telegram_bot
 EPISODE_DIR ?= data/episodes
 GRAPH_REPORT_EXPORT_DIR ?= data/reports/graph
@@ -8,7 +11,23 @@ REPORT_MIN_COUNT ?= 2
 MAP_SOURCE ?= telegram-chat:327002663
 MAP_SOURCE_SAFE ?= $(subst :,-,$(subst /,-,$(MAP_SOURCE)))
 
-.PHONY: bot docker-bot bot-pid bot-stop bot-kill bot-restart legacy-normalize-episodes-write audit export-graph-report export-map-payload export-map-html export-ux-report export-debug-reports analytics-ux analytics
+.PHONY: venv compile test test-docs check bot docker-bot bot-pid bot-stop bot-kill bot-restart legacy-normalize-episodes-write audit export-graph-report export-map-payload export-map-html export-ux-report export-debug-reports analytics-ux analytics
+
+venv:
+	$(PYTHON) -m venv $(VENV)
+	$(VENV_PYTHON) -m pip install -U pip
+	$(VENV_PIP) install -e '.[dev]'
+
+compile:
+	$(VENV_PYTHON) -m py_compile app/*.py app/schemas/*.py
+
+test:
+	$(VENV_PYTHON) -m pytest -q
+
+test-docs:
+	$(VENV_PYTHON) -m pytest tests/test_project_inventory.py tests/test_roles.py -q
+
+check: compile test
 
 bot:
 	$(PYTHON) -m $(BOT_MODULE)

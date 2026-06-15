@@ -15,8 +15,7 @@ Use this checklist on `mvp2/audio-input` before marking audio capture deployable
 Run local checks first:
 
 ```bash
-python3 -m py_compile app/*.py app/schemas/*.py
-python3 -m pytest tests/test_telegram_bot.py tests/test_telegram_media.py tests/test_transcription.py tests/test_whisper_provider.py tests/test_input_funnels.py tests/test_episode_drafts.py tests/test_gap_hydration.py tests/test_ux_analytics.py -q
+make check
 ```
 
 ## Manual Telegram Smoke

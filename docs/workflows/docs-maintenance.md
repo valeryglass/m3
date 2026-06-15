@@ -48,7 +48,7 @@ unless they change one of those surfaces.
 6. Run the mechanical guard:
 
 ```bash
-python3 -m pytest tests/test_project_inventory.py tests/test_roles.py
+make test-docs
 ```
 
 ## What The Tests Cover

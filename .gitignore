@@ -44,6 +44,9 @@ data/reports/**
 .codex
 
 # Ignore Python local build/test artifacts.
+.venv/
+build/
+dist/
 __pycache__/
 *.py[cod]
 *.egg-info/

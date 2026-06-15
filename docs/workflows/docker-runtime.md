@@ -70,8 +70,7 @@ Raw audio should remain temporary-only unless a later ADR changes retention.
 ## Pre-Restart Checks
 
 ```bash
-python3 -m py_compile app/*.py app/schemas/*.py
-python3 -m pytest -q
+make check
 ```
 
 If running only inside Docker, use the equivalent container command.
