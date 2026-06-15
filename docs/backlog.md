@@ -377,6 +377,7 @@ Acceptance:
 - full local test suite passes before rollout.
 - smoke checklist covers text, hidden commands, media, save/cancel, profile, and
   UX report.
+- `docs/workflows/audio-input-smoke.md` exists.
 - operator notes distinguish placeholder media intake from production audio
   draft capture.
 - expected UX events are listed for each smoke flow.

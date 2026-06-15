@@ -118,6 +118,7 @@ Acceptance:
   `/report_ux`.
 - operator notes distinguish alpha text capture, media pending transcription,
   and production audio draft capture.
+- `docs/workflows/audio-input-smoke.md` defines the deploy smoke checklist.
 - expected UX events are listed for each smoke flow.
 - legacy sessions without optional funnel/media metadata keep working.
 - rollback note confirms no episode schema migration is required.
