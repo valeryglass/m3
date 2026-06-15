@@ -2,7 +2,7 @@ PYTHON ?= python3
 VENV ?= .venv
 VENV_PYTHON := $(VENV)/bin/python
 VENV_PIP := $(VENV)/bin/pip
-WHISPER_COMMAND ?= $(if $(M3_WHISPER_COMMAND),$(M3_WHISPER_COMMAND),whisper)
+WHISPER_COMMAND ?= $(if $(M3_WHISPER_COMMAND),$(M3_WHISPER_COMMAND),$(VENV)/bin/whisper)
 BOT_MODULE := app.telegram_bot
 EPISODE_DIR ?= data/episodes
 GRAPH_REPORT_EXPORT_DIR ?= data/reports/graph
@@ -17,7 +17,7 @@ MAP_SOURCE_SAFE ?= $(subst :,-,$(subst /,-,$(MAP_SOURCE)))
 venv:
 	$(PYTHON) -m venv $(VENV)
 	$(VENV_PYTHON) -m pip install -U pip
-	$(VENV_PIP) install -e '.[dev]'
+	$(VENV_PIP) install -e '.[dev,audio]'
 
 compile:
 	$(VENV_PYTHON) -m py_compile app/*.py app/schemas/*.py
@@ -31,11 +31,17 @@ test-docs:
 check: compile test
 
 check-whisper:
-	@command -v "$(WHISPER_COMMAND)" >/dev/null 2>&1 || { \
-		echo "missing Whisper command: $(WHISPER_COMMAND)"; \
-		echo "Install Whisper on the runtime host or set M3_WHISPER_COMMAND=/path/to/whisper."; \
+	@command -v ffmpeg >/dev/null 2>&1 || { \
+		echo "missing ffmpeg command"; \
+		echo "Install ffmpeg on the runtime host before audio smoke."; \
 		exit 1; \
 	}
+	@command -v "$(WHISPER_COMMAND)" >/dev/null 2>&1 || { \
+		echo "missing Whisper command: $(WHISPER_COMMAND)"; \
+		echo "Run make venv or set M3_WHISPER_COMMAND=/path/to/whisper."; \
+		exit 1; \
+	}
+	@echo "ffmpeg command available"
 	@echo "Whisper command available: $(WHISPER_COMMAND)"
 
 release-audio-check: check test-docs check-whisper

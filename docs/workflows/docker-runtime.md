@@ -41,7 +41,7 @@ For audio runtime:
 
 ```text
 M3_TRANSCRIPTION_PROVIDER=whisper
-M3_WHISPER_COMMAND=whisper
+M3_WHISPER_COMMAND=<valid-whisper-command-inside-container>
 M3_AUDIO_TEMP_DIR=data/runtime-audio
 M3_AUDIO_MAX_DURATION_SEC=300
 M3_AUDIO_MAX_FILE_SIZE_BYTES=20971520
@@ -49,8 +49,9 @@ M3_AUDIO_MAX_FILE_SIZE_BYTES=20971520
 
 The default Docker image does not install Whisper. Audio-in-Docker requires a
 runtime image or mounted environment where `M3_WHISPER_COMMAND` resolves inside
-the container. Otherwise transcription fails safely and no media draft is
-created.
+the container. The local `.venv/bin/whisper` path is for host-side alpha smoke,
+not for the default container. Otherwise transcription fails safely and no media
+draft is created.
 
 ## Data Volumes
 

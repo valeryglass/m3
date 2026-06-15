@@ -5,7 +5,8 @@ Use this checklist on `mvp2/audio-input` before marking audio capture deployable
 ## Preconditions
 
 - Branch is based on `epic/input-funnel-alpha`.
-- Default transcription provider is `whisper`.
+- Default transcription provider is `whisper`; local alpha smoke uses
+  `.venv/bin/whisper`.
 - Whisper command, model, and language values are known to the operator.
 - Raw audio retention remains disabled; media is temporary-only.
 - Test user is approved in the userlist.
@@ -18,8 +19,8 @@ Run local checks first:
 make release-audio-check
 ```
 
-If `make check-whisper` fails, install Whisper on the runtime host or set
-`M3_WHISPER_COMMAND` to a valid command before inviting alpha users.
+If `make check-whisper` fails, run `make venv` or set `M3_WHISPER_COMMAND` to a
+valid command before inviting alpha users.
 
 ## Manual Telegram Smoke
 
