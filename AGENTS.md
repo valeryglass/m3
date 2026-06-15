@@ -94,6 +94,8 @@ project.manifest.yaml -- structural source of truth
 - Use `roles/committer.md` for commit preparation.
 - Use `roles/loop-extractor.md` for observed episode capture behavior.
 - Use `roles/annotator.md` for annotation-run derived payloads.
+- Use `roles/release-steward.md` for release readiness, rollout notes, smoke
+  checks, and alpha-user announcements.
 
 ## Editing Rules
 
