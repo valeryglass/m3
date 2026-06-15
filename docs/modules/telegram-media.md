@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Provide the future Telegram file-download boundary for voice notes, audio
-messages, and audio-like document uploads.
+Provide the Telegram file-download boundary for voice notes, audio messages,
+and audio-like document uploads.
 
 Telegram Media does not own transcription, episode drafts, persistence,
 annotation, reports, or graph behavior. It converts Telegram `file_id` metadata
@@ -55,6 +55,6 @@ should stay conservative.
 
 `draft`
 
-This module is planned for `mvp2/audio-input` after the input-funnel alpha
-foundation. The first implementation slice should add this boundary before any
-real provider integration.
+This module was introduced on `mvp2/audio-input` after the input-funnel alpha
+foundation. It remains draft stage until closed-alpha runtime smoke confirms
+the provider path.

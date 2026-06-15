@@ -47,6 +47,11 @@ M3_AUDIO_MAX_DURATION_SEC=300
 M3_AUDIO_MAX_FILE_SIZE_BYTES=20971520
 ```
 
+The default Docker image does not install Whisper. Audio-in-Docker requires a
+runtime image or mounted environment where `M3_WHISPER_COMMAND` resolves inside
+the container. Otherwise transcription fails safely and no media draft is
+created.
+
 ## Data Volumes
 
 These paths must survive container rebuilds:
@@ -71,6 +76,7 @@ Raw audio should remain temporary-only unless a later ADR changes retention.
 
 ```bash
 make check
+make check-whisper
 ```
 
 If running only inside Docker, use the equivalent container command.

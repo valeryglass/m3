@@ -45,8 +45,7 @@ For each release ask:
 ```bash
 git status --short --branch
 git diff --check
-python3 -m py_compile app/*.py app/schemas/*.py
-python3 -m pytest -q
+make check
 ```
 
 Then run the relevant manual smoke workflow from `docs/workflows/`.

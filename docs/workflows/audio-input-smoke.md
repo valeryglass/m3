@@ -15,8 +15,11 @@ Use this checklist on `mvp2/audio-input` before marking audio capture deployable
 Run local checks first:
 
 ```bash
-make check
+make release-audio-check
 ```
+
+If `make check-whisper` fails, install Whisper on the runtime host or set
+`M3_WHISPER_COMMAND` to a valid command before inviting alpha users.
 
 ## Manual Telegram Smoke
 
@@ -79,3 +82,9 @@ voice emotion detection
 raw audio archive
 clinical interpretation
 ```
+
+## Readiness Note
+
+Audio alpha is releasable only after this manual smoke passes. Rollback does not
+require an episode schema migration, raw audio deletion, or private data
+deletion because raw audio is temporary-only by default.

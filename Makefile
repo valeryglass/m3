@@ -2,6 +2,7 @@ PYTHON ?= python3
 VENV ?= .venv
 VENV_PYTHON := $(VENV)/bin/python
 VENV_PIP := $(VENV)/bin/pip
+WHISPER_COMMAND ?= $(if $(M3_WHISPER_COMMAND),$(M3_WHISPER_COMMAND),whisper)
 BOT_MODULE := app.telegram_bot
 EPISODE_DIR ?= data/episodes
 GRAPH_REPORT_EXPORT_DIR ?= data/reports/graph
@@ -11,7 +12,7 @@ REPORT_MIN_COUNT ?= 2
 MAP_SOURCE ?= telegram-chat:327002663
 MAP_SOURCE_SAFE ?= $(subst :,-,$(subst /,-,$(MAP_SOURCE)))
 
-.PHONY: venv compile test test-docs check bot docker-bot bot-pid bot-stop bot-kill bot-restart legacy-normalize-episodes-write audit export-graph-report export-map-payload export-map-html export-ux-report export-debug-reports analytics-ux analytics
+.PHONY: venv compile test test-docs check check-whisper release-audio-check bot docker-bot bot-pid bot-stop bot-kill bot-restart legacy-normalize-episodes-write audit export-graph-report export-map-payload export-map-html export-ux-report export-debug-reports analytics-ux analytics
 
 venv:
 	$(PYTHON) -m venv $(VENV)
@@ -28,6 +29,16 @@ test-docs:
 	$(VENV_PYTHON) -m pytest tests/test_project_inventory.py tests/test_roles.py -q
 
 check: compile test
+
+check-whisper:
+	@command -v "$(WHISPER_COMMAND)" >/dev/null 2>&1 || { \
+		echo "missing Whisper command: $(WHISPER_COMMAND)"; \
+		echo "Install Whisper on the runtime host or set M3_WHISPER_COMMAND=/path/to/whisper."; \
+		exit 1; \
+	}
+	@echo "Whisper command available: $(WHISPER_COMMAND)"
+
+release-audio-check: check test-docs check-whisper
 
 bot:
 	$(PYTHON) -m $(BOT_MODULE)
