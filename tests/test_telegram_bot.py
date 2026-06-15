@@ -1848,3 +1848,191 @@ def _settings(
         ux_idle_after_sec=7200,
         report_min_count=2,
     )
+
+
+class _FakeTelegramFile:
+    def __init__(self, content: bytes) -> None:
+        self.content = content
+
+    async def download_to_drive(self, custom_path):
+        custom_path.write_bytes(self.content)
+
+
+class _FakeDownloadBot:
+    def __init__(self) -> None:
+        self.file_ids = []
+
+    async def get_file(self, file_id: str):
+        self.file_ids.append(file_id)
+        return _FakeTelegramFile(b"voice")
+
+
+class _StaticTranscriptionProvider:
+    def transcribe(self, media):
+        from app.transcription import TranscriptResult
+
+        assert media.path.exists()
+        return TranscriptResult("голосовой эпизод", language="ru", provider="fake")
+
+
+def test_voice_message_with_provider_starts_draft_session(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage(
+        "",
+        voice=SimpleNamespace(
+            file_id="voice-file-id",
+            duration=9,
+            mime_type="audio/ogg",
+            file_size=4096,
+        ),
+    )
+    settings = _settings()
+    settings.audio_temp_dir = tmp_path / "audio"
+    settings.audio_max_duration_sec = 300
+    settings.audio_max_file_size_bytes = 20 * 1024 * 1024
+    bot = _FakeDownloadBot()
+
+    _run(
+        telegram_bot._handle_voice_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            bot=bot,
+            settings=settings,
+            transcription_provider=_StaticTranscriptionProvider(),
+        )
+    )
+
+    loaded = session_store.load_session(123)
+    assert loaded is not None
+    assert loaded.observed["situation"]["value"] == "голосовой эпизод"
+    assert bot.file_ids == ["voice-file-id"]
+    assert [event["event_type"] for event in ux_events.read()] == [
+        "input_received",
+        "transcript_created",
+        "input_received",
+        "draft_created",
+        "session_started",
+        "step_answered",
+        "step_prompted",
+        "gap_question_asked",
+    ]
+    assert message.replies == [
+        f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
+    ]
+
+
+def test_voice_message_over_duration_is_rejected_before_transcription(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage(
+        "",
+        voice=SimpleNamespace(
+            file_id="voice-file-id",
+            duration=301,
+            mime_type="audio/ogg",
+            file_size=4096,
+        ),
+    )
+    settings = _settings()
+    settings.audio_temp_dir = tmp_path / "audio"
+    settings.audio_max_duration_sec = 300
+    settings.audio_max_file_size_bytes = 20 * 1024 * 1024
+
+    _run(
+        telegram_bot._handle_voice_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            bot=_FakeDownloadBot(),
+            settings=settings,
+            transcription_provider=_StaticTranscriptionProvider(),
+        )
+    )
+
+    assert session_store.load_session(123) is None
+    assert message.replies == [
+        "Слишком длинное аудио. Пришли голос до 3–5 минут или текстом."
+    ]
+    events = ux_events.read()
+    assert [event["event_type"] for event in events] == ["input_received", "input_rejected"]
+    assert events[1]["reject_reason"] == "over_duration"
+
+
+def test_audio_message_with_provider_starts_draft_session(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage(
+        "",
+        audio=SimpleNamespace(
+            file_id="audio-file-id",
+            duration=33,
+            mime_type="audio/mpeg",
+            file_size=8192,
+            file_name="note.mp3",
+        ),
+    )
+    settings = _settings()
+    settings.audio_temp_dir = tmp_path / "audio"
+    settings.audio_max_duration_sec = 300
+    settings.audio_max_file_size_bytes = 20 * 1024 * 1024
+
+    _run(
+        telegram_bot._handle_audio_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            bot=_FakeDownloadBot(),
+            settings=settings,
+            transcription_provider=_StaticTranscriptionProvider(),
+        )
+    )
+
+    loaded = session_store.load_session(123)
+    assert loaded is not None
+    assert loaded.observed["situation"]["value"] == "голосовой эпизод"
+    assert message.replies == [
+        f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
+    ]
+
+
+def test_audio_document_with_provider_starts_draft_session(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage(
+        "",
+        document=SimpleNamespace(
+            file_id="doc-file-id",
+            mime_type="audio/ogg",
+            file_size=8192,
+            file_name="voice.ogg",
+        ),
+    )
+    settings = _settings()
+    settings.audio_temp_dir = tmp_path / "audio"
+    settings.audio_max_duration_sec = 300
+    settings.audio_max_file_size_bytes = 20 * 1024 * 1024
+
+    _run(
+        telegram_bot._handle_document_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            bot=_FakeDownloadBot(),
+            settings=settings,
+            transcription_provider=_StaticTranscriptionProvider(),
+        )
+    )
+
+    loaded = session_store.load_session(123)
+    assert loaded is not None
+    assert loaded.capture_funnel == "audio_document"
+    assert loaded.observed["situation"]["value"] == "голосовой эпизод"
+    assert message.replies == [
+        f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
+    ]

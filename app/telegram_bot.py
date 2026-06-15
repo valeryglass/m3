@@ -8,6 +8,19 @@ from app.config import (
 )
 from app.analytics_loader import annotation_coverage_for_episode_ids
 from app.graph_report import build_report, load_episodes
+from app.telegram_media import (
+    TelegramMediaDownloadFailed,
+    TelegramMediaRejected,
+    TelegramMediaRequest,
+    temporary_telegram_media,
+)
+from app.transcription import (
+    MissingTranscriptionProvider,
+    TranscriptionFailed,
+    TranscriptionUnavailable,
+    transcribe_and_attach,
+)
+from app.whisper_provider import WhisperCliTranscriptionProvider
 from app.report_runner import (
     build_graph_report_summary,
     build_ux_report_text,
@@ -54,6 +67,7 @@ def main() -> None:
     userlist = JsonUserList(settings.userlist_path)
     ux_events = UxEventLog(settings.ux_event_log)
     tone = load_tone_engine(settings.tone_config)
+    transcription_provider = _transcription_provider_for_settings(settings)
 
     try:
         from telegram import BotCommand, Update
@@ -145,21 +159,45 @@ def main() -> None:
             update, settings, tone, ux_events, userlist, context.bot
         ):
             return
-        await _handle_voice_after_authorized(update, session_store, ux_events, tone)
+        await _handle_voice_after_authorized(
+            update,
+            session_store,
+            ux_events,
+            tone,
+            bot=context.bot,
+            settings=settings,
+            transcription_provider=transcription_provider,
+        )
 
     async def audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
             update, settings, tone, ux_events, userlist, context.bot
         ):
             return
-        await _handle_audio_after_authorized(update, session_store, ux_events, tone)
+        await _handle_audio_after_authorized(
+            update,
+            session_store,
+            ux_events,
+            tone,
+            bot=context.bot,
+            settings=settings,
+            transcription_provider=transcription_provider,
+        )
 
     async def document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
             update, settings, tone, ux_events, userlist, context.bot
         ):
             return
-        await _handle_document_after_authorized(update, session_store, ux_events, tone)
+        await _handle_document_after_authorized(
+            update,
+            session_store,
+            ux_events,
+            tone,
+            bot=context.bot,
+            settings=settings,
+            transcription_provider=transcription_provider,
+        )
 
     async def message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
@@ -263,6 +301,16 @@ REGISTERED_COMMANDS = (
 )
 VISIBLE_COMMANDS = ("start", "cancel", "help")
 REPORT_REPLY_LIMIT = 3800
+
+
+def _transcription_provider_for_settings(settings):
+    if getattr(settings, "transcription_provider", "missing") == "whisper":
+        return WhisperCliTranscriptionProvider(
+            command=getattr(settings, "whisper_command", "whisper"),
+            model=getattr(settings, "whisper_model", None),
+            language=getattr(settings, "whisper_language", None),
+        )
+    return MissingTranscriptionProvider()
 
 
 def _visible_command_menu(tone) -> tuple[dict[str, str], ...]:
@@ -693,6 +741,10 @@ async def _handle_voice_after_authorized(
     session_store: LoopSessionStore,
     ux_events: UxEventLog,
     tone,
+    *,
+    bot=None,
+    settings=None,
+    transcription_provider=None,
 ) -> None:
     artifact = _voice_input_artifact_from_update(update)
     if artifact is None:
@@ -710,19 +762,31 @@ async def _handle_voice_after_authorized(
     _log_media_funnel_event(
         ux_events, update, "input_received", funnel="voice", media_kind=artifact.media_kind
     )
-    _log_media_funnel_event(
+    if bot is None or settings is None or transcription_provider is None:
+        _log_media_funnel_event(
+            ux_events,
+            update,
+            "transcription_pending",
+            funnel="voice",
+            media_kind=artifact.media_kind,
+        )
+        await _reply_text(
+            update,
+            "Голос получил, но расшифровка еще не подключена. "
+            "Пока пришли этот эпизод текстом.",
+        )
+        return
+
+    await _transcribe_media_artifact_or_reply(
+        update,
+        session_store,
         ux_events,
-        update,
-        "transcription_pending",
+        tone,
+        bot=bot,
+        settings=settings,
+        transcription_provider=transcription_provider,
+        artifact=artifact,
         funnel="voice",
-        media_kind=artifact.media_kind,
-    )
-    # Voice is accepted as an input artifact, but it must not advance or create
-    # an episode draft until transcription is available.
-    await _reply_text(
-        update,
-        "Голос получил, но расшифровка еще не подключена. "
-        "Пока пришли этот эпизод текстом.",
     )
 
 
@@ -731,6 +795,10 @@ async def _handle_audio_after_authorized(
     session_store: LoopSessionStore,
     ux_events: UxEventLog,
     tone,
+    *,
+    bot=None,
+    settings=None,
+    transcription_provider=None,
 ) -> None:
     artifact = _audio_input_artifact_from_update(update)
     if artifact is None:
@@ -748,14 +816,28 @@ async def _handle_audio_after_authorized(
     _log_media_funnel_event(
         ux_events, update, "input_received", funnel="audio", media_kind=artifact.media_kind
     )
-    _log_media_funnel_event(
-        ux_events,
+    if bot is None or settings is None or transcription_provider is None:
+        _log_media_funnel_event(
+            ux_events,
+            update,
+            "transcription_pending",
+            funnel="audio",
+            media_kind=artifact.media_kind,
+        )
+        await _reply_text(update, _audio_transcription_pending_text())
+        return
+
+    await _transcribe_media_artifact_or_reply(
         update,
-        "transcription_pending",
+        session_store,
+        ux_events,
+        tone,
+        bot=bot,
+        settings=settings,
+        transcription_provider=transcription_provider,
+        artifact=artifact,
         funnel="audio",
-        media_kind=artifact.media_kind,
     )
-    await _reply_text(update, _audio_transcription_pending_text())
 
 
 async def _handle_document_after_authorized(
@@ -763,6 +845,10 @@ async def _handle_document_after_authorized(
     session_store: LoopSessionStore,
     ux_events: UxEventLog,
     tone,
+    *,
+    bot=None,
+    settings=None,
+    transcription_provider=None,
 ) -> None:
     artifact = _audio_document_input_artifact_from_update(update)
     if artifact is None:
@@ -784,14 +870,28 @@ async def _handle_document_after_authorized(
         funnel="audio_document",
         media_kind=artifact.media_kind,
     )
-    _log_media_funnel_event(
-        ux_events,
+    if bot is None or settings is None or transcription_provider is None:
+        _log_media_funnel_event(
+            ux_events,
+            update,
+            "transcription_pending",
+            funnel="audio_document",
+            media_kind=artifact.media_kind,
+        )
+        await _reply_text(update, _audio_transcription_pending_text())
+        return
+
+    await _transcribe_media_artifact_or_reply(
         update,
-        "transcription_pending",
+        session_store,
+        ux_events,
+        tone,
+        bot=bot,
+        settings=settings,
+        transcription_provider=transcription_provider,
+        artifact=artifact,
         funnel="audio_document",
-        media_kind=artifact.media_kind,
     )
-    await _reply_text(update, _audio_transcription_pending_text())
 
 
 async def _handle_message_after_authorized(
@@ -1223,6 +1323,100 @@ def _telegram_user_profile(update) -> dict:
         if value is not None and value != ""
     }
 
+
+async def _transcribe_media_artifact_or_reply(
+    update,
+    session_store: LoopSessionStore,
+    ux_events: UxEventLog,
+    tone,
+    *,
+    bot,
+    settings,
+    transcription_provider,
+    artifact,
+    funnel: str,
+) -> None:
+    request = _telegram_media_request_from_artifact(artifact)
+    try:
+        async with temporary_telegram_media(
+            bot,
+            request,
+            temp_dir=getattr(settings, "audio_temp_dir"),
+            max_duration_sec=getattr(settings, "audio_max_duration_sec", 300),
+            max_file_size_bytes=getattr(settings, "audio_max_file_size_bytes", 20 * 1024 * 1024),
+        ) as media:
+            transcribed = transcribe_and_attach(transcription_provider, artifact, media)
+    except TelegramMediaRejected as exc:
+        _log_media_funnel_event(
+            ux_events,
+            update,
+            "input_rejected",
+            funnel=funnel,
+            media_kind=artifact.media_kind,
+            reject_reason=exc.reason,
+        )
+        await _reply_text(update, _media_rejected_text(exc.reason))
+        return
+    except TelegramMediaDownloadFailed:
+        _log_media_funnel_event(
+            ux_events,
+            update,
+            "media_download_failed",
+            funnel=funnel,
+            media_kind=artifact.media_kind,
+        )
+        await _reply_text(update, "Не смог скачать аудио. Пришли текстом или попробуй позже.")
+        return
+    except (TranscriptionFailed, TranscriptionUnavailable, ValueError):
+        _log_media_funnel_event(
+            ux_events,
+            update,
+            "transcription_failed",
+            funnel=funnel,
+            media_kind=artifact.media_kind,
+        )
+        await _reply_text(update, "Не смог расшифровать аудио. Пришли этот эпизод текстом.")
+        return
+
+    _log_media_funnel_event(
+        ux_events,
+        update,
+        "transcript_created",
+        funnel=funnel,
+        media_kind=artifact.media_kind,
+    )
+    now = utc_now()
+    await _start_input_artifact_capture_session(
+        update,
+        session_store,
+        ux_events,
+        tone,
+        chat_id=update.effective_chat.id,
+        artifact=transcribed,
+        now=now,
+        existing_session=session_store.load_session(update.effective_chat.id),
+        cancel_reason=f"{funnel}_restart",
+        funnel=funnel,
+    )
+
+
+def _telegram_media_request_from_artifact(artifact) -> TelegramMediaRequest:
+    return TelegramMediaRequest(
+        file_id=artifact.file_id or "",
+        media_kind=artifact.media_kind,
+        duration_seconds=artifact.duration_seconds,
+        file_size=artifact.file_size,
+        mime_type=artifact.mime_type,
+        file_name=artifact.file_name,
+    )
+
+
+def _media_rejected_text(reason: str) -> str:
+    if reason == "over_duration":
+        return "Слишком длинное аудио. Пришли голос до 3–5 минут или текстом."
+    if reason == "over_size":
+        return "Аудиофайл слишком большой. Пришли короче или текстом."
+    return "Не могу обработать этот аудиофайл. Пришли текстом или другим аудио."
 
 def _log_media_funnel_event(
     ux_events: UxEventLog,
