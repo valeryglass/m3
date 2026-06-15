@@ -1,12 +1,14 @@
 import pytest
 
 from app.input_funnels import text_input_artifact, voice_input_artifact
+from app.telegram_media import DownloadedTelegramMedia, TelegramMediaRequest
 from app.transcription import (
     MissingTranscriptionProvider,
     TranscriptResult,
     TranscriptionUnavailable,
     attach_transcript,
     requires_transcription,
+    transcribe_and_attach,
 )
 
 
@@ -45,3 +47,39 @@ def test_missing_transcription_provider_fails_explicitly():
 
     with pytest.raises(TranscriptionUnavailable, match="No transcription provider"):
         provider.transcribe(voice_input_artifact("voice-file-id"))
+
+
+class _StaticProvider:
+    def transcribe(self, media: DownloadedTelegramMedia) -> TranscriptResult:
+        assert media.path.name == "voice.ogg"
+        return TranscriptResult("spoken from media", language="ru", provider="fake")
+
+
+def test_transcribe_and_attach_uses_provider_result(tmp_path):
+    media_path = tmp_path / "voice.ogg"
+    media_path.write_bytes(b"voice")
+    media = DownloadedTelegramMedia(
+        path=media_path,
+        request=TelegramMediaRequest(file_id="voice-file-id", media_kind="voice"),
+        file_size=5,
+    )
+    artifact = voice_input_artifact("voice-file-id")
+
+    transcribed = transcribe_and_attach(_StaticProvider(), artifact, media)
+
+    assert transcribed.transcript == "spoken from media"
+
+
+def test_transcribe_and_attach_leaves_existing_transcript_unchanged(tmp_path):
+    media_path = tmp_path / "voice.ogg"
+    media_path.write_bytes(b"voice")
+    media = DownloadedTelegramMedia(
+        path=media_path,
+        request=TelegramMediaRequest(file_id="voice-file-id", media_kind="voice"),
+        file_size=5,
+    )
+    artifact = voice_input_artifact("voice-file-id", transcript="already done")
+
+    transcribed = transcribe_and_attach(_StaticProvider(), artifact, media)
+
+    assert transcribed is artifact

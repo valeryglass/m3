@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from typing import Protocol
 
 from app.input_funnels import InputArtifact, artifact_text
+from app.telegram_media import DownloadedTelegramMedia
 
 
 class TranscriptionUnavailable(RuntimeError):
     """Raised when no transcription provider is available for an audio artifact."""
+
+
+class TranscriptionFailed(RuntimeError):
+    """Raised when a configured provider fails to produce usable transcript text."""
 
 
 @dataclass(frozen=True)
@@ -20,6 +26,11 @@ class TranscriptResult:
             raise ValueError("transcript text is required")
 
 
+class TranscriptionProvider(Protocol):
+    def transcribe(self, media: DownloadedTelegramMedia) -> TranscriptResult:
+        """Return transcript text for a temporary media download."""
+
+
 def attach_transcript(
     artifact: InputArtifact,
     transcript: TranscriptResult,
@@ -27,10 +38,20 @@ def attach_transcript(
     return replace(artifact, transcript=transcript.text.strip())
 
 
+def transcribe_and_attach(
+    provider: TranscriptionProvider,
+    artifact: InputArtifact,
+    media: DownloadedTelegramMedia,
+) -> InputArtifact:
+    if not requires_transcription(artifact):
+        return artifact
+    return attach_transcript(artifact, provider.transcribe(media))
+
+
 def requires_transcription(artifact: InputArtifact) -> bool:
     return artifact_text(artifact).strip() == "" and artifact.file_id is not None
 
 
 class MissingTranscriptionProvider:
-    def transcribe(self, artifact: InputArtifact) -> TranscriptResult:
+    def transcribe(self, media: DownloadedTelegramMedia | InputArtifact) -> TranscriptResult:
         raise TranscriptionUnavailable("No transcription provider is configured")
