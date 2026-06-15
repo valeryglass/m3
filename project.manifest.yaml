@@ -56,9 +56,10 @@ modules:
 
   telegram_media:
     stage: draft
-    enabled: false
-    purpose: Planned temporary download and cleanup boundary for Telegram voice/audio media before transcription.
+    enabled: true
+    purpose: Temporary download and cleanup boundary for Telegram voice/audio media before transcription.
     owned_paths:
+      - app/telegram_media.py
       - docs/modules/telegram-media.md
     inputs:
       - Telegram voice file metadata
