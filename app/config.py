@@ -26,6 +26,13 @@ class Settings:
     ux_idle_after_sec: int
     initial_session_ttl_sec: int
     tone_config: Path
+    audio_temp_dir: Path
+    audio_max_duration_sec: int
+    audio_max_file_size_bytes: int
+    transcription_provider: str
+    whisper_command: str
+    whisper_model: str | None
+    whisper_language: str | None
 
 
 def parse_chat_ids(value: str) -> frozenset[int]:
@@ -87,4 +94,17 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         ux_idle_after_sec=int(source.get("M3_UX_IDLE_AFTER_SEC", "7200")),
         initial_session_ttl_sec=int(source.get("M3_INITIAL_SESSION_TTL_SEC", "600")),
         tone_config=Path(source.get("M3_TONE_CONFIG", "config/tone.yaml")),
+        audio_temp_dir=Path(source.get("M3_AUDIO_TEMP_DIR", "data/runtime-audio")),
+        audio_max_duration_sec=int(source.get("M3_AUDIO_MAX_DURATION_SEC", "300")),
+        audio_max_file_size_bytes=int(
+            source.get("M3_AUDIO_MAX_FILE_SIZE_BYTES", str(20 * 1024 * 1024))
+        ),
+        transcription_provider=source.get("M3_TRANSCRIPTION_PROVIDER", "whisper").strip().lower(),
+        whisper_command=source.get("M3_WHISPER_COMMAND", "whisper").strip() or "whisper",
+        whisper_model=(
+            source.get("M3_WHISPER_MODEL", "").strip() or None
+        ),
+        whisper_language=(
+            source.get("M3_WHISPER_LANGUAGE", "").strip() or None
+        ),
     )

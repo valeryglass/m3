@@ -80,6 +80,7 @@ modules:
     owned_paths:
       - app/input_funnels.py
       - app/transcription.py
+      - app/whisper_provider.py
       - docs/modules/input-funnels.md
     inputs:
       - Telegram text messages

@@ -26,6 +26,13 @@ def test_load_settings_uses_default_data_paths():
     assert settings.ux_idle_after_sec == 7200
     assert settings.initial_session_ttl_sec == 600
     assert str(settings.tone_config) == "config/tone.yaml"
+    assert str(settings.audio_temp_dir) == "data/runtime-audio"
+    assert settings.audio_max_duration_sec == 300
+    assert settings.audio_max_file_size_bytes == 20 * 1024 * 1024
+    assert settings.transcription_provider == "whisper"
+    assert settings.whisper_command == "whisper"
+    assert settings.whisper_model is None
+    assert settings.whisper_language is None
 
 
 def test_old_allowed_chat_ids_no_longer_grant_access():
@@ -55,6 +62,13 @@ def test_load_settings_allows_overrides():
             "M3_REPORT_MIN_COUNT": "3",
             "M3_TELEGRAM_ADMIN_CHAT_IDS": "225672,327002663",
             "M3_TELEGRAM_OWNER_CHAT_ID": "225672",
+            "M3_AUDIO_TEMP_DIR": "/tmp/audio",
+            "M3_AUDIO_MAX_DURATION_SEC": "180",
+            "M3_AUDIO_MAX_FILE_SIZE_BYTES": "1048576",
+            "M3_TRANSCRIPTION_PROVIDER": "whisper",
+            "M3_WHISPER_COMMAND": "/usr/local/bin/whisper",
+            "M3_WHISPER_MODEL": "base",
+            "M3_WHISPER_LANGUAGE": "ru",
         }
     )
 
@@ -69,6 +83,13 @@ def test_load_settings_allows_overrides():
     assert settings.report_min_count == 3
     assert settings.telegram_admin_chat_ids == frozenset({225672, 327002663})
     assert settings.telegram_owner_chat_id == 225672
+    assert str(settings.audio_temp_dir) == "/tmp/audio"
+    assert settings.audio_max_duration_sec == 180
+    assert settings.audio_max_file_size_bytes == 1048576
+    assert settings.transcription_provider == "whisper"
+    assert settings.whisper_command == "/usr/local/bin/whisper"
+    assert settings.whisper_model == "base"
+    assert settings.whisper_language == "ru"
 
 
 def test_admin_and_owner_accessors_return_configured_ids():
@@ -77,6 +98,13 @@ def test_admin_and_owner_accessors_return_configured_ids():
             "TELEGRAM_BOT_TOKEN": "token",
             "M3_TELEGRAM_ADMIN_CHAT_IDS": "225672,327002663",
             "M3_TELEGRAM_OWNER_CHAT_ID": "225672",
+            "M3_AUDIO_TEMP_DIR": "/tmp/audio",
+            "M3_AUDIO_MAX_DURATION_SEC": "180",
+            "M3_AUDIO_MAX_FILE_SIZE_BYTES": "1048576",
+            "M3_TRANSCRIPTION_PROVIDER": "whisper",
+            "M3_WHISPER_COMMAND": "/usr/local/bin/whisper",
+            "M3_WHISPER_MODEL": "base",
+            "M3_WHISPER_LANGUAGE": "ru",
         }
     )
 
