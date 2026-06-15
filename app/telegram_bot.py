@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+from threading import Thread
+from time import monotonic
 from app.config import (
     Settings,
     admin_chat_ids_for_settings,
@@ -13,6 +16,7 @@ from app.telegram_media import (
     TelegramMediaRejected,
     TelegramMediaRequest,
     temporary_telegram_media,
+    validate_telegram_media_request,
 )
 from app.transcription import (
     MissingTranscriptionProvider,
@@ -1324,6 +1328,68 @@ def _telegram_user_profile(update) -> dict:
     }
 
 
+def _log_audio_lifecycle(
+    marker: str,
+    *,
+    update,
+    funnel: str,
+    media_kind: str,
+    duration_seconds: int | None = None,
+    file_size: int | None = None,
+    elapsed_ms: int | None = None,
+    failure_reason: str | None = None,
+) -> None:
+    fields = {
+        "marker": marker,
+        "chat_id": update.effective_chat.id,
+        "funnel": funnel,
+        "media_kind": media_kind,
+        "duration_seconds": duration_seconds,
+        "file_size": file_size,
+        "elapsed_ms": elapsed_ms,
+        "failure_reason": failure_reason,
+    }
+    safe = " ".join(
+        f"{key}={value}" for key, value in fields.items() if value is not None
+    )
+    print(f"audio_lifecycle {safe}", flush=True)
+
+def _is_initial_capture_step(session) -> bool:
+    return (
+        session is not None
+        and not session.awaiting_save_confirmation
+        and session.target_index == 0
+        and completed_draft_field_count(session) == 0
+    )
+
+
+def _media_should_start_audio_draft(session) -> bool:
+    return session is None or _is_initial_capture_step(session)
+
+
+def _current_question_requires_text() -> str:
+    return "Ответь, пожалуйста, текстом на текущий вопрос."
+
+
+async def _transcribe_and_attach_in_worker(transcription_provider, artifact, media):
+    if getattr(transcription_provider, "_m3_run_inline_for_tests", False):
+        return transcribe_and_attach(transcription_provider, artifact, media)
+
+    loop = asyncio.get_running_loop()
+    future = loop.create_future()
+
+    def worker() -> None:
+        try:
+            result = transcribe_and_attach(transcription_provider, artifact, media)
+        except BaseException as exc:  # pragma: no cover - surfaced through handler tests
+            loop.call_soon_threadsafe(future.set_exception, exc)
+        else:
+            loop.call_soon_threadsafe(future.set_result, result)
+
+    Thread(target=worker, name="m3-audio-transcription", daemon=True).start()
+    return await future
+
+
 async def _transcribe_media_artifact_or_reply(
     update,
     session_store: LoopSessionStore,
@@ -1336,16 +1402,115 @@ async def _transcribe_media_artifact_or_reply(
     artifact,
     funnel: str,
 ) -> None:
+    _log_audio_lifecycle(
+        "media_received",
+        update=update,
+        funnel=funnel,
+        media_kind=artifact.media_kind,
+        duration_seconds=artifact.duration_seconds,
+        file_size=artifact.file_size,
+    )
+    existing_session = session_store.load_session(update.effective_chat.id)
+    if not _media_should_start_audio_draft(existing_session):
+        _log_audio_lifecycle(
+            "media_blocked_active_session",
+            update=update,
+            funnel=funnel,
+            media_kind=artifact.media_kind,
+            duration_seconds=artifact.duration_seconds,
+            file_size=artifact.file_size,
+            failure_reason="active_session",
+        )
+        _log_media_funnel_event(
+            ux_events,
+            update,
+            "input_rejected",
+            funnel=funnel,
+            media_kind=artifact.media_kind,
+            reject_reason="active_session",
+        )
+        await _reply_text(update, _current_question_requires_text())
+        return
+
     request = _telegram_media_request_from_artifact(artifact)
+    max_duration_sec = getattr(settings, "audio_max_duration_sec", 300)
+    max_file_size_bytes = getattr(settings, "audio_max_file_size_bytes", 20 * 1024 * 1024)
     try:
+        validate_telegram_media_request(
+            request,
+            max_duration_sec=max_duration_sec,
+            max_file_size_bytes=max_file_size_bytes,
+        )
+    except TelegramMediaRejected as exc:
+        _log_audio_lifecycle(
+            "media_rejected",
+            update=update,
+            funnel=funnel,
+            media_kind=artifact.media_kind,
+            duration_seconds=artifact.duration_seconds,
+            file_size=artifact.file_size,
+            failure_reason=exc.reason,
+        )
+        _log_media_funnel_event(
+            ux_events,
+            update,
+            "input_rejected",
+            funnel=funnel,
+            media_kind=artifact.media_kind,
+            reject_reason=exc.reason,
+        )
+        await _reply_text(update, _media_rejected_text(exc.reason))
+        return
+
+    await _reply_text(update, _media_processing_ack_text(artifact.media_kind))
+
+    try:
+        download_started = monotonic()
+        _log_audio_lifecycle(
+            "media_download_started",
+            update=update,
+            funnel=funnel,
+            media_kind=artifact.media_kind,
+            duration_seconds=artifact.duration_seconds,
+            file_size=artifact.file_size,
+        )
         async with temporary_telegram_media(
             bot,
             request,
             temp_dir=getattr(settings, "audio_temp_dir"),
-            max_duration_sec=getattr(settings, "audio_max_duration_sec", 300),
-            max_file_size_bytes=getattr(settings, "audio_max_file_size_bytes", 20 * 1024 * 1024),
+            max_duration_sec=max_duration_sec,
+            max_file_size_bytes=max_file_size_bytes,
         ) as media:
-            transcribed = transcribe_and_attach(transcription_provider, artifact, media)
+            _log_audio_lifecycle(
+                "media_download_done",
+                update=update,
+                funnel=funnel,
+                media_kind=artifact.media_kind,
+                duration_seconds=artifact.duration_seconds,
+                file_size=artifact.file_size,
+                elapsed_ms=int((monotonic() - download_started) * 1000),
+            )
+            transcription_started = monotonic()
+            _log_audio_lifecycle(
+                "transcription_started",
+                update=update,
+                funnel=funnel,
+                media_kind=artifact.media_kind,
+                duration_seconds=artifact.duration_seconds,
+                file_size=artifact.file_size,
+            )
+            transcribed = await _transcribe_and_attach_in_worker(
+                transcription_provider, artifact, media
+            )
+            _log_audio_lifecycle(
+                "transcription_done",
+                update=update,
+                funnel=funnel,
+                media_kind=artifact.media_kind,
+                duration_seconds=artifact.duration_seconds,
+                file_size=artifact.file_size,
+                elapsed_ms=int((monotonic() - transcription_started) * 1000),
+            )
     except TelegramMediaRejected as exc:
         _log_media_funnel_event(
             ux_events,
@@ -1358,6 +1523,15 @@ async def _transcribe_media_artifact_or_reply(
         await _reply_text(update, _media_rejected_text(exc.reason))
         return
     except TelegramMediaDownloadFailed:
+        _log_audio_lifecycle(
+            "media_download_failed",
+            update=update,
+            funnel=funnel,
+            media_kind=artifact.media_kind,
+            duration_seconds=artifact.duration_seconds,
+            file_size=artifact.file_size,
+            failure_reason="download_failed",
+        )
         _log_media_funnel_event(
             ux_events,
             update,
@@ -1368,6 +1542,15 @@ async def _transcribe_media_artifact_or_reply(
         await _reply_text(update, "Не смог скачать аудио. Пришли текстом или попробуй позже.")
         return
     except (TranscriptionFailed, TranscriptionUnavailable, ValueError):
+        _log_audio_lifecycle(
+            "transcription_failed",
+            update=update,
+            funnel=funnel,
+            media_kind=artifact.media_kind,
+            duration_seconds=artifact.duration_seconds,
+            file_size=artifact.file_size,
+            failure_reason="transcription_failed",
+        )
         _log_media_funnel_event(
             ux_events,
             update,
@@ -1385,6 +1568,14 @@ async def _transcribe_media_artifact_or_reply(
         funnel=funnel,
         media_kind=artifact.media_kind,
     )
+    _log_audio_lifecycle(
+        "audio_draft_started",
+        update=update,
+        funnel=funnel,
+        media_kind=artifact.media_kind,
+        duration_seconds=artifact.duration_seconds,
+        file_size=artifact.file_size,
+    )
     now = utc_now()
     await _start_input_artifact_capture_session(
         update,
@@ -1394,7 +1585,7 @@ async def _transcribe_media_artifact_or_reply(
         chat_id=update.effective_chat.id,
         artifact=transcribed,
         now=now,
-        existing_session=session_store.load_session(update.effective_chat.id),
+        existing_session=existing_session,
         cancel_reason=f"{funnel}_restart",
         funnel=funnel,
     )
@@ -1410,6 +1601,11 @@ def _telegram_media_request_from_artifact(artifact) -> TelegramMediaRequest:
         file_name=artifact.file_name,
     )
 
+
+def _media_processing_ack_text(media_kind: str) -> str:
+    if media_kind == "voice":
+        return "Голос получил. Беру в расшифровку — когда будет готово, продолжим."
+    return "Аудио получил. Беру в расшифровку — когда будет готово, продолжим."
 
 def _media_rejected_text(reason: str) -> str:
     if reason == "over_duration":
