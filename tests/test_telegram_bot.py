@@ -1906,25 +1906,18 @@ def test_voice_message_with_provider_starts_draft_session(tmp_path):
         )
     )
 
-    loaded = session_store.load_session(123)
-    assert loaded is not None
-    assert loaded.observed["situation"]["value"] == "голосовой эпизод"
+    assert session_store.load_session(123) is None
     assert bot.file_ids == ["voice-file-id"]
     assert [event["event_type"] for event in ux_events.read()] == [
         "input_received",
         "transcript_created",
-        "input_received",
-        "draft_created",
-        "session_started",
-        "step_answered",
-        "step_prompted",
-        "gap_question_asked",
     ]
     assert message.replies == [
         "Голос получил. Беру в расшифровку — когда будет готово, продолжим.",
-        f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
+        "Готово, расшифровал.\n\n"
+        "Черновик:\n«голосовой эпизод»\n\n"
+        "Аудио-черновик принят. Уточнения пока не включены."
     ]
-
 
 def test_voice_message_over_duration_is_rejected_before_transcription(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
@@ -1994,14 +1987,13 @@ def test_audio_message_with_provider_starts_draft_session(tmp_path):
         )
     )
 
-    loaded = session_store.load_session(123)
-    assert loaded is not None
-    assert loaded.observed["situation"]["value"] == "голосовой эпизод"
+    assert session_store.load_session(123) is None
     assert message.replies == [
         "Аудио получил. Беру в расшифровку — когда будет готово, продолжим.",
-        f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
+        "Готово, расшифровал.\n\n"
+        "Черновик:\n«голосовой эпизод»\n\n"
+        "Аудио-черновик принят. Уточнения пока не включены."
     ]
-
 
 def test_audio_document_with_provider_starts_draft_session(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
@@ -2032,15 +2024,13 @@ def test_audio_document_with_provider_starts_draft_session(tmp_path):
         )
     )
 
-    loaded = session_store.load_session(123)
-    assert loaded is not None
-    assert loaded.capture_funnel == "audio_document"
-    assert loaded.observed["situation"]["value"] == "голосовой эпизод"
+    assert session_store.load_session(123) is None
     assert message.replies == [
         "Аудио получил. Беру в расшифровку — когда будет готово, продолжим.",
-        f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
+        "Готово, расшифровал.\n\n"
+        "Черновик:\n«голосовой эпизод»\n\n"
+        "Аудио-черновик принят. Уточнения пока не включены."
     ]
-
 
 def test_voice_during_active_session_asks_for_text_without_transcription(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
@@ -2167,16 +2157,14 @@ def test_voice_at_initial_first_step_can_start_audio_draft(tmp_path):
         )
     )
 
-    loaded = session_store.load_session(123)
-    assert loaded is not None
-    assert loaded.observed["situation"]["value"] == "голосовой эпизод"
-    assert loaded.target_index == 1
+    assert session_store.load_session(123) is None
     assert bot.file_ids == ["voice-file-id"]
     assert message.replies == [
         "Голос получил. Беру в расшифровку — когда будет готово, продолжим.",
-        f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
+        "Готово, расшифровал.\n\n"
+        "Черновик:\n«голосовой эпизод»\n\n"
+        "Аудио-черновик принят. Уточнения пока не включены."
     ]
-
 
 def test_audio_lifecycle_logs_are_safe_and_do_not_include_transcript(tmp_path, capsys):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
@@ -2213,5 +2201,11 @@ def test_audio_lifecycle_logs_are_safe_and_do_not_include_transcript(tmp_path, c
     assert "audio_lifecycle marker=media_download_done" in output
     assert "audio_lifecycle marker=transcription_started" in output
     assert "audio_lifecycle marker=transcription_done" in output
-    assert "audio_lifecycle marker=audio_draft_started" in output
+    assert "audio_lifecycle marker=audio_intake_completed" in output
     assert "голосовой эпизод" not in output
+
+
+def test_audio_intake_preview_is_capped():
+    preview = telegram_bot._audio_intake_preview("a" * 250, limit=20)
+
+    assert preview == "aaaaaaaaaaaaaaaaaaa…"

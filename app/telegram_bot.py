@@ -1569,26 +1569,16 @@ async def _transcribe_media_artifact_or_reply(
         media_kind=artifact.media_kind,
     )
     _log_audio_lifecycle(
-        "audio_draft_started",
+        "audio_intake_completed",
         update=update,
         funnel=funnel,
         media_kind=artifact.media_kind,
         duration_seconds=artifact.duration_seconds,
         file_size=artifact.file_size,
     )
-    now = utc_now()
-    await _start_input_artifact_capture_session(
-        update,
-        session_store,
-        ux_events,
-        tone,
-        chat_id=update.effective_chat.id,
-        artifact=transcribed,
-        now=now,
-        existing_session=existing_session,
-        cancel_reason=f"{funnel}_restart",
-        funnel=funnel,
-    )
+    if existing_session is not None:
+        session_store.delete_session(update.effective_chat.id)
+    await _reply_text(update, _audio_intake_completed_text(artifact_text(transcribed)))
 
 
 def _telegram_media_request_from_artifact(artifact) -> TelegramMediaRequest:
@@ -1600,6 +1590,22 @@ def _telegram_media_request_from_artifact(artifact) -> TelegramMediaRequest:
         mime_type=artifact.mime_type,
         file_name=artifact.file_name,
     )
+
+
+def _audio_intake_completed_text(transcript: str) -> str:
+    preview = _audio_intake_preview(transcript)
+    return (
+        "Готово, расшифровал.\n\n"
+        f"Черновик:\n«{preview}»\n\n"
+        "Аудио-черновик принят. Уточнения пока не включены."
+    )
+
+
+def _audio_intake_preview(text: str, *, limit: int = 180) -> str:
+    compact = " ".join(text.split())
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 1].rstrip() + "…"
 
 
 def _media_processing_ack_text(media_kind: str) -> str:
