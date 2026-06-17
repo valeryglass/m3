@@ -9,6 +9,7 @@ data/userlist/*.json
 data/ux-events/*.jsonl
 data/annotation-work/**
 data/annotation-runs/**
+data/intake-transcripts/**
 data/backups/**
 data/exports/**
 data/reports/**
@@ -23,6 +24,7 @@ data/reports/**
 !data/ux-events/
 !data/annotation-work/
 !data/annotation-runs/
+!data/intake-transcripts/
 !data/backups/
 !data/exports/
 !data/reports/
@@ -31,6 +33,7 @@ data/reports/**
 !data/userlist/.gitkeep
 !data/ux-events/.gitkeep
 !data/annotation-runs/.gitkeep
+!data/intake-transcripts/.gitkeep
 !data/exports/.gitkeep
 !data/exports/map-payload/
 !data/exports/map-payload/**

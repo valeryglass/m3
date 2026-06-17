@@ -94,6 +94,24 @@ modules:
       - surface_input_normalization
       - pre_episode_artifact_boundary
 
+
+  intake_transcripts:
+    stage: draft
+    enabled: true
+    purpose: Persist transcript source artifacts produced from audio intake.
+    owned_paths:
+      - app/intake_transcripts.py
+      - app/schemas/intake_transcript.py
+      - docs/modules/intake-transcripts.md
+      - data/intake-transcripts/
+    inputs:
+      - transcribed voice/audio input artifacts
+    outputs:
+      - durable transcript source JSON files
+    capabilities:
+      - transcript_source_artifact_storage
+      - raw_audio_free_provenance
+
   episode_drafts:
     stage: draft
     enabled: true
