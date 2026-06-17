@@ -40,9 +40,10 @@ Branch base:
 epic/input-funnel-alpha -> mvp2/audio-input
 ```
 
-Goal: turn media intake placeholders into production audio draft capture on
+Goal: turn media intake placeholders into transcript-backed audio intake on
 `mvp2/audio-input` without weakening the episode schema or retaining raw audio
-by default.
+by default. Transcript artifacts are durable source material; episode extraction
+and validation remain later work.
 
 ### PR-A0 Audio transcription ADR
 
@@ -55,7 +56,7 @@ Acceptance:
 - raw Telegram audio is temporary-only by default.
 - no transcript means no draft; no silent fallback.
 - soft duration target is 3 minutes; hard cap is 5 minutes for MVP2.
-- transcript text is support evidence for draft construction.
+- transcript text is persisted as a private source artifact for future extraction.
 - failure/retry behavior is explicit.
 - UX events do not store raw audio or full transcripts.
 - default retention is temporary raw audio only, with no raw archive.
@@ -83,26 +84,27 @@ Acceptance:
 - provider failures emit `transcription_failed`.
 - no draft is created on provider failure.
 
-### PR-A3 Voice to draft
+### PR-A3 Voice to transcript artifact
 
-Goal: let Telegram voice notes create drafts only after transcription succeeds.
+Goal: let Telegram voice notes create durable transcript source artifacts after
+transcription succeeds.
 
 Acceptance:
 
-- voice note -> download -> transcribe -> attach transcript -> draft session.
-- confirmation remains required before persistence.
+- voice note -> download -> transcribe -> persist `IntakeTranscript`.
 - raw audio is not saved.
-- UX events include input, transcript, draft, gap, confirmation/save/discard.
+- the bot shows a transcript preview and stops the audio branch.
+- no episode is created until a later extraction/validation flow exists.
 
-### PR-A4 Audio/document fallback to draft
+### PR-A4 Audio/document fallback to transcript artifact
 
-Goal: give uploaded audio and audio-like documents the same downstream behavior
-as voice notes.
+Goal: give uploaded audio and audio-like documents the same transcript-artifact
+behavior as voice notes.
 
 Acceptance:
 
-- `message.audio` can create a draft after transcript.
-- audio-like document can create a draft after transcript.
+- `message.audio` can create an `IntakeTranscript` after transcript.
+- audio-like document can create an `IntakeTranscript` after transcript.
 - unsupported documents remain politely rejected.
 - oversized files remain blocked before provider calls.
 

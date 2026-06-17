@@ -344,7 +344,7 @@ Acceptance:
 - provider errors emit safe UX events.
 - failed transcription does not create drafts.
 
-### PR-A3 Voice draft creation
+### PR-A3 Voice transcript artifact creation
 
 Status: planned.
 
@@ -352,11 +352,11 @@ Wire Telegram voice notes into the existing transcript-to-draft/session path.
 
 Acceptance:
 
-- voice note can create a draft after transcription.
+- voice note can create an IntakeTranscript after transcription.
 - missing transcript keeps current `transcription_pending` behavior.
 - draft confirmation remains required.
 
-### PR-A4 Uploaded audio draft creation
+### PR-A4 Uploaded audio transcript artifact creation
 
 Status: planned.
 
@@ -364,8 +364,8 @@ Wire `message.audio` and audio-like documents into the same path as voice.
 
 Acceptance:
 
-- uploaded audio can create a draft after transcription.
-- audio-like document can create a draft after transcription.
+- uploaded audio can create an IntakeTranscript after transcription.
+- audio-like document can create an IntakeTranscript after transcription.
 - unsupported documents remain rejected.
 
 ### PR-A5 Production smoke, operator notes, and rollback
@@ -454,3 +454,17 @@ Acceptance:
 - Explore whether hyperedge/simplex language adds user value at larger sample
   sizes.
 - Revisit map payload terms only after domain entities are stable.
+
+
+## Future Audio Extraction Track
+
+Audio transcript persistence is not the same as episode creation. Future work may
+add:
+
+- transcript -> structured observed-field extraction.
+- user validation / correction.
+- confirmed episode persistence.
+- annotation re-runs from transcript source artifacts.
+
+Until that track exists, audio intake stores transcript source artifacts and does
+not contribute to graph/report analytics as episodes.

@@ -9,17 +9,19 @@ Accepted planning decision for `mvp2/audio-input`.
 Production audio input must be wired in two steps:
 
 ```text
-Telegram media -> temporary media boundary -> transcription provider -> TranscriptResult -> InputArtifact transcript -> EpisodeDraft -> DraftReview -> confirmed episode
+Telegram media -> temporary media boundary -> transcription provider -> TranscriptResult -> IntakeTranscript -> future extraction/validation -> confirmed episode
 ```
 
 The current input-funnel alpha already accepts voice, audio, and audio-like
-Telegram documents as input artifacts. MVP2 audio production work may only
-create drafts from media after a transcript exists.
+Telegram documents as input artifacts. MVP2 audio first stores a durable
+transcript source artifact. Structured episode extraction and user validation are
+separate later steps.
 
 Raw Telegram audio is not persisted by default. Media bytes/files are temporary
 runtime material used only to obtain a transcript or a clear failure. Transcript
-text is support evidence for draft construction, not a canonical episode record.
-Only the user-confirmed observed episode remains the persisted source artifact.
+text is persisted as the first durable source artifact for audio intake. It is
+not a canonical episode record. Only a later user-confirmed observed episode may
+enter episode storage and graph/report analytics.
 
 ## Why
 
@@ -34,7 +36,7 @@ This ADR keeps the existing sacred boundary intact:
 ```text
 input != episode
 raw audio != episode
-transcript != episode
+transcript artifact != episode
 draft != episode
 confirmed observed episode = canonical persisted source artifact
 ```
@@ -72,8 +74,8 @@ Default behavior:
 
 - raw Telegram audio is temporary only.
 - temporary media files/bytes are deleted after transcription success or failure.
-- transcript text may be held only as runtime draft support until the user saves
-  or discards the draft.
+- transcript text is persisted as a private `IntakeTranscript` source artifact.
+- transcript artifacts do not store raw audio paths or Telegram `file_id` values.
 - UX events may record event names, funnel, media kind, size bucket or failure
   reason, but not raw private audio or full transcript text.
 - confirmed episode files remain observed source artifacts and must not store raw
@@ -133,7 +135,8 @@ provider error -> no draft
 The system must never guess a draft from file metadata, duration, MIME type, or
 empty media placeholders.
 
-Draft creation is blocked for media until a transcript exists. Retries should be
+Episode creation is blocked for media until a transcript exists and a later
+extraction/validation flow accepts structured observed fields. Retries should be
 explicit and bounded. The system must not enter an automatic retry loop that
 repeatedly downloads or sends media to a provider without a user-visible action
 or operator decision.

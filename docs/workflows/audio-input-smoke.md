@@ -39,7 +39,7 @@ valid command before inviting alpha users.
 | save | persists confirmed observed episode |
 | cancel | discards runtime draft/session |
 | `/profile` | still computes report on demand |
-| `/report_ux` | includes funnel/media/transcription metrics |
+| `/report_ux` | includes funnel/media/transcription metrics; audio transcript is not an episode |
 
 ## UX Event Expectations
 
@@ -48,6 +48,7 @@ Successful media capture should include:
 ```text
 input_received
 transcript_created
+transcript artifact stored
 input_received
 draft_created
 session_started
