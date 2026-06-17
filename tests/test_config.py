@@ -33,7 +33,7 @@ def test_load_settings_uses_default_data_paths():
     assert settings.transcription_provider == "whisper"
     assert settings.whisper_command == "whisper"
     assert settings.whisper_model is None
-    assert settings.whisper_language is None
+    assert settings.whisper_language == "ru"
 
 
 def test_old_allowed_chat_ids_no_longer_grant_access():

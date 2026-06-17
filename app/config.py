@@ -107,6 +107,6 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
             source.get("M3_WHISPER_MODEL", "").strip() or None
         ),
         whisper_language=(
-            source.get("M3_WHISPER_LANGUAGE", "").strip() or None
+            source.get("M3_WHISPER_LANGUAGE", "ru").strip() or None
         ),
     )

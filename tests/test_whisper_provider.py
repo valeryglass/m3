@@ -55,3 +55,26 @@ def test_whisper_cli_provider_raises_on_failure(tmp_path):
         WhisperCliTranscriptionProvider(command=str(command)).transcribe(
             _fake_media(tmp_path)
         )
+
+
+def test_whisper_cli_provider_passes_language(tmp_path):
+    command = tmp_path / "fake-whisper"
+    marker = tmp_path / "args.txt"
+    command.write_text(
+        "#!/usr/bin/env python3\n"
+        "import pathlib, sys\n"
+        f"pathlib.Path({str(marker)!r}).write_text(' '.join(sys.argv), encoding='utf-8')\n"
+        "audio = pathlib.Path(sys.argv[1])\n"
+        "out = pathlib.Path(sys.argv[sys.argv.index('--output_dir') + 1])\n"
+        "(out / (audio.stem + '.txt')).write_text(' transcript ', encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    command.chmod(command.stat().st_mode | 0o111)
+
+    transcript = WhisperCliTranscriptionProvider(
+        command=str(command),
+        language="ru",
+    ).transcribe(_fake_media(tmp_path))
+
+    assert transcript.language == "ru"
+    assert "--language ru" in marker.read_text(encoding="utf-8")
