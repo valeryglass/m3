@@ -35,7 +35,12 @@ def attach_transcript(
     artifact: InputArtifact,
     transcript: TranscriptResult,
 ) -> InputArtifact:
-    return replace(artifact, transcript=transcript.text.strip())
+    source_ref = dict(artifact.source_ref)
+    if transcript.provider:
+        source_ref["transcription_provider"] = transcript.provider
+    if transcript.language:
+        source_ref["transcription_language"] = transcript.language
+    return replace(artifact, transcript=transcript.text.strip(), source_ref=source_ref)
 
 
 def transcribe_and_attach(

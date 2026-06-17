@@ -27,6 +27,7 @@ def test_load_settings_uses_default_data_paths():
     assert settings.initial_session_ttl_sec == 600
     assert str(settings.tone_config) == "config/tone.yaml"
     assert str(settings.audio_temp_dir) == "data/runtime-audio"
+    assert str(settings.intake_transcript_dir) == "data/intake-transcripts"
     assert settings.audio_max_duration_sec == 300
     assert settings.audio_max_file_size_bytes == 20 * 1024 * 1024
     assert settings.transcription_provider == "whisper"
@@ -63,6 +64,7 @@ def test_load_settings_allows_overrides():
             "M3_TELEGRAM_ADMIN_CHAT_IDS": "225672,327002663",
             "M3_TELEGRAM_OWNER_CHAT_ID": "225672",
             "M3_AUDIO_TEMP_DIR": "/tmp/audio",
+            "M3_INTAKE_TRANSCRIPT_DIR": "/tmp/transcripts",
             "M3_AUDIO_MAX_DURATION_SEC": "180",
             "M3_AUDIO_MAX_FILE_SIZE_BYTES": "1048576",
             "M3_TRANSCRIPTION_PROVIDER": "whisper",
@@ -84,6 +86,7 @@ def test_load_settings_allows_overrides():
     assert settings.telegram_admin_chat_ids == frozenset({225672, 327002663})
     assert settings.telegram_owner_chat_id == 225672
     assert str(settings.audio_temp_dir) == "/tmp/audio"
+    assert str(settings.intake_transcript_dir) == "/tmp/transcripts"
     assert settings.audio_max_duration_sec == 180
     assert settings.audio_max_file_size_bytes == 1048576
     assert settings.transcription_provider == "whisper"
@@ -99,6 +102,7 @@ def test_admin_and_owner_accessors_return_configured_ids():
             "M3_TELEGRAM_ADMIN_CHAT_IDS": "225672,327002663",
             "M3_TELEGRAM_OWNER_CHAT_ID": "225672",
             "M3_AUDIO_TEMP_DIR": "/tmp/audio",
+            "M3_INTAKE_TRANSCRIPT_DIR": "/tmp/transcripts",
             "M3_AUDIO_MAX_DURATION_SEC": "180",
             "M3_AUDIO_MAX_FILE_SIZE_BYTES": "1048576",
             "M3_TRANSCRIPTION_PROVIDER": "whisper",

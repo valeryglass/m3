@@ -877,6 +877,7 @@ def test_voice_message_requires_transcription_before_session_creation(tmp_path):
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage(
         "",
+        message_id=42,
         voice=SimpleNamespace(
             file_id="voice-file-id",
             duration=9,
@@ -1587,8 +1588,9 @@ def test_restart_cancel_event_uses_current_target():
 
 
 class _FakeMessage:
-    def __init__(self, text: str, *, voice=None, audio=None, document=None) -> None:
+    def __init__(self, text: str, *, voice=None, audio=None, document=None, message_id=None) -> None:
         self.text = text
+        self.message_id = message_id
         self.voice = voice
         self.audio = audio
         self.document = document
@@ -1887,9 +1889,11 @@ def test_voice_message_with_provider_starts_draft_session(tmp_path):
             mime_type="audio/ogg",
             file_size=4096,
         ),
+        message_id=42,
     )
     settings = _settings()
     settings.audio_temp_dir = tmp_path / "audio"
+    settings.intake_transcript_dir = tmp_path / "intake-transcripts"
     settings.audio_max_duration_sec = 300
     settings.audio_max_file_size_bytes = 20 * 1024 * 1024
     bot = _FakeDownloadBot()
@@ -1907,6 +1911,12 @@ def test_voice_message_with_provider_starts_draft_session(tmp_path):
     )
 
     assert session_store.load_session(123) is None
+    transcript_path = (
+        settings.intake_transcript_dir / "telegram-chat-123" / "message-42.json"
+    )
+    assert transcript_path.exists()
+    assert "голосовой эпизод" in transcript_path.read_text(encoding="utf-8")
+    assert "voice-file-id" not in transcript_path.read_text(encoding="utf-8")
     assert bot.file_ids == ["voice-file-id"]
     assert [event["event_type"] for event in ux_events.read()] == [
         "input_received",
@@ -1933,6 +1943,7 @@ def test_voice_message_over_duration_is_rejected_before_transcription(tmp_path):
     )
     settings = _settings()
     settings.audio_temp_dir = tmp_path / "audio"
+    settings.intake_transcript_dir = tmp_path / "intake-transcripts"
     settings.audio_max_duration_sec = 300
     settings.audio_max_file_size_bytes = 20 * 1024 * 1024
 
@@ -1972,6 +1983,7 @@ def test_audio_message_with_provider_starts_draft_session(tmp_path):
     )
     settings = _settings()
     settings.audio_temp_dir = tmp_path / "audio"
+    settings.intake_transcript_dir = tmp_path / "intake-transcripts"
     settings.audio_max_duration_sec = 300
     settings.audio_max_file_size_bytes = 20 * 1024 * 1024
 
@@ -2009,6 +2021,7 @@ def test_audio_document_with_provider_starts_draft_session(tmp_path):
     )
     settings = _settings()
     settings.audio_temp_dir = tmp_path / "audio"
+    settings.intake_transcript_dir = tmp_path / "intake-transcripts"
     settings.audio_max_duration_sec = 300
     settings.audio_max_file_size_bytes = 20 * 1024 * 1024
 

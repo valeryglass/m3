@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from threading import Thread
 from time import monotonic
 from app.config import (
@@ -37,6 +38,10 @@ from app.input_funnels import (
     audio_input_artifact,
     text_input_artifact,
     voice_input_artifact,
+)
+from app.intake_transcripts import (
+    build_intake_transcript,
+    save_intake_transcript,
 )
 from app.loop_extractor import (
     active_target,
@@ -1568,6 +1573,25 @@ async def _transcribe_media_artifact_or_reply(
         funnel=funnel,
         media_kind=artifact.media_kind,
     )
+    try:
+        transcript_artifact = build_intake_transcript(transcribed)
+        save_intake_transcript(
+            getattr(settings, "intake_transcript_dir", Path("data/intake-transcripts")),
+            transcript_artifact,
+        )
+    except (OSError, ValueError):
+        _log_audio_lifecycle(
+            "transcript_store_failed",
+            update=update,
+            funnel=funnel,
+            media_kind=artifact.media_kind,
+            duration_seconds=artifact.duration_seconds,
+            file_size=artifact.file_size,
+            failure_reason="transcript_store_failed",
+        )
+        await _reply_text(update, "Не смог сохранить расшифровку. Пришли этот эпизод текстом.")
+        return
+
     _log_audio_lifecycle(
         "audio_intake_completed",
         update=update,
@@ -1738,6 +1762,7 @@ def _telegram_update_metadata(update) -> dict:
 
     metadata = {
         "chat_id": chat.id if chat is not None else None,
+        "message_id": getattr(message, "message_id", None) if message else None,
         "message_kind": message_kind,
         "command": command,
     }

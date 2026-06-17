@@ -27,6 +27,7 @@ class Settings:
     initial_session_ttl_sec: int
     tone_config: Path
     audio_temp_dir: Path
+    intake_transcript_dir: Path
     audio_max_duration_sec: int
     audio_max_file_size_bytes: int
     transcription_provider: str
@@ -95,6 +96,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         initial_session_ttl_sec=int(source.get("M3_INITIAL_SESSION_TTL_SEC", "600")),
         tone_config=Path(source.get("M3_TONE_CONFIG", "config/tone.yaml")),
         audio_temp_dir=Path(source.get("M3_AUDIO_TEMP_DIR", "data/runtime-audio")),
+        intake_transcript_dir=Path(source.get("M3_INTAKE_TRANSCRIPT_DIR", "data/intake-transcripts")),
         audio_max_duration_sec=int(source.get("M3_AUDIO_MAX_DURATION_SEC", "300")),
         audio_max_file_size_bytes=int(
             source.get("M3_AUDIO_MAX_FILE_SIZE_BYTES", str(20 * 1024 * 1024))
