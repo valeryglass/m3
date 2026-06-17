@@ -93,6 +93,7 @@ def telegram_event(
     created_at: datetime | None = None,
     chat_id: int | None = None,
     message_kind: str | None = None,
+    message_id: int | None = None,
     command: str | None = None,
     answer_chars: int | None = None,
     funnel: str | None = None,
@@ -107,6 +108,7 @@ def telegram_event(
     optional = {
         "chat_id": chat_id,
         "message_kind": message_kind,
+        "message_id": message_id,
         "command": command,
         "answer_chars": answer_chars,
         "funnel": funnel,
