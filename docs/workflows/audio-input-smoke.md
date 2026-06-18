@@ -1,6 +1,7 @@
 # Audio Input Smoke Checklist
 
-Use this checklist on `mvp2/audio-input` before marking audio capture deployable.
+Use this checklist before marking explicit Telegram userflow containment and
+audio transcript intake deployable.
 
 ## Preconditions
 
@@ -22,42 +23,48 @@ make release-audio-check
 If `make check-whisper` fails, run `make venv` or set `M3_WHISPER_COMMAND` to a
 valid command before inviting alpha users.
 
-## Manual Telegram Smoke
+## Containment Regression Matrix
 
-| Flow | Expected result |
-|---|---|
-| `/start` | starts guided capture |
-| plain text without session | starts one-take draft capture |
-| `/capture text` | starts hidden one-take draft capture |
-| `/capture3 a \| b \| c` | starts hidden three-block draft capture |
-| voice note under limit | transcribes, creates draft, asks next gap question |
-| audio upload under limit | transcribes, creates draft, asks next gap question |
-| audio-like document under limit | transcribes, creates draft, asks next gap question |
-| non-audio document | rejected politely before provider call |
-| audio over duration cap | rejected politely before provider call |
-| failed transcription | no draft, asks for text |
-| save | persists confirmed observed episode |
-| cancel | discards runtime draft/session |
-| `/profile` | still computes report on demand |
-| `/report_ux` | includes funnel/media/transcription metrics; audio transcript is not an episode |
+| Scenario | Expected transition/reply | Durable artifact | Prohibited side effects |
+|---|---|---|---|
+| idle text | stays idle; returns `/start` guidance | none | no `LoopSession`, download, transcription, or transcript |
+| idle voice/audio/document | stays idle; same `/start` guidance | none | no download, transcription, `LoopSession`, or transcript |
+| idle `/start` | idle -> `classic_10q` | classic runtime session only | no audio state |
+| classic 10Q text answer | remains `classic_10q`; advances current question | updated classic runtime session | no audio state or transcript |
+| classic 10Q media | remains `classic_10q`; existing text-required reply | unchanged classic runtime session | no download or transcription |
+| idle hidden `/voice` | idle -> `audio_one_take`; asks for voice/audio | short-lived audio flow state | no `LoopSession` or episode |
+| `audio_one_take` text | remains armed; asks for voice/audio or `/cancel` | unchanged audio flow state | no classic session or transcript |
+| `audio_one_take` supported media | `audio_intake_started` -> transcription -> preview -> `audio_intake_completed` -> idle | one private `IntakeTranscript` source artifact | no `EpisodeDraft`, `LoopSession`, episode, or raw-audio archive |
+| post-audio idle text | stays idle; returns `/start` guidance | existing transcript remains source-only | no automatic classic session |
+| `/cancel` from classic | `classic_10q` -> idle | classic runtime state removed | no audio state created |
+| `/cancel` from audio | `audio_one_take` -> idle | audio flow state removed | no transcript or episode created by cancel |
+| `/help` during either flow | flow state unchanged; current help copy | none | no session/flow mutation |
+| `/profile` during either flow | flow state unchanged; current report behavior | none | no session/flow mutation |
 
-## UX Event Expectations
+Hidden `/capture` and `/capture3` remain explicit developer routes for draft
+testing. They are not normal idle entrypoints and are not part of audio intake.
 
-Successful media capture should include:
+## Event And Lifecycle Expectations
+
+Successful armed audio intake emits these UX events:
 
 ```text
 input_received
 transcript_created
-transcript artifact stored
-input_received
-draft_created
-session_started
-step_answered
-step_prompted
-gap_question_asked
 ```
 
-Failed media capture should include one of:
+Safe lifecycle logging reaches:
+
+```text
+audio_intake_completed
+```
+
+`audio_intake_started` names the workflow phase beginning after armed media is
+accepted; it is not currently a separate UX event. Safe lifecycle logs expose
+lower-level media and transcription markers. Do not infer draft or episode
+creation from them.
+
+Failed armed media intake should include one of:
 
 ```text
 input_rejected
@@ -66,14 +73,17 @@ transcription_failed
 transcription_pending
 ```
 
+Validation, download, transcription, or transcript-storage failure leaves
+`audio_one_take` armed for an explicit retry or `/cancel`.
+
 ## Release Notes
 
 Use honest wording:
 
 ```text
 Audio input is enabled for short voice/audio notes. Audio is transcribed first,
-then turned into a draft. Nothing is saved as an episode until the user confirms.
-Raw audio is temporary-only by default.
+then stored as a private IntakeTranscript source artifact. Audio intake does not
+create an EpisodeDraft or episode. Raw audio is temporary-only by default.
 ```
 
 Do not claim:
@@ -88,5 +98,5 @@ clinical interpretation
 ## Readiness Note
 
 Audio alpha is releasable only after this manual smoke passes. Rollback does not
-require an episode schema migration, raw audio deletion, or private data
-deletion because raw audio is temporary-only by default.
+require an episode schema migration or raw-audio deletion because this flow does
+not change the episode schema and raw audio is temporary-only by default.

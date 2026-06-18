@@ -107,9 +107,10 @@ hard duration cap: 300 seconds
 file size cap: provider/runtime configured, checked before provider call
 ```
 
-User-facing behavior for longer media: reject politely and ask for a shorter
-voice note or text. Ten-minute audio is explicitly out of MVP2 default scope and
-can be reconsidered later as an operator-configured extension.
+User-facing behavior for longer media: reject politely and keep
+`audio_one_take` armed for a shorter voice/audio retry or `/cancel`. Ten-minute
+audio is explicitly out of MVP2 default scope and can be reconsidered later as
+an operator-configured extension.
 
 ## Failure And Retry Policy
 
@@ -126,14 +127,15 @@ transcription_pending
 No silent fallback policy:
 
 ```text
-no media download -> no draft
-no transcript -> no draft
-empty transcript -> no draft
-provider error -> no draft
+no media download -> no IntakeTranscript
+no transcript -> no IntakeTranscript
+empty transcript -> no IntakeTranscript
+provider error -> no IntakeTranscript
 ```
 
-The system must never guess a draft from file metadata, duration, MIME type, or
-empty media placeholders.
+The current audio flow must never create or guess an `EpisodeDraft`, session, or
+episode from a transcript, file metadata, duration, MIME type, or empty media
+placeholder.
 
 Episode creation is blocked for media until a transcript exists and a later
 extraction/validation flow accepts structured observed fields. Retries should be

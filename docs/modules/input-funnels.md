@@ -6,8 +6,9 @@ Normalize different user input surfaces into common pre-episode capture
 artifacts.
 
 Input Funnels do not own the episode schema, annotation logic, graph reporting,
-or user-facing reports. They adapt surface-specific input into a shape that can
-be consumed by Episode Drafts.
+or user-facing reports. They adapt surface-specific input into a normalized
+shape. The explicit userflow chooses the consumer: hidden text tools can use
+Episode Drafts; `audio_one_take` persists an `IntakeTranscript` source artifact.
 
 ## Inputs
 
@@ -19,7 +20,7 @@ be consumed by Episode Drafts.
 
 ## Outputs
 
-- normalized input artifacts for the Episode Drafts boundary.
+- normalized input artifacts for the selected downstream boundary.
 
 Conceptual shape:
 
@@ -46,15 +47,18 @@ InputArtifact:
 - surface-specific metadata stays outside the canonical episode schema unless a
   future ADR promotes it.
 - unsupported media can be rejected before draft creation.
+- audio artifacts are not converted into `EpisodeDraft` by the current
+  `audio_one_take` flow.
 
 ## Ownership
 
 - producer: surface adapters such as `telegram_capture`
-- consumer: `episode_drafts`
+- consumers: `episode_drafts` for explicit text tools; `intake_transcripts` for
+  `audio_one_take`
 
 ## Lifecycle
 
 `draft`
 
-This boundary is planned so audio, one-take text, three-block narrative, and the
-classic question flow can share one downstream draft path.
+This boundary keeps input normalization reusable without forcing every input
+surface into one downstream draft path.

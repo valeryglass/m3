@@ -88,10 +88,12 @@ At minimum:
 
 ```text
 /start
-plain text one-take
-voice note under limit, if audio is enabled
-save
-cancel
+classic 10Q text answer
+classic 10Q media rejection
+/cancel
+/voice
+voice note under limit
+post-audio idle text guidance
 /profile
 /report_ux
 ```

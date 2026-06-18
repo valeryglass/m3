@@ -1,34 +1,32 @@
 # Roadmap
 
-## Current Release Track
+## Completed Foundation Track
 
 ### Input Funnels And Episode Draft Hydration
 
-Status: alpha foundation.
+Status: completed alpha foundation for explicit text developer routes.
 
-The epic has produced a shared runtime path for text, hidden command, hidden
-three-block, voice, audio, and audio-document inputs:
+The epic produced reusable input and draft boundaries:
 
 ```text
-input surface -> InputArtifact -> EpisodeDraft -> Gap Hydration -> Draft Review -> confirmed episode
+hidden text surface -> InputArtifact -> EpisodeDraft -> Gap Hydration -> Draft Review -> confirmed episode
 ```
 
 Accepted alpha result:
 
-- one-take text can start draft capture.
 - hidden `/capture <text>` can start draft capture explicitly.
 - hidden `/capture3 a | b | c` can start a three-block draft.
-- voice/audio/document inputs are recognized as input artifacts.
-- untranscribed media stops before draft creation.
+- voice/audio/document inputs can be normalized as input artifacts.
 - draft review is explicit before persistence.
 - funnel, gap-question, confirmation, save, discard, and rejection metrics are
   visible in UX analytics.
 
-Not yet production feature status:
+Containment decisions supersede earlier automatic-capture experiments:
 
-- audio/voice is not a production capture feature until transcription is wired.
-- hidden command routes are alpha/test affordances, not polished user UX.
-- one-take text is the only new user-visible capture behavior in this epic.
+- `/start` is the only normal entrypoint for classic 10Q.
+- idle text and media return `/start` guidance.
+- hidden command routes remain developer affordances.
+- audio input does not enter the Episode Draft path.
 - episode schema, annotation runs, graph reports, and map payload behavior are
   intentionally unchanged.
 
@@ -40,10 +38,23 @@ Branch base:
 epic/input-funnel-alpha -> mvp2/audio-input
 ```
 
-Goal: turn media intake placeholders into transcript-backed audio intake on
-`mvp2/audio-input` without weakening the episode schema or retaining raw audio
-by default. Transcript artifacts are durable source material; episode extraction
-and validation remain later work.
+Goal: provide explicit transcript-backed `audio_one_take` intake without
+weakening the episode schema or retaining raw audio by default.
+
+```text
+/voice
+  -> audio_one_take
+  -> audio_intake_started
+  -> temporary media
+  -> transcription
+  -> IntakeTranscript source artifact
+  -> transcript preview
+  -> audio_intake_completed
+  -> idle
+```
+
+Audio does not create an `EpisodeDraft` or episode. Extraction and validation
+remain later work.
 
 ### PR-A0 Audio transcription ADR
 
@@ -54,7 +65,7 @@ Acceptance:
 
 - MVP provider is Whisper, behind a cross-provider configuration boundary.
 - raw Telegram audio is temporary-only by default.
-- no transcript means no draft; no silent fallback.
+- no transcript means no source artifact; no silent fallback.
 - soft duration target is 3 minutes; hard cap is 5 minutes for MVP2.
 - transcript text is persisted as a private source artifact for future extraction.
 - failure/retry behavior is explicit.
@@ -71,7 +82,7 @@ Acceptance:
   tests with fake Telegram file objects.
 - size, MIME, and duration guards reject unsupported media before provider calls.
 - temporary media is cleaned after success or failure.
-- download failures emit safe UX events and do not create drafts.
+- download failures emit safe UX events and do not create transcript artifacts.
 
 ### PR-A2 Transcription provider interface
 
@@ -82,7 +93,7 @@ Acceptance:
 - provider success returns `TranscriptResult`.
 - empty transcripts are rejected.
 - provider failures emit `transcription_failed`.
-- no draft is created on provider failure.
+- no `IntakeTranscript` is created on provider failure.
 
 ### PR-A3 Voice to transcript artifact
 
@@ -115,11 +126,10 @@ Goal: make deploy readiness observable.
 Acceptance:
 
 - full local test suite passes before rollout.
-- smoke covers `/start`, plain text, `/capture`, `/capture3`, voice, audio,
-  audio document, unsupported document, save, cancel, `/profile`, and
-  `/report_ux`.
-- operator notes distinguish alpha text capture, media pending transcription,
-  and production audio draft capture.
+- smoke covers idle containment, classic 10Q, hidden `/voice`, supported and
+  unsupported media, cancellation, `/help`, `/profile`, and post-audio idle
+  behavior.
+- operator notes distinguish hidden draft tools from explicit transcript intake.
 - `docs/workflows/audio-input-smoke.md` defines the deploy smoke checklist.
 - expected UX events are listed for each smoke flow.
 - legacy sessions without optional funnel/media metadata keep working.

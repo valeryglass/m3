@@ -36,10 +36,12 @@ cancel first.
 
 ```text
 audio_one_take awaiting media
+  -> audio_intake_started
   -> temporary Telegram media
   -> transcription provider
-  -> IntakeTranscript
+  -> IntakeTranscript source artifact
   -> transcript preview
+  -> audio_intake_completed
   -> idle
 ```
 

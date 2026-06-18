@@ -5,9 +5,10 @@
 Adapt Telegram messages and callbacks into the capture pipeline.
 
 Telegram Capture owns Telegram-specific receiving, access checks, callbacks,
-and UX events. It should not own the full interview architecture. New capture
-work may route text, voice, and audio through Input Funnels, Episode Drafts,
-Gap Hydration, and the confirmation boundary before persistence.
+UX events, and explicit userflow routing. It should not own the full interview
+architecture. `/start` enters `classic_10q`; hidden `/voice` arms
+`audio_one_take`. Hidden text developer routes may use Episode Drafts and Gap
+Hydration, but audio intake ends at an `IntakeTranscript` source artifact.
 
 ## Inputs
 
@@ -15,11 +16,13 @@ Gap Hydration, and the confirmation boundary before persistence.
 - Telegram voice notes and audio uploads when enabled.
 - Telegram callback data where still used by bot control flow.
 - private in-progress session memory under `data/runtime-sessions/`.
+- private explicit flow state under `data/runtime-flows/`.
 - tone configuration from `config/tone.yaml`.
 
 ## Outputs
 
 - normalized input artifacts when using the draft pipeline.
+- durable `IntakeTranscript` source artifacts when using `audio_one_take`.
 - confirmed observed episode fields when using the legacy direct path.
 - completed private observed source episode files under `data/episodes/`.
 - private UX event records under `data/ux-events/`.
@@ -36,14 +39,15 @@ Gap Hydration, and the confirmation boundary before persistence.
 - `capture_to_episode`
 
 Planned downstream capture work may use `input_to_draft` and `draft_to_episode`
-after Telegram-specific receiving and access checks.
+after Telegram-specific receiving and access checks. `audio_one_take` does not
+use either interface.
 
 ## Lifecycle
 
 `experimental`
 
-The text flow is usable, but prompt copy, frame order, audio input, and draft
-hydration can still evolve.
+The classic text flow and explicit transcript intake are usable, but prompt copy,
+frame order, and draft hydration can still evolve.
 
 Episode files are observed source artifacts. Telegram capture does not persist
 top-level `derived` or `current_derived`.

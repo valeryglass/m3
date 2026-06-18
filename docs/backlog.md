@@ -149,12 +149,12 @@ Implementation split:
 - BL-06d: add explicit hidden `/capture <text>` Telegram routing into the
   one-take draft/session bridge while leaving plain text without session
   unchanged.
-- BL-06e: route natural plain text without an active session into one-take
-  draft/session capture while keeping `/start` as an explicit guided entry.
+- BL-06e: superseded by userflow containment. Plain idle text returns `/start`
+  guidance; `/capture` remains the explicit hidden developer route.
 
 Acceptance:
 
-- one-take text can create a partial draft.
+- hidden `/capture` can create a partial draft.
 - missing fields are detected.
 - the user can confirm, continue, edit, or discard.
 
@@ -168,16 +168,16 @@ Implementation split:
   file metadata and optional transcript text without storing raw audio.
 - BL-07b: route Telegram `voice` messages into voice input artifacts and
   reject them before draft construction until transcription is available.
-- BL-07c: add transcript-to-draft/session routing so voice can enter the
-  same draft path as text after transcription.
+- BL-07c: superseded by `audio_one_take` containment. Successful transcription
+  persists an `IntakeTranscript` and returns to idle without creating a draft or
+  session.
 - BL-07d: add a passive transcription boundary that can attach transcript
   support text to audio artifacts without choosing a provider yet.
 
 Acceptance:
 
-- voice input enters the same draft path as text.
-- transcript is support evidence, not a saved episode.
-- confirmation is required before persistence.
+- voice input enters the explicit `audio_one_take` transcript path.
+- `IntakeTranscript` is a source artifact, not a draft or saved episode.
 - raw audio is not saved by default.
 
 ### BL-08 Add audio/document fallback
@@ -196,7 +196,7 @@ Acceptance:
 - `audio` messages and audio-like `document` messages can enter the same
   funnel.
 - unsupported or oversized files are rejected clearly.
-- downstream draft behavior is identical to voice.
+- downstream transcript-intake behavior is identical to voice.
 
 ### BL-09 Add three-block narrative mode
 
@@ -282,7 +282,8 @@ Acceptance:
 
 ## MVP2 Audio Input
 
-Status: next branch after `epic/input-funnel-alpha`.
+Status: transcript-intake foundation completed; future extraction remains
+separate.
 
 Branch:
 
@@ -290,23 +291,24 @@ Branch:
 mvp2/audio-input from epic/input-funnel-alpha
 ```
 
-Intent: turn voice/audio/document intake placeholders into production audio
-draft capture without changing the canonical episode schema.
+Intent: provide production `audio_one_take` transcript intake without changing
+the canonical episode schema.
 
 Global acceptance:
 
 - no audio-specific episode type.
-- no draft creation from media without transcript.
+- successful media creates an `IntakeTranscript` source artifact only.
 - no raw audio persistence by default.
-- no silent fallback: failed or empty transcript never creates a draft.
+- no silent fallback: failed or empty transcript never creates a source artifact,
+  draft, or episode.
 - MVP2 soft duration target is 3 minutes; hard cap is 5 minutes.
-- confirmed observed episode remains the canonical source artifact.
+- audio intake does not create an `EpisodeDraft`, `LoopSession`, or episode.
 - provider failures are safe and observable.
 - legacy sessions without optional funnel/media metadata keep working.
 
 ### PR-A0 Audio transcription ADR
 
-Status: planned.
+Status: completed.
 
 Create and accept `docs/adr/0008-audio-transcription-provider-and-retention.md`.
 
@@ -320,7 +322,7 @@ Acceptance:
 
 ### PR-A1 Telegram media boundary
 
-Status: planned.
+Status: completed.
 
 Add the download/cleanup boundary before provider wiring.
 
@@ -333,7 +335,7 @@ Acceptance:
 
 ### PR-A2 Transcription provider interface
 
-Status: planned.
+Status: completed.
 
 Upgrade `app.transcription` from passive placeholder to provider boundary.
 
@@ -342,23 +344,24 @@ Acceptance:
 - `TranscriptResult` is produced on success.
 - empty transcript is failure.
 - provider errors emit safe UX events.
-- failed transcription does not create drafts.
+- failed transcription does not create an `IntakeTranscript`, draft, or episode.
 
 ### PR-A3 Voice transcript artifact creation
 
-Status: planned.
+Status: completed.
 
-Wire Telegram voice notes into the existing transcript-to-draft/session path.
+Wire Telegram voice notes into explicit `audio_one_take` transcript intake.
 
 Acceptance:
 
 - voice note can create an IntakeTranscript after transcription.
-- missing transcript keeps current `transcription_pending` behavior.
-- draft confirmation remains required.
+- missing transcript keeps the audio flow armed for explicit retry.
+- successful intake previews the transcript and returns to idle.
+- no `EpisodeDraft`, `LoopSession`, or episode is created.
 
 ### PR-A4 Uploaded audio transcript artifact creation
 
-Status: planned.
+Status: completed.
 
 Wire `message.audio` and audio-like documents into the same path as voice.
 
@@ -370,17 +373,18 @@ Acceptance:
 
 ### PR-A5 Production smoke, operator notes, and rollback
 
-Status: planned.
+Status: completed.
 
 Acceptance:
 
 - full local test suite passes before rollout.
-- smoke checklist covers text, hidden commands, media, save/cancel, profile, and
-  UX report.
+- smoke checklist contains the containment regression matrix for idle, classic,
+  audio, cancellation, help, and profile behavior.
 - `docs/workflows/audio-input-smoke.md` exists.
-- operator notes distinguish placeholder media intake from production audio
-  draft capture.
-- expected UX events are listed for each smoke flow.
+- operator notes distinguish hidden text draft routes from `audio_one_take`
+  transcript intake.
+- expected UX events and lifecycle markers are listed without implying draft or
+  episode creation.
 - legacy sessions without optional metadata keep working.
 - rollback note says no episode schema migration is required.
 

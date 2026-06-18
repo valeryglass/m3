@@ -28,14 +28,28 @@ Telegram Capture -> UX Analytics
 Telegram Capture -> Userlist / Access Gate
 Telegram Capture -> explicit userflow router
   -> classic 10Q -> Episode Model + Storage
-  -> audio one-take -> Input Funnels -> Intake Transcripts
+  -> audio_one_take -> Input Funnels -> Intake Transcripts
   -> hidden draft tools -> Episode Drafts -> Gap Hydration
 ```
 
 Telegram Capture emits UX/access events and chooses one explicit flow before
-input handlers mutate runtime state. Classic 10Q and audio one-take use separate
-runtime state. Audio one-take ends at a durable transcript source artifact;
-transcripts are not episodes or episode drafts.
+input handlers mutate runtime state. `/start` is the normal `classic_10q`
+entrypoint; hidden `/voice` arms `audio_one_take`. The flows use separate
+runtime state and require `/cancel` before switching.
+
+```text
+audio_one_take
+  -> audio_intake_started
+  -> temporary media
+  -> transcription
+  -> IntakeTranscript source artifact
+  -> transcript preview
+  -> audio_intake_completed
+  -> idle
+```
+
+Audio intake never enters Episode Drafts. An `IntakeTranscript` is not an
+episode and does not enter episode storage or graph/report analytics.
 
 ## Layers
 
@@ -53,7 +67,9 @@ transcripts are not episodes or episode drafts.
 - Telegram Capture receives Telegram input, access checks, callbacks, and UX
   event emission, and owns explicit userflow routing for the current runtime.
 - Input Funnels normalize Telegram text, voice, audio, and future capture
-  surfaces into pre-episode input artifacts.
+  surfaces into input artifacts. Consumers are selected by the explicit flow:
+  hidden text tools may use Episode Drafts, while `audio_one_take` uses Intake
+  Transcripts.
 - Telegram Media is the temporary download/cleanup boundary for
   Telegram voice, audio, and audio-like documents before transcription.
 - Intake Transcripts owns durable transcript source artifacts created by the
@@ -84,6 +100,7 @@ The project keeps these boundaries explicit:
 ```text
 input != episode
 transcript != episode
+transcript != draft
 draft != episode
 episode != annotation
 annotation != graph
