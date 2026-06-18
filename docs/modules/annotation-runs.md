@@ -3,11 +3,13 @@
 ## Purpose
 
 Manage durable derived graph artifacts and read-only readiness audits for
-observed source episodes.
+observed source episodes. Annotation-runs are consumed by analytics and reports;
+they are produced by the Annotation Producer.
 
 ## Inputs
 
-- validated observed source Episode JSON.
+- annotation producer output.
+- validated observed source Episode JSON for compatibility checks.
 - annotation-run manifests and rows.
 - accepted CBT and graph model docs.
 
@@ -42,6 +44,7 @@ selected annotation-run or compatibility fallback.
 
 Annotation runs are versioned derived interpretations of observed episodes.
 They are analytical inputs, not replacements for observed episode source data.
+Hydration reads annotation-runs; it does not create them.
 
 Legacy embedded-derived episode files remain readable as a compatibility
 fallback. `data/annotation-work` may exist as ignored/private scratch data, but

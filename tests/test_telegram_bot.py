@@ -46,6 +46,7 @@ def test_visible_command_menu_excludes_hidden_status():
         "pause",
         "report_graph",
         "report_ux",
+        "admin_annotate_gaps",
     )
     assert telegram_bot._visible_command_menu(tone) == (
         {"command": "start", "description": "Начать новый эпизод"},
@@ -548,6 +549,60 @@ def test_report_graph_builds_summary_without_writing_reports(tmp_path):
         "report_ready: 1\n"
         "payload_eligible: 1"
     ]
+
+
+def test_admin_annotate_gaps_writes_missing_annotation_run(tmp_path):
+    settings = _settings(
+        episode_dir=tmp_path / "episodes",
+        annotation_run_root=tmp_path / "annotation-runs",
+    )
+    settings.episode_dir.mkdir(parents=True)
+    episode = _graph_ready_episode()
+    episode.pop("derived")
+    _write_json(settings.episode_dir / "episode-20260503-1.json", episode)
+    message = _FakeMessage("/admin_annotate_gaps")
+
+    _run(
+        telegram_bot._handle_admin_annotate_gaps_after_admin(
+            _fake_update(123, message),
+            settings,
+            ToneEngine.default(),
+        )
+    )
+
+    assert "new_annotations: 1" in message.replies[0]
+    assert "coverage: 0/1 -> 1/1 (full)" in message.replies[0]
+    assert len(list(settings.annotation_run_root.glob("run-*-deterministic"))) == 1
+
+
+def test_admin_annotate_gaps_reports_noop_when_full(tmp_path):
+    settings = _settings(
+        episode_dir=tmp_path / "episodes",
+        annotation_run_root=tmp_path / "annotation-runs",
+    )
+    settings.episode_dir.mkdir(parents=True)
+    episode = _graph_ready_episode()
+    episode.pop("derived")
+    _write_json(settings.episode_dir / "episode-20260503-1.json", episode)
+    _run(
+        telegram_bot._handle_admin_annotate_gaps_after_admin(
+            _fake_update(123, _FakeMessage("/admin_annotate_gaps")),
+            settings,
+            ToneEngine.default(),
+        )
+    )
+    message = _FakeMessage("/admin_annotate_gaps")
+
+    _run(
+        telegram_bot._handle_admin_annotate_gaps_after_admin(
+            _fake_update(123, message),
+            settings,
+            ToneEngine.default(),
+        )
+    )
+
+    assert "new_annotations: 0" in message.replies[0]
+    assert "pending: 0" in message.replies[0]
 
 
 def test_report_ux_rejects_non_admin(tmp_path):

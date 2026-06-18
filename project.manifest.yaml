@@ -223,6 +223,27 @@ modules:
       - annotation_run_loading
       - selected_derived_validation
 
+  annotation_producer:
+    stage: experimental
+    enabled: true
+    purpose: Produce deterministic derived annotation rows from observed episodes.
+    owned_paths:
+      - app/episode_annotator.py
+      - app/annotation_producer.py
+      - docs/modules/annotation-producer.md
+    inputs:
+      - validated observed source Episode JSON
+      - selected existing annotation-run for missing-only production
+    outputs:
+      - data/annotation-runs/
+      - annotation coverage delta summaries
+    interfaces:
+      - episode_to_annotation
+    capabilities:
+      - deterministic_episode_annotation
+      - annotation_run_production
+      - missing_annotation_backfill
+
   graph_reporting:
     stage: experimental
     enabled: true

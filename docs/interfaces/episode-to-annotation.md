@@ -14,6 +14,8 @@ Annotation Runs.
 
 - durable annotation-run rows containing derived nodes, annotations, and
   relations.
+- deterministic producer summaries with scanned, skipped, new, pending, and
+  coverage-delta counts.
 - readiness audit summaries over selected derived annotations.
 
 ## Guarantees
@@ -23,6 +25,8 @@ Annotation Runs.
   `confidence`.
 - unsupported schema fields must not be emitted.
 - annotation-runs are durable derived graph artifacts.
+- annotation production is explicit: the producer creates annotations, while
+  hydration only reads selected annotations.
 - analytics loaders hydrate runtime `Episode.derived` from the selected
   annotation-run or compatibility fallback.
 - legacy embedded-derived episode files remain readable as fallback and
@@ -30,5 +34,6 @@ Annotation Runs.
 
 ## Ownership
 
-- producer: `episode_model_storage`
-- consumer: `annotation_runs`
+- source owner: `episode_model_storage`
+- producer: `annotation_producer`
+- consumer: `annotation_runs` / `analytics_loader`

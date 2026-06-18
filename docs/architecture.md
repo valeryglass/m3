@@ -16,6 +16,7 @@ human map of how the pieces fit together.
 Telegram user
   -> Episode Capture
   -> Episode Model + Storage
+  -> Annotation Producer
   -> Annotation Runs
   -> Graph Reporting
   -> Pattern Payloads
@@ -80,6 +81,8 @@ episode and does not enter episode storage or graph/report analytics.
   weak episode drafts.
 - Episode Model + Storage owns the JSON contract, Pydantic mirror, persistence,
   and legacy normalization.
+- Annotation Producer owns deterministic `Episode.observed -> Derived` business
+  logic and explicit annotation-run writing.
 - Annotation Runs owns versioned selected derived annotations and readiness
   gates.
 - Graph Reporting owns computed graph views and core graph quality reports.

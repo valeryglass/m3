@@ -12,6 +12,7 @@ from app.config import (
 )
 from app.audio_flow_store import AudioFlowStore
 from app.analytics_loader import annotation_coverage_for_episode_ids
+from app.annotation_producer import produce_annotation_run
 from app.graph_report import build_report, load_episodes
 from app.telegram_media import (
     TelegramMediaDownloadFailed,
@@ -289,6 +290,13 @@ def main() -> None:
             return
         await _handle_report_ux_after_admin(update, settings, tone)
 
+    async def admin_annotate_gaps(
+        update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        if not await _authorize_admin(update, settings, tone, ux_events):
+            return
+        await _handle_admin_annotate_gaps_after_admin(update, settings, tone)
+
     async def post_init(application) -> None:
         profile = _bot_profile(tone)
         await application.bot.set_my_commands(
@@ -323,6 +331,9 @@ def main() -> None:
     application.add_handler(CommandHandler("pause", pause))
     application.add_handler(CommandHandler("report_graph", report_graph))
     application.add_handler(CommandHandler("report_ux", report_ux))
+    application.add_handler(
+        CommandHandler("admin_annotate_gaps", admin_annotate_gaps)
+    )
     application.add_handler(CallbackQueryHandler(episode_callback, pattern="^episode:"))
     application.add_handler(CallbackQueryHandler(profile_callback, pattern="^profile:"))
     application.add_handler(MessageHandler(filters.VOICE, voice))
@@ -345,6 +356,7 @@ REGISTERED_COMMANDS = (
     "pause",
     "report_graph",
     "report_ux",
+    "admin_annotate_gaps",
 )
 VISIBLE_COMMANDS = ("start", "cancel", "help")
 REPORT_REPLY_LIMIT = 3800
@@ -466,6 +478,48 @@ async def _handle_report_graph_after_admin(update, settings: Settings, tone) -> 
             report_ready=summary["report_ready"],
             payload_eligible=summary["payload_eligible"],
         ),
+    )
+
+
+async def _handle_admin_annotate_gaps_after_admin(
+    update, settings: Settings, tone
+) -> None:
+    try:
+        summary = produce_annotation_run(
+            settings.episode_dir,
+            settings.annotation_run_root,
+            only_missing=True,
+            annotation_run_dir=getattr(settings, "annotation_run_dir", None),
+            annotation_run_root=getattr(settings, "annotation_run_root", None),
+            write=False,
+        )
+        if summary.row_count:
+            summary = produce_annotation_run(
+                settings.episode_dir,
+                settings.annotation_run_root,
+                run_id=summary.run_id,
+                only_missing=True,
+                annotation_run_dir=getattr(settings, "annotation_run_dir", None),
+                annotation_run_root=getattr(settings, "annotation_run_root", None),
+                write=True,
+            )
+    except Exception as exc:  # pragma: no cover - exact failures depend on data files
+        await _reply_text(update, tone.report_failed(exc))
+        return
+
+    await _reply_text(update, _admin_annotate_gaps_summary(summary), parse_mode=None)
+
+
+def _admin_annotate_gaps_summary(summary) -> str:
+    return (
+        "Аннотации обновлены\n"
+        f"episodes: {summary.episode_count}\n"
+        f"new_annotations: {summary.row_count}\n"
+        f"coverage: {summary.annotated_before}/{summary.episode_count} -> "
+        f"{summary.annotated_after}/{summary.episode_count} "
+        f"({summary.coverage_after})\n"
+        f"pending: {summary.pending_after}\n"
+        f"run: {summary.run_id}"
     )
 
 
