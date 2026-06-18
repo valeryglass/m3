@@ -10,6 +10,7 @@ from app.config import (
     load_settings,
     owner_chat_id_for_settings,
 )
+from app.audio_flow_store import AudioFlowStore
 from app.analytics_loader import annotation_coverage_for_episode_ids
 from app.graph_report import build_report, load_episodes
 from app.telegram_media import (
@@ -74,6 +75,7 @@ def main() -> None:
     settings = load_settings()
     storage = JsonStorage(settings.episode_dir)
     session_store = LoopSessionStore(settings.runtime_session_dir)
+    audio_flow_store = AudioFlowStore(settings.runtime_flow_dir)
     userlist = JsonUserList(settings.userlist_path)
     ux_events = UxEventLog(settings.ux_event_log)
     tone = load_tone_engine(settings.tone_config)
@@ -98,7 +100,13 @@ def main() -> None:
             update, settings, tone, ux_events, userlist, context.bot
         ):
             return
-        await _handle_start_after_authorized(update, session_store, ux_events, tone)
+        await _handle_start_after_authorized(
+            update,
+            session_store,
+            ux_events,
+            tone,
+            audio_flow_store=audio_flow_store,
+        )
 
     async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
@@ -143,7 +151,12 @@ def main() -> None:
         ):
             return
         await _handle_cancel_after_authorized(
-            update, session_store, ux_events, settings, tone
+            update,
+            session_store,
+            ux_events,
+            settings,
+            tone,
+            audio_flow_store=audio_flow_store,
         )
 
     async def capture(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -164,6 +177,20 @@ def main() -> None:
             update, session_store, ux_events, settings, tone
         )
 
+    async def voice_command(
+        update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
+            return
+        await _handle_voice_command_after_authorized(
+            update,
+            session_store,
+            audio_flow_store,
+            settings,
+        )
+
     async def voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
             update, settings, tone, ux_events, userlist, context.bot
@@ -177,6 +204,7 @@ def main() -> None:
             bot=context.bot,
             settings=settings,
             transcription_provider=transcription_provider,
+            audio_flow_store=audio_flow_store,
         )
 
     async def audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -192,6 +220,7 @@ def main() -> None:
             bot=context.bot,
             settings=settings,
             transcription_provider=transcription_provider,
+            audio_flow_store=audio_flow_store,
         )
 
     async def document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -207,6 +236,7 @@ def main() -> None:
             bot=context.bot,
             settings=settings,
             transcription_provider=transcription_provider,
+            audio_flow_store=audio_flow_store,
         )
 
     async def message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -215,7 +245,12 @@ def main() -> None:
         ):
             return
         await _handle_message_after_authorized(
-            update, session_store, ux_events, settings, tone
+            update,
+            session_store,
+            ux_events,
+            settings,
+            tone,
+            audio_flow_store=audio_flow_store,
         )
 
     async def episode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -283,6 +318,7 @@ def main() -> None:
     application.add_handler(CommandHandler("profile", profile))
     application.add_handler(CommandHandler("capture", capture))
     application.add_handler(CommandHandler("capture3", capture3))
+    application.add_handler(CommandHandler("voice", voice_command))
     application.add_handler(CommandHandler("approve", approve))
     application.add_handler(CommandHandler("pause", pause))
     application.add_handler(CommandHandler("report_graph", report_graph))
@@ -304,6 +340,7 @@ REGISTERED_COMMANDS = (
     "profile",
     "capture",
     "capture3",
+    "voice",
     "approve",
     "pause",
     "report_graph",
@@ -454,10 +491,27 @@ async def _handle_start_after_authorized(
     session_store: LoopSessionStore,
     ux_events: UxEventLog,
     tone,
+    *,
+    audio_flow_store: AudioFlowStore | None = None,
 ) -> None:
     chat_id = update.effective_chat.id
     now = utc_now()
     session = session_store.load_session(chat_id)
+    audio_flow = (
+        audio_flow_store.load_flow(chat_id, now=now)
+        if audio_flow_store is not None
+        else None
+    )
+    decision = route_user_input(
+        has_classic_session=session is not None,
+        has_audio_flow=audio_flow is not None,
+        input_kind=InputKind.START,
+    )
+    if decision is RouteDecision.REQUIRE_CANCEL:
+        await _reply_text(update, _cancel_active_flow_first())
+        return
+    if decision is not RouteDecision.START_CLASSIC_10Q:
+        raise RuntimeError(f"Unsupported start route decision: {decision}")
     if session is not None and session.session_id is not None:
         ux_events.append(
             _session_cancelled_event(
@@ -483,19 +537,29 @@ async def _handle_cancel_after_authorized(
     ux_events: UxEventLog,
     settings: Settings,
     tone,
+    *,
+    audio_flow_store: AudioFlowStore | None = None,
 ) -> None:
     chat_id = update.effective_chat.id
     now = utc_now()
     session = session_store.load_session(chat_id)
-    if _expire_initial_session_if_stale(
+    audio_flow = (
+        audio_flow_store.load_flow(chat_id, now=now)
+        if audio_flow_store is not None
+        else None
+    )
+    session_expired = _expire_initial_session_if_stale(
         session_store, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
-    ):
+    )
+    if session_expired:
+        session = None
+    if session_expired and audio_flow is None:
         await _reply_text(update, _expired_initial_session_text(tone))
         return
-    if session is None:
+    if session is None and audio_flow is None:
         await _reply_text(update, tone.no_active_loop())
         return
-    if session.session_id is not None:
+    if session is not None and session.session_id is not None:
         ux_events.append(
             _session_cancelled_event(
                 session,
@@ -503,8 +567,43 @@ async def _handle_cancel_after_authorized(
                 now=now,
             )
         )
-    session_store.delete_session(chat_id)
+    if session is not None:
+        session_store.delete_session(chat_id)
+    if audio_flow_store is not None:
+        audio_flow_store.delete_flow(chat_id)
     await _reply_text(update, tone.cancel())
+
+
+async def _handle_voice_command_after_authorized(
+    update,
+    session_store: LoopSessionStore,
+    audio_flow_store: AudioFlowStore,
+    settings: Settings,
+) -> None:
+    chat_id = update.effective_chat.id
+    now = utc_now()
+    session = session_store.load_session(chat_id)
+    audio_flow = audio_flow_store.load_flow(chat_id, now=now)
+    decision = route_user_input(
+        has_classic_session=session is not None,
+        has_audio_flow=audio_flow is not None,
+        input_kind=InputKind.VOICE_COMMAND,
+    )
+    if decision is RouteDecision.REQUIRE_CANCEL:
+        await _reply_text(update, _cancel_active_flow_first())
+        return
+    if decision is RouteDecision.AUDIO_ONE_TAKE_EXPECTS_MEDIA:
+        await _reply_text(update, _audio_media_guidance())
+        return
+    if decision is not RouteDecision.ARM_AUDIO_ONE_TAKE:
+        raise RuntimeError(f"Unsupported voice route decision: {decision}")
+
+    audio_flow_store.arm_flow(
+        chat_id,
+        now=now,
+        ttl_sec=settings.initial_session_ttl_sec,
+    )
+    await _reply_text(update, _audio_media_guidance())
 
 
 async def _start_text_capture_session(
@@ -755,12 +854,14 @@ async def _handle_voice_after_authorized(
     bot=None,
     settings=None,
     transcription_provider=None,
+    audio_flow_store: AudioFlowStore | None = None,
 ) -> None:
     if await _reject_unrouted_media_input(
         update,
         session_store,
         ux_events,
         tone,
+        audio_flow_store=audio_flow_store,
         funnel="voice",
         media_kind="voice",
     ):
@@ -793,13 +894,12 @@ async def _handle_voice_after_authorized(
         await _reply_text(
             update,
             "Голос получил, но расшифровка еще не подключена. "
-            "Пока пришли этот эпизод текстом.",
+            f"{_audio_retry_guidance()}",
         )
         return
 
     await _transcribe_media_artifact_or_reply(
         update,
-        session_store,
         ux_events,
         tone,
         bot=bot,
@@ -807,6 +907,7 @@ async def _handle_voice_after_authorized(
         transcription_provider=transcription_provider,
         artifact=artifact,
         funnel="voice",
+        audio_flow_store=audio_flow_store,
     )
 
 
@@ -819,12 +920,14 @@ async def _handle_audio_after_authorized(
     bot=None,
     settings=None,
     transcription_provider=None,
+    audio_flow_store: AudioFlowStore | None = None,
 ) -> None:
     if await _reject_unrouted_media_input(
         update,
         session_store,
         ux_events,
         tone,
+        audio_flow_store=audio_flow_store,
         funnel="audio",
         media_kind="audio",
     ):
@@ -859,7 +962,6 @@ async def _handle_audio_after_authorized(
 
     await _transcribe_media_artifact_or_reply(
         update,
-        session_store,
         ux_events,
         tone,
         bot=bot,
@@ -867,6 +969,7 @@ async def _handle_audio_after_authorized(
         transcription_provider=transcription_provider,
         artifact=artifact,
         funnel="audio",
+        audio_flow_store=audio_flow_store,
     )
 
 
@@ -879,12 +982,14 @@ async def _handle_document_after_authorized(
     bot=None,
     settings=None,
     transcription_provider=None,
+    audio_flow_store: AudioFlowStore | None = None,
 ) -> None:
     if await _reject_unrouted_media_input(
         update,
         session_store,
         ux_events,
         tone,
+        audio_flow_store=audio_flow_store,
         funnel="audio_document",
         media_kind="document",
     ):
@@ -900,7 +1005,7 @@ async def _handle_document_after_authorized(
             media_kind="document",
             reject_reason="unsupported_document",
         )
-        await _reply_text(update, "Поддерживаю только аудиофайлы")
+        await _reply_text(update, _audio_media_guidance())
         return
 
     _log_media_funnel_event(
@@ -923,7 +1028,6 @@ async def _handle_document_after_authorized(
 
     await _transcribe_media_artifact_or_reply(
         update,
-        session_store,
         ux_events,
         tone,
         bot=bot,
@@ -931,6 +1035,7 @@ async def _handle_document_after_authorized(
         transcription_provider=transcription_provider,
         artifact=artifact,
         funnel="audio_document",
+        audio_flow_store=audio_flow_store,
     )
 
 
@@ -940,6 +1045,8 @@ async def _handle_message_after_authorized(
     ux_events: UxEventLog,
     settings: Settings,
     tone,
+    *,
+    audio_flow_store: AudioFlowStore | None = None,
 ) -> None:
     chat_id = update.effective_chat.id
     session = session_store.load_session(chat_id)
@@ -949,11 +1056,31 @@ async def _handle_message_after_authorized(
     ):
         await _reply_text(update, _expired_initial_session_text(tone))
         return
+    audio_flow = (
+        audio_flow_store.load_flow(chat_id, now=now)
+        if audio_flow_store is not None
+        else None
+    )
     decision = route_user_input(
         has_classic_session=session is not None,
-        has_audio_flow=False,
+        has_audio_flow=audio_flow is not None,
         input_kind=InputKind.TEXT,
     )
+    if decision is RouteDecision.AUDIO_ONE_TAKE_EXPECTS_MEDIA:
+        ux_events.append(
+            telegram_event(
+                "input_rejected",
+                _telegram_update_user_id(update),
+                created_at=now,
+                chat_id=chat_id,
+                message_kind="text",
+                funnel="audio_one_take",
+                media_kind="text",
+                reject_reason="audio_flow_expects_media",
+            )
+        )
+        await _reply_text(update, _audio_media_guidance())
+        return
     if decision is RouteDecision.SHOW_START_GUIDANCE:
         ux_events.append(
             telegram_event(
@@ -1406,12 +1533,20 @@ def _is_initial_capture_step(session) -> bool:
     )
 
 
-def _media_should_start_audio_draft(session) -> bool:
-    return session is None or _is_initial_capture_step(session)
-
-
 def _current_question_requires_text() -> str:
     return "Ответь, пожалуйста, текстом на текущий вопрос."
+
+
+def _cancel_active_flow_first() -> str:
+    return "Сначала отправь /cancel, чтобы завершить активный сценарий."
+
+
+def _audio_media_guidance() -> str:
+    return "Пришли голосовое сообщение или аудиофайл. Чтобы выйти, отправь /cancel."
+
+
+def _audio_retry_guidance() -> str:
+    return "Попробуй другое голосовое или аудио либо отправь /cancel."
 
 
 async def _reject_unrouted_media_input(
@@ -1420,13 +1555,19 @@ async def _reject_unrouted_media_input(
     ux_events: UxEventLog,
     tone,
     *,
+    audio_flow_store: AudioFlowStore | None,
     funnel: str,
     media_kind: str,
 ) -> bool:
+    chat_id = update.effective_chat.id
+    audio_flow = (
+        audio_flow_store.load_flow(chat_id, now=utc_now())
+        if audio_flow_store is not None
+        else None
+    )
     decision = route_user_input(
-        has_classic_session=session_store.load_session(update.effective_chat.id)
-        is not None,
-        has_audio_flow=False,
+        has_classic_session=session_store.load_session(chat_id) is not None,
+        has_audio_flow=audio_flow is not None,
         input_kind=InputKind.MEDIA,
     )
     if decision is RouteDecision.SHOW_START_GUIDANCE:
@@ -1435,8 +1576,13 @@ async def _reject_unrouted_media_input(
     elif decision is RouteDecision.SHOW_TEXT_REQUIRED:
         reject_reason = "active_session"
         reply = _current_question_requires_text()
-    else:
+    elif decision is RouteDecision.REQUIRE_CANCEL:
+        reject_reason = "active_flow_requires_cancel"
+        reply = _cancel_active_flow_first()
+    elif decision is RouteDecision.HANDLE_AUDIO_ONE_TAKE_MEDIA:
         return False
+    else:
+        raise RuntimeError(f"Unsupported media route decision: {decision}")
 
     _log_media_funnel_event(
         ux_events,
@@ -1471,7 +1617,6 @@ async def _transcribe_and_attach_in_worker(transcription_provider, artifact, med
 
 async def _transcribe_media_artifact_or_reply(
     update,
-    session_store: LoopSessionStore,
     ux_events: UxEventLog,
     tone,
     *,
@@ -1480,6 +1625,7 @@ async def _transcribe_media_artifact_or_reply(
     transcription_provider,
     artifact,
     funnel: str,
+    audio_flow_store: AudioFlowStore | None,
 ) -> None:
     _log_audio_lifecycle(
         "media_received",
@@ -1489,28 +1635,6 @@ async def _transcribe_media_artifact_or_reply(
         duration_seconds=artifact.duration_seconds,
         file_size=artifact.file_size,
     )
-    existing_session = session_store.load_session(update.effective_chat.id)
-    if not _media_should_start_audio_draft(existing_session):
-        _log_audio_lifecycle(
-            "media_blocked_active_session",
-            update=update,
-            funnel=funnel,
-            media_kind=artifact.media_kind,
-            duration_seconds=artifact.duration_seconds,
-            file_size=artifact.file_size,
-            failure_reason="active_session",
-        )
-        _log_media_funnel_event(
-            ux_events,
-            update,
-            "input_rejected",
-            funnel=funnel,
-            media_kind=artifact.media_kind,
-            reject_reason="active_session",
-        )
-        await _reply_text(update, _current_question_requires_text())
-        return
-
     request = _telegram_media_request_from_artifact(artifact)
     max_duration_sec = getattr(settings, "audio_max_duration_sec", 300)
     max_file_size_bytes = getattr(settings, "audio_max_file_size_bytes", 20 * 1024 * 1024)
@@ -1538,7 +1662,10 @@ async def _transcribe_media_artifact_or_reply(
             media_kind=artifact.media_kind,
             reject_reason=exc.reason,
         )
-        await _reply_text(update, _media_rejected_text(exc.reason))
+        await _reply_text(
+            update,
+            f"{_media_rejected_text(exc.reason)} {_audio_retry_guidance()}",
+        )
         return
 
     await _reply_text(update, _media_processing_ack_text(artifact.media_kind))
@@ -1599,7 +1726,10 @@ async def _transcribe_media_artifact_or_reply(
             media_kind=artifact.media_kind,
             reject_reason=exc.reason,
         )
-        await _reply_text(update, _media_rejected_text(exc.reason))
+        await _reply_text(
+            update,
+            f"{_media_rejected_text(exc.reason)} {_audio_retry_guidance()}",
+        )
         return
     except TelegramMediaDownloadFailed:
         _log_audio_lifecycle(
@@ -1618,7 +1748,10 @@ async def _transcribe_media_artifact_or_reply(
             funnel=funnel,
             media_kind=artifact.media_kind,
         )
-        await _reply_text(update, "Не смог скачать аудио. Пришли текстом или попробуй позже.")
+        await _reply_text(
+            update,
+            f"Не смог скачать аудио. {_audio_retry_guidance()}",
+        )
         return
     except (TranscriptionFailed, TranscriptionUnavailable, ValueError):
         _log_audio_lifecycle(
@@ -1637,7 +1770,10 @@ async def _transcribe_media_artifact_or_reply(
             funnel=funnel,
             media_kind=artifact.media_kind,
         )
-        await _reply_text(update, "Не смог расшифровать аудио. Пришли этот эпизод текстом.")
+        await _reply_text(
+            update,
+            f"Не смог расшифровать аудио. {_audio_retry_guidance()}",
+        )
         return
 
     _log_media_funnel_event(
@@ -1663,7 +1799,10 @@ async def _transcribe_media_artifact_or_reply(
             file_size=artifact.file_size,
             failure_reason="transcript_store_failed",
         )
-        await _reply_text(update, "Не смог сохранить расшифровку. Пришли этот эпизод текстом.")
+        await _reply_text(
+            update,
+            f"Не смог сохранить расшифровку. {_audio_retry_guidance()}",
+        )
         return
 
     _log_audio_lifecycle(
@@ -1674,8 +1813,8 @@ async def _transcribe_media_artifact_or_reply(
         duration_seconds=artifact.duration_seconds,
         file_size=artifact.file_size,
     )
-    if existing_session is not None:
-        session_store.delete_session(update.effective_chat.id)
+    if audio_flow_store is not None:
+        audio_flow_store.delete_flow(update.effective_chat.id)
     await _reply_text(update, _audio_intake_completed_text(artifact_text(transcribed)))
 
 
@@ -1713,10 +1852,10 @@ def _media_processing_ack_text(media_kind: str) -> str:
 
 def _media_rejected_text(reason: str) -> str:
     if reason == "over_duration":
-        return "Слишком длинное аудио. Пришли голос до 3–5 минут или текстом."
+        return "Слишком длинное аудио."
     if reason == "over_size":
-        return "Аудиофайл слишком большой. Пришли короче или текстом."
-    return "Не могу обработать этот аудиофайл. Пришли текстом или другим аудио."
+        return "Аудиофайл слишком большой."
+    return "Не могу обработать этот аудиофайл."
 
 def _log_media_funnel_event(
     ux_events: UxEventLog,
@@ -1744,7 +1883,7 @@ def _log_media_funnel_event(
 def _audio_transcription_pending_text() -> str:
     return (
         "Аудио получил, но расшифровка еще не подключена. "
-        "Пока пришли этот эпизод текстом."
+        f"{_audio_retry_guidance()}"
     )
 
 

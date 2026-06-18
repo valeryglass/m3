@@ -3,12 +3,15 @@ import json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+import pytest
+
 import app.telegram_bot as telegram_bot
+from app.audio_flow_store import AudioFlowStore
 from app.loop_extractor import LoopSession, prompt_for_current_target
 from app.session_store import LoopSessionStore
 from app.storage import JsonStorage
 from app.tone_engine import ToneEngine
-from app.transcription import TranscriptResult
+from app.transcription import TranscriptResult, TranscriptionFailed
 from app.userlist import APPROVED, PAUSED, WAITLISTED, JsonUserList
 from app.input_funnels import voice_input_artifact
 from app.ux_events import UxEventLog, format_utc
@@ -38,6 +41,7 @@ def test_visible_command_menu_excludes_hidden_status():
         "profile",
         "capture",
         "capture3",
+        "voice",
         "approve",
         "pause",
         "report_graph",
@@ -641,6 +645,181 @@ def test_plain_text_without_session_requires_start(tmp_path):
     assert events[0]["media_kind"] == "text"
     assert events[0]["reject_reason"] == "idle_requires_start"
     assert private_text not in json.dumps(events, ensure_ascii=False)
+
+
+def test_voice_command_arms_audio_flow_without_creating_classic_session(
+    tmp_path, monkeypatch
+):
+    now = datetime(2026, 6, 18, 9, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(telegram_bot, "utc_now", lambda: now)
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    message = _FakeMessage("/voice")
+
+    _run(
+        telegram_bot._handle_voice_command_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            audio_flow_store,
+            _settings(),
+        )
+    )
+
+    flow = audio_flow_store.load_flow(123, now=now)
+    assert flow is not None
+    assert flow.created_at == now
+    assert flow.expires_at == now + timedelta(seconds=600)
+    assert session_store.load_session(123) is None
+    assert message.replies == [telegram_bot._audio_media_guidance()]
+
+
+def test_repeated_voice_command_does_not_extend_audio_flow_expiry(
+    tmp_path, monkeypatch
+):
+    armed_at = datetime(2026, 6, 18, 9, 0, tzinfo=timezone.utc)
+    retried_at = armed_at + timedelta(seconds=30)
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    original = audio_flow_store.arm_flow(123, now=armed_at, ttl_sec=600)
+    monkeypatch.setattr(telegram_bot, "utc_now", lambda: retried_at)
+    message = _FakeMessage("/voice")
+
+    _run(
+        telegram_bot._handle_voice_command_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            audio_flow_store,
+            _settings(),
+        )
+    )
+
+    assert audio_flow_store.load_flow(123, now=retried_at) == original
+    assert message.replies == [telegram_bot._audio_media_guidance()]
+
+
+def test_voice_command_during_classic_session_requires_cancel(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    session_store.save_session(_emotion_step_session())
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    message = _FakeMessage("/voice")
+
+    _run(
+        telegram_bot._handle_voice_command_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            audio_flow_store,
+            _settings(),
+        )
+    )
+
+    assert session_store.load_session(123) is not None
+    assert audio_flow_store.load_flow(123) is None
+    assert message.replies == [telegram_bot._cancel_active_flow_first()]
+
+
+def test_start_during_audio_flow_requires_cancel(tmp_path):
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    original = audio_flow_store.arm_flow(123, now=now, ttl_sec=600)
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("/start")
+
+    _run(
+        telegram_bot._handle_start_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            audio_flow_store=audio_flow_store,
+        )
+    )
+
+    assert session_store.load_session(123) is None
+    assert audio_flow_store.load_flow(123) == original
+    assert ux_events.read() == []
+    assert message.replies == [telegram_bot._cancel_active_flow_first()]
+
+
+def test_start_during_classic_session_keeps_explicit_restart_behavior(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    session_store.save_session(_emotion_step_session())
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("/start")
+
+    _run(
+        telegram_bot._handle_start_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            audio_flow_store=audio_flow_store,
+        )
+    )
+
+    loaded = session_store.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == 0
+    assert loaded.observed == {}
+    assert ux_events.read()[0]["cancel_reason"] == "restart"
+
+
+def test_text_during_audio_flow_keeps_flow_armed(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store.arm_flow(
+        123,
+        now=datetime.now(timezone.utc),
+        ttl_sec=600,
+    )
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("private text")
+
+    _run(
+        telegram_bot._handle_message_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+            audio_flow_store=audio_flow_store,
+        )
+    )
+
+    assert audio_flow_store.load_flow(123) is not None
+    assert session_store.load_session(123) is None
+    assert message.replies == [telegram_bot._audio_media_guidance()]
+    events = ux_events.read()
+    assert events[0]["reject_reason"] == "audio_flow_expects_media"
+    assert "private text" not in json.dumps(events)
+
+
+def test_cancel_clears_audio_flow_without_classic_session(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store.arm_flow(
+        123,
+        now=datetime.now(timezone.utc),
+        ttl_sec=600,
+    )
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("/cancel")
+
+    _run(
+        telegram_bot._handle_cancel_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+            audio_flow_store=audio_flow_store,
+        )
+    )
+
+    assert audio_flow_store.load_flow(123) is None
+    assert session_store.load_session(123) is None
+    assert message.replies == [ToneEngine.default().cancel()]
 
 
 def test_capture_command_without_text_does_not_create_session(tmp_path):
@@ -1845,6 +2024,264 @@ class _StaticTranscriptionProvider:
     def transcribe(self, media):
         assert media.path.exists()
         return TranscriptResult("голосовой эпизод", language="ru", provider="fake")
+
+
+class _FailingDownloadBot:
+    async def get_file(self, file_id: str):
+        raise RuntimeError("download failed")
+
+
+class _FailingTranscriptionProvider:
+    _m3_run_inline_for_tests = True
+
+    def transcribe(self, media):
+        raise TranscriptionFailed("transcription failed")
+
+
+@pytest.mark.parametrize(
+    ("handler_name", "message_kwargs"),
+    [
+        (
+            "_handle_voice_after_authorized",
+            {
+                "voice": SimpleNamespace(
+                    file_id="voice-file-id",
+                    duration=9,
+                    mime_type="audio/ogg",
+                    file_size=4096,
+                )
+            },
+        ),
+        (
+            "_handle_audio_after_authorized",
+            {
+                "audio": SimpleNamespace(
+                    file_id="audio-file-id",
+                    duration=33,
+                    mime_type="audio/mpeg",
+                    file_size=8192,
+                    file_name="note.mp3",
+                )
+            },
+        ),
+        (
+            "_handle_document_after_authorized",
+            {
+                "document": SimpleNamespace(
+                    file_id="document-file-id",
+                    mime_type="audio/ogg",
+                    file_size=8192,
+                    file_name="voice.ogg",
+                )
+            },
+        ),
+    ],
+)
+def test_armed_audio_flow_accepts_supported_media_and_completes(
+    tmp_path, handler_name, message_kwargs
+):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    session_store.save_session = lambda session: pytest.fail(
+        "audio intake must not create a LoopSession"
+    )
+    session_store.delete_session = lambda chat_id: pytest.fail(
+        "audio intake must not delete a LoopSession"
+    )
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store.arm_flow(
+        123,
+        now=datetime.now(timezone.utc),
+        ttl_sec=600,
+    )
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("", message_id=42, **message_kwargs)
+    settings = _settings()
+    settings.audio_temp_dir = tmp_path / "audio"
+    settings.intake_transcript_dir = tmp_path / "intake-transcripts"
+    settings.audio_max_duration_sec = 300
+    settings.audio_max_file_size_bytes = 20 * 1024 * 1024
+
+    _run(
+        getattr(telegram_bot, handler_name)(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            bot=_FakeDownloadBot(),
+            settings=settings,
+            transcription_provider=_StaticTranscriptionProvider(),
+            audio_flow_store=audio_flow_store,
+        )
+    )
+
+    assert audio_flow_store.load_flow(123) is None
+    assert session_store.load_session(123) is None
+    transcript_path = (
+        settings.intake_transcript_dir / "telegram-chat-123" / "message-42.json"
+    )
+    assert transcript_path.exists()
+    assert "голосовой эпизод" in transcript_path.read_text(encoding="utf-8")
+    assert message.replies[-1] == telegram_bot._audio_intake_completed_text(
+        "голосовой эпизод"
+    )
+    assert [event["event_type"] for event in ux_events.read()][-1] == (
+        "transcript_created"
+    )
+
+
+def test_unsupported_document_while_audio_armed_keeps_flow(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store.arm_flow(
+        123,
+        now=datetime.now(timezone.utc),
+        ttl_sec=600,
+    )
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage(
+        "",
+        document=SimpleNamespace(
+            file_id="document-file-id",
+            mime_type="application/pdf",
+            file_size=4096,
+            file_name="doc.pdf",
+        ),
+    )
+
+    _run(
+        telegram_bot._handle_document_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            audio_flow_store=audio_flow_store,
+        )
+    )
+
+    assert audio_flow_store.load_flow(123) is not None
+    assert session_store.load_session(123) is None
+    assert message.replies == [telegram_bot._audio_media_guidance()]
+    assert ux_events.read()[0]["reject_reason"] == "unsupported_document"
+
+
+def test_audio_validation_failure_keeps_flow_armed(tmp_path):
+    session_store, audio_flow_store, ux_events, message, settings = (
+        _armed_voice_test_context(tmp_path, duration=301)
+    )
+
+    _run(
+        telegram_bot._handle_voice_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            bot=_FakeDownloadBot(),
+            settings=settings,
+            transcription_provider=_StaticTranscriptionProvider(),
+            audio_flow_store=audio_flow_store,
+        )
+    )
+
+    assert audio_flow_store.load_flow(123) is not None
+    assert ux_events.read()[-1]["reject_reason"] == "over_duration"
+
+
+def test_audio_download_failure_keeps_flow_armed(tmp_path):
+    session_store, audio_flow_store, ux_events, message, settings = (
+        _armed_voice_test_context(tmp_path)
+    )
+
+    _run(
+        telegram_bot._handle_voice_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            bot=_FailingDownloadBot(),
+            settings=settings,
+            transcription_provider=_StaticTranscriptionProvider(),
+            audio_flow_store=audio_flow_store,
+        )
+    )
+
+    assert audio_flow_store.load_flow(123) is not None
+    assert ux_events.read()[-1]["event_type"] == "media_download_failed"
+
+
+def test_audio_transcription_failure_keeps_flow_armed(tmp_path):
+    session_store, audio_flow_store, ux_events, message, settings = (
+        _armed_voice_test_context(tmp_path)
+    )
+
+    _run(
+        telegram_bot._handle_voice_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            bot=_FakeDownloadBot(),
+            settings=settings,
+            transcription_provider=_FailingTranscriptionProvider(),
+            audio_flow_store=audio_flow_store,
+        )
+    )
+
+    assert audio_flow_store.load_flow(123) is not None
+    assert ux_events.read()[-1]["event_type"] == "transcription_failed"
+
+
+def test_audio_storage_failure_keeps_flow_armed(tmp_path, monkeypatch):
+    session_store, audio_flow_store, ux_events, message, settings = (
+        _armed_voice_test_context(tmp_path)
+    )
+
+    def fail_save(*args, **kwargs):
+        raise OSError("storage failed")
+
+    monkeypatch.setattr(telegram_bot, "save_intake_transcript", fail_save)
+    _run(
+        telegram_bot._handle_voice_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            bot=_FakeDownloadBot(),
+            settings=settings,
+            transcription_provider=_StaticTranscriptionProvider(),
+            audio_flow_store=audio_flow_store,
+        )
+    )
+
+    assert audio_flow_store.load_flow(123) is not None
+    assert session_store.load_session(123) is None
+    assert "Не смог сохранить расшифровку" in message.replies[-1]
+
+
+def _armed_voice_test_context(tmp_path, *, duration=9):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store.arm_flow(
+        123,
+        now=datetime.now(timezone.utc),
+        ttl_sec=600,
+    )
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage(
+        "",
+        message_id=42,
+        voice=SimpleNamespace(
+            file_id="voice-file-id",
+            duration=duration,
+            mime_type="audio/ogg",
+            file_size=4096,
+        ),
+    )
+    settings = _settings()
+    settings.audio_temp_dir = tmp_path / "audio"
+    settings.intake_transcript_dir = tmp_path / "intake-transcripts"
+    settings.audio_max_duration_sec = 300
+    settings.audio_max_file_size_bytes = 20 * 1024 * 1024
+    return session_store, audio_flow_store, ux_events, message, settings
 
 
 def test_idle_voice_with_provider_does_not_download_or_transcribe(tmp_path):
