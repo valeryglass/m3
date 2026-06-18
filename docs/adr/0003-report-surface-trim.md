@@ -14,9 +14,9 @@ CBT analytics/profile and psy-map artifacts.
 
 The report stack had overlapping outputs that repeated the same loop and fork
 metrics without a clear user-facing role. `/profile` now renders friendly text
-directly from `GraphReport`, while map experiments use renderer-neutral map
-payload JSON. Keeping old Markdown payloads in the normal flow made the system
-harder to reason about.
+from deterministic Graph Reporting metrics, while map experiments use
+renderer-neutral map payload JSON. Keeping old Markdown payloads in the normal
+flow made the system harder to reason about.
 
 ## Consequences
 
@@ -24,7 +24,7 @@ Positive:
 
 - fewer report directories to inspect
 - no regular-user path exposes raw technical payload Markdown
-- map payload metrics live in a neutral helper module
+- reusable metrics and their episode-support provenance live in Graph Reporting
 - graph reports stay focused on on-demand readiness and graph debugging
 
 Negative:
@@ -35,6 +35,7 @@ Negative:
 ## Policy
 
 Do not add a generated report surface unless it has a clear consumer. Shared
-pattern metrics should live in neutral helpers, not in one renderer.
+pattern metrics belong to Graph Reporting, not to Telegram delivery or one
+renderer. Counts must be derived from distinct supporting episode IDs.
 Persistent report files are optional debug/export snapshots, not active
 storage.

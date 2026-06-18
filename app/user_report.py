@@ -1,9 +1,17 @@
 from __future__ import annotations
 
-from collections import Counter, defaultdict
+from collections import Counter
 from dataclasses import dataclass
 
 from app.graph_report import GraphReport
+from app.pattern_metrics import (
+    behavior_forks as _metric_behavior_forks,
+    loop_counter as _metric_loop_counter,
+    outcome_pattern_counter as _metric_outcome_pattern_counter,
+    sorted_counter_items as _metric_sorted_counter_items,
+    top_loop as _metric_top_loop,
+    trigger_counter as _metric_trigger_counter,
+)
 
 
 INTERNAL_TERMS = (
@@ -180,11 +188,7 @@ def _stable_scenarios(report: GraphReport) -> list[str]:
 
 
 def _outcome_observations(report: GraphReport) -> list[str]:
-    counter: Counter[tuple[str, str]] = Counter()
-    for sig in report.graph_ready:
-        for behavior in sig.behaviors:
-            for outcome in sig.short_outcomes + sig.long_outcomes:
-                counter[(behavior, outcome)] += 1
+    counter = _metric_outcome_pattern_counter(report)
     items = _sorted_counter_items(counter)[:3]
     if not items:
         return []
@@ -252,35 +256,19 @@ def _summary_observation(
 
 
 def _trigger_counter(report: GraphReport) -> Counter[str]:
-    counter: Counter[str] = Counter()
-    for sig in report.graph_ready:
-        counter.update(sig.triggers)
-    return counter
+    return _metric_trigger_counter(report)
 
 
 def _loop_counter(report: GraphReport) -> Counter[tuple[str, str, str]]:
-    counter: Counter[tuple[str, str, str]] = Counter()
-    for sig in report.graph_ready:
-        for trigger in sig.triggers:
-            for emotion in sig.emotions:
-                for behavior in sig.behaviors:
-                    counter[(trigger, emotion, behavior)] += 1
-    return counter
+    return _metric_loop_counter(report)
 
 
 def _behavior_forks(report: GraphReport) -> dict[tuple[str, str], Counter[str]]:
-    forks: dict[tuple[str, str], Counter[str]] = defaultdict(Counter)
-    for sig in report.graph_ready:
-        for trigger in sig.triggers:
-            for emotion in sig.emotions:
-                for behavior in sig.behaviors:
-                    forks[(trigger, emotion)][behavior] += 1
-    return dict(forks)
+    return _metric_behavior_forks(report)
 
 
 def _top_loop(report: GraphReport) -> tuple[tuple[str, str, str] | None, int]:
-    items = _sorted_counter_items(_loop_counter(report))
-    return items[0] if items else (None, 0)
+    return _metric_top_loop(report)
 
 
 def _top_value(counter: Counter[str]) -> str | None:
@@ -294,7 +282,7 @@ def _top_signature(counter: Counter[tuple[str, ...]]) -> tuple[str, ...] | None:
 
 
 def _sorted_counter_items(counter) -> list[tuple]:
-    return sorted(counter.items(), key=lambda item: (-item[1], str(item[0])))
+    return _metric_sorted_counter_items(counter)
 
 
 def _friendly(value: str) -> str:

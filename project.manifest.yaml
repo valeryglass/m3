@@ -38,7 +38,6 @@ modules:
       - app/audio_flow_store.py
       - app/messages.py
       - app/tone_engine.py
-      - app/user_report.py
       - config/tone.yaml
       - data/runtime-sessions/
       - data/runtime-flows/
@@ -54,7 +53,6 @@ modules:
     capabilities:
       - ten_step_episode_collection
       - tone_controlled_prompts
-      - user_profile_report_rendering
       - private_runtime_session_memory
       - explicit_userflow_routing
       - private_runtime_flow_memory
@@ -250,6 +248,8 @@ modules:
     purpose: Build on-demand graph views and optional Markdown debug exports from hydrated episodes.
     owned_paths:
       - app/graph_report.py
+      - app/pattern_metrics.py
+      - app/user_report.py
       - model/graph.md
     inputs:
       - hydrated graph-ready episodes
@@ -263,13 +263,14 @@ modules:
       - graph_readiness_summary
       - signature_counts
       - source_split_reports
+      - deterministic_pattern_metrics
+      - user_profile_report_rendering
 
   pattern_payloads:
     stage: experimental
     enabled: true
     purpose: Produce renderer-neutral pattern payloads from report-ready episodes.
     owned_paths:
-      - app/pattern_metrics.py
       - app/map_payload.py
       - app/map_topology.py
       - app/map_grid.py

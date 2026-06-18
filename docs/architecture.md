@@ -85,7 +85,8 @@ episode and does not enter episode storage or graph/report analytics.
   logic and explicit annotation-run writing.
 - Annotation Runs owns versioned selected derived annotations and readiness
   gates.
-- Graph Reporting owns computed graph views and core graph quality reports.
+- Graph Reporting owns computed graph views, deterministic pattern metrics,
+  and user-facing report composition.
 - Pattern Payloads owns renderer-neutral map payloads built from report-ready
   graph signatures.
 - UX Analytics owns append-only loop event logs and aggregate UX views.

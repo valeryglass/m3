@@ -19,8 +19,8 @@ This module keeps machine payloads separate from user-facing report text.
 ## Dependencies
 
 - Graph Reporting for derived episode signatures.
-- Shared pattern metrics for loops, forks, recurrence, novelty, rarity, and
-  surprise markers.
+- Graph Reporting for shared pattern metrics with episode-level support
+  provenance.
 - Readiness gates for report inclusion.
 
 ## Interfaces

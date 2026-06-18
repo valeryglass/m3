@@ -30,7 +30,8 @@ Hydration, but audio intake ends at an `IntakeTranscript` source artifact.
 ## Dependencies
 
 - Episode Model + Storage for validation and persistence.
-- Graph Reporting for user-facing `/profile` summaries over processed episodes.
+- Graph Reporting for user-facing `/profile` projections over processed
+  episodes.
 - Userlist / Access for approved-user checks.
 - UX Analytics for loop event logging.
 
@@ -56,6 +57,7 @@ are not included in Telegram question messages.
 Episode files are observed source artifacts. Telegram capture does not persist
 top-level `derived` or `current_derived`.
 
-`/profile` renders a plain-language summary and details view from graph report
-data for the current Telegram chat. Regular users should not receive raw
-technical payload Markdown through this command.
+`/profile` requests a plain-language summary and details projection from Graph
+Reporting for the current Telegram chat. Telegram Capture owns command
+delivery, not report analytics or composition. Regular users should not
+receive raw technical payload Markdown through this command.
