@@ -42,6 +42,11 @@ sets for report and payload consumers. `app.user_report` composes those facts
 into cautious user-facing observations; it does not generate new annotations
 or diagnostic interpretations.
 
+The detailed user report prioritizes supported choice points,
+counterexamples, contrasts, and horizon-specific outcomes before repeated
+scenario summaries. These remain facts about the current sample, not stable
+traits.
+
 `app.graph_report` without `--output-dir` prints Markdown only and must not
 write report files. Markdown export happens only when `--output-dir` is
 explicitly passed.

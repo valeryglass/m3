@@ -83,12 +83,9 @@ def render_summary(report: GraphReport) -> str:
     coverage_note = _coverage_note(report)
     if coverage_note:
         lines.append(coverage_note)
-    if trigger:
-        lines.append(f"Основной контекст: {_friendly(trigger)}.")
-    if emotion:
-        lines.append(f"Частая эмоция: {_friendly_join(emotion)}.")
-    if behavior:
-        lines.append(f"Частая реакция: {_friendly_join(behavior)}.")
+    background = _sample_background(trigger, emotion, behavior)
+    if background:
+        lines.append(background)
     if loop:
         lines.append(
             "Повторяющийся сценарий: "
@@ -107,8 +104,8 @@ def render_details(report: GraphReport) -> str:
         _main_fork(report),
         _counterexample_observation(report),
         _contrast_observation(report),
-        _stable_scenarios(report),
         _outcome_observations(report),
+        _stable_scenarios(report),
         _what_to_notice(report),
         _reflection_questions(report),
         _conclusion(report),
@@ -244,17 +241,12 @@ def _contrast_observation(report: GraphReport) -> list[str]:
 
 
 def _what_to_notice(report: GraphReport) -> list[str]:
-    trigger = _top_value(_trigger_counter(report))
-    emotion = _top_signature(report.emotion_signatures)
-    behavior = _top_signature(report.behavior_signatures)
-    if not (trigger and emotion and behavior):
+    if not report.graph_ready:
         return []
     return [
         "Что заметить",
-        "- чаще всего отдельно встречаются: "
-        f"{_friendly(trigger)}, {_friendly_join(emotion)}, {_friendly_join(behavior)}",
-        "- может быть полезно понаблюдать, совпадает ли это с главным "
-        "повторяющимся сценарием.",
+        "- полезнее смотреть на развилки и итоги, а не только на частые слова.",
+        "- повторяющийся сценарий показывает форму, развилка — место выбора.",
     ]
 
 
@@ -280,6 +272,23 @@ def _conclusion(report: GraphReport) -> list[str]:
         "похоже, сейчас полезнее всего смотреть не на один эпизод, "
         "а на повторяющиеся связки ситуации, эмоции и реакции.",
     ]
+
+
+def _sample_background(
+    trigger: str | None,
+    emotion: tuple[str, ...] | None,
+    behavior: tuple[str, ...] | None,
+) -> str:
+    parts = []
+    if trigger:
+        parts.append(_friendly(trigger))
+    if emotion:
+        parts.append(_friendly_join(emotion))
+    if behavior:
+        parts.append(_friendly_join(behavior))
+    if not parts:
+        return ""
+    return "Фон выборки: " + "; ".join(parts) + "."
 
 
 def _summary_observation(

@@ -33,9 +33,10 @@ def test_summary_renders_from_minimal_valid_report():
 
     assert text.startswith("Короткий отчет")
     assert "В выборке: 3 эпизода." in text
-    assert "контакт с людьми" in text
-    assert "страх" in text
-    assert "дистанцироваться" in text
+    assert "Фон выборки: контакт с людьми; страх; дистанцироваться." in text
+    assert "Основной контекст" not in text
+    assert "Частая эмоция" not in text
+    assert "Частая реакция" not in text
     assert "контакт с людьми -> страх -> дистанцироваться" in text
     assert "в этих данных видно" in text
     assert "Может быть полезно понаблюдать" in text
@@ -200,6 +201,24 @@ def test_outcome_observations_show_horizon_specific_support_ratio():
     assert "Наблюдаемые итоги" in text
     assert "сразу: дистанцироваться -> облегчение: 2 из 3 случаев" in text
     assert "сразу: дистанцироваться -> опыт/понимание: 1 из 3 случаев" in text
+
+
+def test_details_prioritize_choices_and_outcomes_before_stable_scenarios():
+    report = build_report(
+        [
+            _load_episode(_episode("episode-20260430-1", behavior_type="avoid")),
+            _load_episode(_episode("episode-20260430-2", behavior_type="avoid")),
+            _load_episode(_episode("episode-20260430-3", behavior_type="avoid")),
+            _load_episode(_episode("episode-20260430-4", behavior_type="approach")),
+        ]
+    )
+
+    text = render_details(report)
+
+    assert text.index("Развилка реакций") < text.index("Менее частый вариант")
+    assert text.index("Менее частый вариант") < text.index("Наблюдаемые итоги")
+    assert text.index("Наблюдаемые итоги") < text.index("Устойчивые сценарии")
+    assert "полезнее смотреть на развилки и итоги" in text
 
 
 def _load_episode(data):
