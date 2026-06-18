@@ -186,6 +186,22 @@ def test_details_surface_supported_motif_contrast():
     assert "контакт с людьми -> страх -> дистанцироваться (2)" in text
 
 
+def test_outcome_observations_show_horizon_specific_support_ratio():
+    report = build_report(
+        [
+            _load_episode(_episode("episode-20260430-1", outcome_type="relief")),
+            _load_episode(_episode("episode-20260430-2", outcome_type="relief")),
+            _load_episode(_episode("episode-20260430-3", outcome_type="learning")),
+        ]
+    )
+
+    text = render_details(report)
+
+    assert "Наблюдаемые итоги" in text
+    assert "сразу: дистанцироваться -> облегчение: 2 из 3 случаев" in text
+    assert "сразу: дистанцироваться -> опыт/понимание: 1 из 3 случаев" in text
+
+
 def _load_episode(data):
     return Episode.model_validate(data)
 

@@ -154,6 +154,33 @@ def outcome_pattern_counter(report: GraphReport) -> Counter[tuple[str, str]]:
     )
 
 
+def outcome_support_counter(
+    report: GraphReport,
+) -> Counter[tuple[str, str, str]]:
+    return Counter(
+        {
+            pattern: len(episode_ids)
+            for pattern, episode_ids in outcome_episode_ids(report).items()
+        }
+    )
+
+
+def outcome_totals_by_behavior_horizon(
+    report: GraphReport,
+) -> Counter[tuple[str, str]]:
+    support: defaultdict[tuple[str, str], set[str]] = defaultdict(set)
+    for (behavior, horizon, _outcome), episode_ids in outcome_episode_ids(
+        report
+    ).items():
+        support[(behavior, horizon)].update(episode_ids)
+    return Counter(
+        {
+            pattern: len(episode_ids)
+            for pattern, episode_ids in support.items()
+        }
+    )
+
+
 def top_loop(report: GraphReport) -> tuple[tuple[str, str, str] | None, int]:
     items = sorted_counter_items(loop_counter(report))
     return items[0] if items else (None, 0)

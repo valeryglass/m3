@@ -11,6 +11,8 @@ from app.pattern_metrics import (
     loop_episode_ids,
     outcome_episode_ids,
     outcome_pattern_counter,
+    outcome_support_counter,
+    outcome_totals_by_behavior_horizon,
     sorted_counter_items,
     top_loop,
     trigger_counter,
@@ -209,6 +211,71 @@ def test_contrast_ignores_unsupported_side():
     )
 
     assert contrast_candidates(report) == ()
+
+
+def test_outcome_support_is_distinct_and_split_by_horizon():
+    report = _report(
+        _signature(
+            "episode-20260601-1",
+            triggers=("social",),
+            emotions=("fear",),
+            behaviors=("avoid",),
+            short_outcomes=("relief",),
+            long_outcomes=("unresolved",),
+        ),
+        _signature(
+            "episode-20260602-1",
+            triggers=("social",),
+            emotions=("fear",),
+            behaviors=("avoid",),
+            short_outcomes=("relief", "learning"),
+            long_outcomes=(),
+        ),
+        _signature(
+            "episode-20260603-1",
+            triggers=("social",),
+            emotions=("fear",),
+            behaviors=("avoid",),
+            short_outcomes=(),
+            long_outcomes=("unresolved",),
+        ),
+    )
+
+    assert outcome_support_counter(report) == Counter(
+        {
+            ("avoid", "short_term", "relief"): 2,
+            ("avoid", "long_term", "unresolved"): 2,
+            ("avoid", "short_term", "learning"): 1,
+        }
+    )
+    assert outcome_totals_by_behavior_horizon(report) == Counter(
+        {
+            ("avoid", "short_term"): 2,
+            ("avoid", "long_term"): 2,
+        }
+    )
+
+
+def test_missing_horizon_outcome_does_not_enter_denominator():
+    report = _report(
+        _signature(
+            "episode-20260601-1",
+            triggers=("social",),
+            emotions=("fear",),
+            behaviors=("avoid",),
+            short_outcomes=("relief",),
+        ),
+        _signature(
+            "episode-20260602-1",
+            triggers=("social",),
+            emotions=("fear",),
+            behaviors=("avoid",),
+        ),
+    )
+
+    assert outcome_totals_by_behavior_horizon(report) == Counter(
+        {("avoid", "short_term"): 1}
+    )
 
 
 def _report(*signatures: EpisodeSignature) -> GraphReport:

@@ -7,7 +7,8 @@ from app.graph_report import GraphReport
 from app.pattern_metrics import (
     behavior_forks as _metric_behavior_forks,
     loop_counter as _metric_loop_counter,
-    outcome_pattern_counter as _metric_outcome_pattern_counter,
+    outcome_support_counter as _metric_outcome_support_counter,
+    outcome_totals_by_behavior_horizon as _metric_outcome_totals,
     sorted_counter_items as _metric_sorted_counter_items,
     top_contrast as _metric_top_contrast,
     top_counterexample as _metric_top_counterexample,
@@ -47,6 +48,11 @@ FRIENDLY_LABELS = {
     "control": "больше контроля",
     "connection": "контакт/связь",
     "avoidance_cost": "цена дистанции",
+}
+
+OUTCOME_HORIZON_LABELS = {
+    "short_term": "сразу",
+    "long_term": "позже",
 }
 
 
@@ -206,14 +212,17 @@ def _counterexample_observation(report: GraphReport) -> list[str]:
 
 
 def _outcome_observations(report: GraphReport) -> list[str]:
-    counter = _metric_outcome_pattern_counter(report)
+    counter = _metric_outcome_support_counter(report)
+    totals = _metric_outcome_totals(report)
     items = _sorted_counter_items(counter)[:3]
     if not items:
         return []
     lines = ["Наблюдаемые итоги"]
     lines.extend(
-        f"- {_friendly(behavior)} -> {_friendly(outcome)}: {_episode_count(count)}"
-        for (behavior, outcome), count in items
+        f"- {OUTCOME_HORIZON_LABELS[horizon]}: "
+        f"{_friendly(behavior)} -> {_friendly(outcome)}: "
+        f"{count} из {_case_count(totals[(behavior, horizon)])}"
+        for (behavior, horizon, outcome), count in items
     )
     return lines
 
@@ -339,6 +348,10 @@ def _format_pair(pair: tuple[str, str]) -> str:
 
 def _episode_count(count: int) -> str:
     return f"{count} {_plural_ru(count, 'эпизод', 'эпизода', 'эпизодов')}"
+
+
+def _case_count(count: int) -> str:
+    return f"{count} {_plural_ru(count, 'случая', 'случаев', 'случаев')}"
 
 
 def _coverage_note(report: GraphReport) -> str:
