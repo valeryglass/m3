@@ -620,11 +620,11 @@ def test_admin_decision_requires_chat_id(tmp_path):
     assert message.replies == ["Используй /approve &lt;chat_id&gt;"]
 
 
-def test_plain_text_without_session_starts_one_take_text_capture(tmp_path):
-    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+def test_plain_text_without_session_requires_start(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    message = _FakeMessage("коллега резко ответил в чате")
+    private_text = "коллега резко ответил в чате"
+    message = _FakeMessage(private_text)
     update = _fake_update(123, message)
 
     _run(
@@ -633,30 +633,14 @@ def test_plain_text_without_session_starts_one_take_text_capture(tmp_path):
         )
     )
 
-    loaded = session_store.load_session(123)
-    assert loaded is not None
-    assert loaded.target_index == 1
-    assert loaded.observed == {
-        "situation": {
-            "value": "коллега резко ответил в чате",
-            "source_quote": "коллега резко ответил в чате",
-        }
-    }
-    assert message.replies == [
-        f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
-    ]
+    assert session_store.load_session(123) is None
+    assert message.replies == [ToneEngine.default().no_active_loop_start()]
     events = ux_events.read()
-    assert [event["event_type"] for event in events] == [
-        "input_received",
-        "draft_created",
-        "session_started",
-        "step_answered",
-        "step_prompted",
-        "gap_question_asked",
-    ]
+    assert [event["event_type"] for event in events] == ["input_rejected"]
     assert events[0]["funnel"] == "one_take_text"
     assert events[0]["media_kind"] == "text"
-    assert events[1]["draft_fields"] == 1
+    assert events[0]["reject_reason"] == "idle_requires_start"
+    assert private_text not in json.dumps(events, ensure_ascii=False)
 
 
 def test_capture_command_without_text_does_not_create_session(tmp_path):
@@ -872,7 +856,7 @@ def test_voice_input_artifact_from_update_preserves_telegram_metadata():
     }
 
 
-def test_voice_message_requires_transcription_before_session_creation(tmp_path):
+def test_idle_voice_requires_start_without_transcription(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage(
@@ -896,17 +880,12 @@ def test_voice_message_requires_transcription_before_session_creation(tmp_path):
     )
 
     assert session_store.load_session(123) is None
-    assert message.replies == [
-        "Голос получил, но расшифровка еще не подключена. "
-        "Пока пришли этот эпизод текстом."
-    ]
+    assert message.replies == [ToneEngine.default().no_active_loop_start()]
     events = ux_events.read()
-    assert [event["event_type"] for event in events] == [
-        "input_received",
-        "transcription_pending",
-    ]
+    assert [event["event_type"] for event in events] == ["input_rejected"]
     assert events[0]["funnel"] == "voice"
     assert events[0]["media_kind"] == "voice"
+    assert events[0]["reject_reason"] == "idle_requires_start"
 
 
 def test_transcribed_voice_artifact_can_start_same_draft_session(tmp_path):
@@ -948,7 +927,7 @@ def test_transcribed_voice_artifact_can_start_same_draft_session(tmp_path):
         f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
     ]
 
-def test_voice_message_without_file_id_is_rejected(tmp_path):
+def test_idle_voice_without_file_id_still_requires_start(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage("", voice=SimpleNamespace(file_id=""))
@@ -963,10 +942,10 @@ def test_voice_message_without_file_id_is_rejected(tmp_path):
     )
 
     assert session_store.load_session(123) is None
-    assert message.replies == ["Не смог прочитать голосовое сообщение"]
+    assert message.replies == [ToneEngine.default().no_active_loop_start()]
     events = ux_events.read()
     assert [event["event_type"] for event in events] == ["input_rejected"]
-    assert events[0]["reject_reason"] == "missing_file_id"
+    assert events[0]["reject_reason"] == "idle_requires_start"
 
 
 def test_audio_input_artifact_from_update_preserves_metadata():
@@ -991,7 +970,7 @@ def test_audio_input_artifact_from_update_preserves_metadata():
     assert artifact.source_ref == {"chat_id": 123, "message_kind": "audio"}
 
 
-def test_audio_message_requires_transcription_before_session_creation(tmp_path):
+def test_idle_audio_requires_start_without_transcription(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage(
@@ -1015,17 +994,12 @@ def test_audio_message_requires_transcription_before_session_creation(tmp_path):
     )
 
     assert session_store.load_session(123) is None
-    assert message.replies == [
-        "Аудио получил, но расшифровка еще не подключена. "
-        "Пока пришли этот эпизод текстом."
-    ]
+    assert message.replies == [ToneEngine.default().no_active_loop_start()]
     events = ux_events.read()
-    assert [event["event_type"] for event in events] == [
-        "input_received",
-        "transcription_pending",
-    ]
+    assert [event["event_type"] for event in events] == ["input_rejected"]
     assert events[0]["funnel"] == "audio"
     assert events[0]["media_kind"] == "audio"
+    assert events[0]["reject_reason"] == "idle_requires_start"
 
 
 def test_audio_document_input_artifact_from_update_rejects_non_audio_document():
@@ -1042,7 +1016,7 @@ def test_audio_document_input_artifact_from_update_rejects_non_audio_document():
     ) is None
 
 
-def test_audio_document_message_requires_transcription_before_session_creation(tmp_path):
+def test_idle_audio_document_requires_start_without_transcription(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage(
@@ -1065,20 +1039,15 @@ def test_audio_document_message_requires_transcription_before_session_creation(t
     )
 
     assert session_store.load_session(123) is None
-    assert message.replies == [
-        "Аудио получил, но расшифровка еще не подключена. "
-        "Пока пришли этот эпизод текстом."
-    ]
+    assert message.replies == [ToneEngine.default().no_active_loop_start()]
     events = ux_events.read()
-    assert [event["event_type"] for event in events] == [
-        "input_received",
-        "transcription_pending",
-    ]
+    assert [event["event_type"] for event in events] == ["input_rejected"]
     assert events[0]["funnel"] == "audio_document"
     assert events[0]["media_kind"] == "document"
+    assert events[0]["reject_reason"] == "idle_requires_start"
 
 
-def test_unsupported_document_message_is_rejected(tmp_path):
+def test_idle_unsupported_document_uses_same_start_guidance(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage(
@@ -1101,10 +1070,10 @@ def test_unsupported_document_message_is_rejected(tmp_path):
     )
 
     assert session_store.load_session(123) is None
-    assert message.replies == ["Поддерживаю только аудиофайлы"]
+    assert message.replies == [ToneEngine.default().no_active_loop_start()]
     events = ux_events.read()
     assert [event["event_type"] for event in events] == ["input_rejected"]
-    assert events[0]["reject_reason"] == "unsupported_document"
+    assert events[0]["reject_reason"] == "idle_requires_start"
 
 def test_cancel_without_session_reports_no_active_session(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes")
@@ -1878,7 +1847,7 @@ class _StaticTranscriptionProvider:
         return TranscriptResult("голосовой эпизод", language="ru", provider="fake")
 
 
-def test_voice_message_with_provider_starts_draft_session(tmp_path):
+def test_idle_voice_with_provider_does_not_download_or_transcribe(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage(
@@ -1914,22 +1883,14 @@ def test_voice_message_with_provider_starts_draft_session(tmp_path):
     transcript_path = (
         settings.intake_transcript_dir / "telegram-chat-123" / "message-42.json"
     )
-    assert transcript_path.exists()
-    assert "голосовой эпизод" in transcript_path.read_text(encoding="utf-8")
-    assert "voice-file-id" not in transcript_path.read_text(encoding="utf-8")
-    assert bot.file_ids == ["voice-file-id"]
-    assert [event["event_type"] for event in ux_events.read()] == [
-        "input_received",
-        "transcript_created",
-    ]
-    assert message.replies == [
-        "Голос получил. Беру в расшифровку — когда будет готово, продолжим.",
-        "Готово, расшифровал.\n\n"
-        "Черновик:\n«голосовой эпизод»\n\n"
-        "Аудио-черновик принят. Уточнения пока не включены."
-    ]
+    assert not transcript_path.exists()
+    assert bot.file_ids == []
+    events = ux_events.read()
+    assert [event["event_type"] for event in events] == ["input_rejected"]
+    assert events[0]["reject_reason"] == "idle_requires_start"
+    assert message.replies == [ToneEngine.default().no_active_loop_start()]
 
-def test_voice_message_over_duration_is_rejected_before_transcription(tmp_path):
+def test_idle_voice_is_rejected_before_media_validation(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage(
@@ -1947,28 +1908,28 @@ def test_voice_message_over_duration_is_rejected_before_transcription(tmp_path):
     settings.audio_max_duration_sec = 300
     settings.audio_max_file_size_bytes = 20 * 1024 * 1024
 
+    bot = _FakeDownloadBot()
     _run(
         telegram_bot._handle_voice_after_authorized(
             _fake_update(123, message),
             session_store,
             ux_events,
             ToneEngine.default(),
-            bot=_FakeDownloadBot(),
+            bot=bot,
             settings=settings,
             transcription_provider=_StaticTranscriptionProvider(),
         )
     )
 
     assert session_store.load_session(123) is None
-    assert message.replies == [
-        "Слишком длинное аудио. Пришли голос до 3–5 минут или текстом."
-    ]
+    assert bot.file_ids == []
+    assert message.replies == [ToneEngine.default().no_active_loop_start()]
     events = ux_events.read()
-    assert [event["event_type"] for event in events] == ["input_received", "input_rejected"]
-    assert events[1]["reject_reason"] == "over_duration"
+    assert [event["event_type"] for event in events] == ["input_rejected"]
+    assert events[0]["reject_reason"] == "idle_requires_start"
 
 
-def test_audio_message_with_provider_starts_draft_session(tmp_path):
+def test_idle_audio_with_provider_does_not_download_or_transcribe(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage(
@@ -1987,27 +1948,27 @@ def test_audio_message_with_provider_starts_draft_session(tmp_path):
     settings.audio_max_duration_sec = 300
     settings.audio_max_file_size_bytes = 20 * 1024 * 1024
 
+    bot = _FakeDownloadBot()
     _run(
         telegram_bot._handle_audio_after_authorized(
             _fake_update(123, message),
             session_store,
             ux_events,
             ToneEngine.default(),
-            bot=_FakeDownloadBot(),
+            bot=bot,
             settings=settings,
             transcription_provider=_StaticTranscriptionProvider(),
         )
     )
 
     assert session_store.load_session(123) is None
-    assert message.replies == [
-        "Аудио получил. Беру в расшифровку — когда будет готово, продолжим.",
-        "Готово, расшифровал.\n\n"
-        "Черновик:\n«голосовой эпизод»\n\n"
-        "Аудио-черновик принят. Уточнения пока не включены."
-    ]
+    assert bot.file_ids == []
+    assert message.replies == [ToneEngine.default().no_active_loop_start()]
+    events = ux_events.read()
+    assert [event["event_type"] for event in events] == ["input_rejected"]
+    assert events[0]["reject_reason"] == "idle_requires_start"
 
-def test_audio_document_with_provider_starts_draft_session(tmp_path):
+def test_idle_audio_document_with_provider_does_not_download_or_transcribe(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage(
@@ -2025,25 +1986,25 @@ def test_audio_document_with_provider_starts_draft_session(tmp_path):
     settings.audio_max_duration_sec = 300
     settings.audio_max_file_size_bytes = 20 * 1024 * 1024
 
+    bot = _FakeDownloadBot()
     _run(
         telegram_bot._handle_document_after_authorized(
             _fake_update(123, message),
             session_store,
             ux_events,
             ToneEngine.default(),
-            bot=_FakeDownloadBot(),
+            bot=bot,
             settings=settings,
             transcription_provider=_StaticTranscriptionProvider(),
         )
     )
 
     assert session_store.load_session(123) is None
-    assert message.replies == [
-        "Аудио получил. Беру в расшифровку — когда будет готово, продолжим.",
-        "Готово, расшифровал.\n\n"
-        "Черновик:\n«голосовой эпизод»\n\n"
-        "Аудио-черновик принят. Уточнения пока не включены."
-    ]
+    assert bot.file_ids == []
+    assert message.replies == [ToneEngine.default().no_active_loop_start()]
+    events = ux_events.read()
+    assert [event["event_type"] for event in events] == ["input_rejected"]
+    assert events[0]["reject_reason"] == "idle_requires_start"
 
 def test_voice_during_active_session_asks_for_text_without_transcription(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
@@ -2084,8 +2045,8 @@ def test_voice_during_active_session_asks_for_text_without_transcription(tmp_pat
     assert bot.file_ids == []
     assert message.replies == ["Ответь, пожалуйста, текстом на текущий вопрос."]
     events = ux_events.read()
-    assert [event["event_type"] for event in events] == ["input_received", "input_rejected"]
-    assert events[1]["reject_reason"] == "active_session"
+    assert [event["event_type"] for event in events] == ["input_rejected"]
+    assert events[0]["reject_reason"] == "active_session"
 
 
 def test_audio_during_active_session_asks_for_text_without_transcription(tmp_path):
@@ -2128,11 +2089,50 @@ def test_audio_during_active_session_asks_for_text_without_transcription(tmp_pat
     assert bot.file_ids == []
     assert message.replies == ["Ответь, пожалуйста, текстом на текущий вопрос."]
     events = ux_events.read()
-    assert [event["event_type"] for event in events] == ["input_received", "input_rejected"]
-    assert events[1]["reject_reason"] == "active_session"
+    assert [event["event_type"] for event in events] == ["input_rejected"]
+    assert events[0]["reject_reason"] == "active_session"
 
 
-def test_voice_at_initial_first_step_can_start_audio_draft(tmp_path):
+def test_audio_document_during_active_session_asks_for_text_without_download(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    session = _emotion_step_session()
+    session_store.save_session(session)
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage(
+        "",
+        document=SimpleNamespace(
+            file_id="document-file-id",
+            mime_type="audio/ogg",
+            file_size=8192,
+            file_name="voice.ogg",
+        ),
+    )
+    bot = _FakeDownloadBot()
+
+    _run(
+        telegram_bot._handle_document_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            bot=bot,
+            settings=_settings(),
+            transcription_provider=_StaticTranscriptionProvider(),
+        )
+    )
+
+    loaded = session_store.load_session(123)
+    assert loaded is not None
+    assert loaded.target_index == session.target_index
+    assert loaded.observed == session.observed
+    assert bot.file_ids == []
+    assert message.replies == ["Ответь, пожалуйста, текстом на текущий вопрос."]
+    events = ux_events.read()
+    assert [event["event_type"] for event in events] == ["input_rejected"]
+    assert events[0]["reject_reason"] == "active_session"
+
+
+def test_voice_at_initial_first_step_requires_text(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     session_store.save_session(
         LoopSession(
@@ -2170,16 +2170,17 @@ def test_voice_at_initial_first_step_can_start_audio_draft(tmp_path):
         )
     )
 
-    assert session_store.load_session(123) is None
-    assert bot.file_ids == ["voice-file-id"]
-    assert message.replies == [
-        "Голос получил. Беру в расшифровку — когда будет готово, продолжим.",
-        "Готово, расшифровал.\n\n"
-        "Черновик:\n«голосовой эпизод»\n\n"
-        "Аудио-черновик принят. Уточнения пока не включены."
-    ]
+    loaded = session_store.load_session(123)
+    assert loaded is not None
+    assert loaded.session_id == "initial-session"
+    assert loaded.target_index == 0
+    assert bot.file_ids == []
+    assert message.replies == ["Ответь, пожалуйста, текстом на текущий вопрос."]
+    events = ux_events.read()
+    assert [event["event_type"] for event in events] == ["input_rejected"]
+    assert events[0]["reject_reason"] == "active_session"
 
-def test_audio_lifecycle_logs_are_safe_and_do_not_include_transcript(tmp_path, capsys):
+def test_idle_media_logs_do_not_include_private_content(tmp_path, capsys):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage(
@@ -2196,26 +2197,24 @@ def test_audio_lifecycle_logs_are_safe_and_do_not_include_transcript(tmp_path, c
     settings.audio_max_duration_sec = 300
     settings.audio_max_file_size_bytes = 20 * 1024 * 1024
 
+    bot = _FakeDownloadBot()
     _run(
         telegram_bot._handle_voice_after_authorized(
             _fake_update(123, message),
             session_store,
             ux_events,
             ToneEngine.default(),
-            bot=_FakeDownloadBot(),
+            bot=bot,
             settings=settings,
             transcription_provider=_StaticTranscriptionProvider(),
         )
     )
 
     output = capsys.readouterr().out
-    assert "audio_lifecycle marker=media_received" in output
-    assert "audio_lifecycle marker=media_download_started" in output
-    assert "audio_lifecycle marker=media_download_done" in output
-    assert "audio_lifecycle marker=transcription_started" in output
-    assert "audio_lifecycle marker=transcription_done" in output
-    assert "audio_lifecycle marker=audio_intake_completed" in output
+    assert output == ""
     assert "голосовой эпизод" not in output
+    assert "voice-file-id" not in json.dumps(ux_events.read(), ensure_ascii=False)
+    assert bot.file_ids == []
 
 
 def test_audio_intake_preview_is_capped():

@@ -57,6 +57,7 @@ from app.loop_extractor import (
 from app.session_store import LoopSessionStore
 from app.storage import JsonStorage
 from app.tone_engine import load_tone_engine
+from app.user_flow_router import InputKind, RouteDecision, route_user_input
 from app.userlist import JsonUserList
 from app.ux_events import (
     UxEventLog,
@@ -755,6 +756,16 @@ async def _handle_voice_after_authorized(
     settings=None,
     transcription_provider=None,
 ) -> None:
+    if await _reject_unrouted_media_input(
+        update,
+        session_store,
+        ux_events,
+        tone,
+        funnel="voice",
+        media_kind="voice",
+    ):
+        return
+
     artifact = _voice_input_artifact_from_update(update)
     if artifact is None:
         _log_media_funnel_event(
@@ -809,6 +820,16 @@ async def _handle_audio_after_authorized(
     settings=None,
     transcription_provider=None,
 ) -> None:
+    if await _reject_unrouted_media_input(
+        update,
+        session_store,
+        ux_events,
+        tone,
+        funnel="audio",
+        media_kind="audio",
+    ):
+        return
+
     artifact = _audio_input_artifact_from_update(update)
     if artifact is None:
         _log_media_funnel_event(
@@ -859,6 +880,16 @@ async def _handle_document_after_authorized(
     settings=None,
     transcription_provider=None,
 ) -> None:
+    if await _reject_unrouted_media_input(
+        update,
+        session_store,
+        ux_events,
+        tone,
+        funnel="audio_document",
+        media_kind="document",
+    ):
+        return
+
     artifact = _audio_document_input_artifact_from_update(update)
     if artifact is None:
         _log_media_funnel_event(
@@ -918,21 +949,28 @@ async def _handle_message_after_authorized(
     ):
         await _reply_text(update, _expired_initial_session_text(tone))
         return
-    if session is None:
-        text = (getattr(update.message, "text", "") or "").strip()
-        if not text:
-            await _reply_text(update, tone.no_active_loop_start())
-            return
-        await _start_text_capture_session(
-            update,
-            session_store,
-            ux_events,
-            tone,
-            chat_id=chat_id,
-            text=text,
-            now=now,
+    decision = route_user_input(
+        has_classic_session=session is not None,
+        has_audio_flow=False,
+        input_kind=InputKind.TEXT,
+    )
+    if decision is RouteDecision.SHOW_START_GUIDANCE:
+        ux_events.append(
+            telegram_event(
+                "input_rejected",
+                _telegram_update_user_id(update),
+                created_at=now,
+                chat_id=chat_id,
+                message_kind="text",
+                funnel="one_take_text",
+                media_kind="text",
+                reject_reason="idle_requires_start",
+            )
         )
+        await _reply_text(update, tone.no_active_loop_start())
         return
+    if decision is not RouteDecision.HANDLE_CLASSIC_10Q_TEXT:
+        raise RuntimeError(f"Unsupported text route decision: {decision}")
     if session.awaiting_save_confirmation:
         await _reply_text(
             update,
@@ -1374,6 +1412,42 @@ def _media_should_start_audio_draft(session) -> bool:
 
 def _current_question_requires_text() -> str:
     return "Ответь, пожалуйста, текстом на текущий вопрос."
+
+
+async def _reject_unrouted_media_input(
+    update,
+    session_store: LoopSessionStore,
+    ux_events: UxEventLog,
+    tone,
+    *,
+    funnel: str,
+    media_kind: str,
+) -> bool:
+    decision = route_user_input(
+        has_classic_session=session_store.load_session(update.effective_chat.id)
+        is not None,
+        has_audio_flow=False,
+        input_kind=InputKind.MEDIA,
+    )
+    if decision is RouteDecision.SHOW_START_GUIDANCE:
+        reject_reason = "idle_requires_start"
+        reply = tone.no_active_loop_start()
+    elif decision is RouteDecision.SHOW_TEXT_REQUIRED:
+        reject_reason = "active_session"
+        reply = _current_question_requires_text()
+    else:
+        return False
+
+    _log_media_funnel_event(
+        ux_events,
+        update,
+        "input_rejected",
+        funnel=funnel,
+        media_kind=media_kind,
+        reject_reason=reject_reason,
+    )
+    await _reply_text(update, reply)
+    return True
 
 
 async def _transcribe_and_attach_in_worker(transcription_provider, artifact, media):
