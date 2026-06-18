@@ -9,6 +9,7 @@ from app.pattern_metrics import (
     loop_counter as _metric_loop_counter,
     outcome_pattern_counter as _metric_outcome_pattern_counter,
     sorted_counter_items as _metric_sorted_counter_items,
+    top_counterexample as _metric_top_counterexample,
     top_loop as _metric_top_loop,
     trigger_counter as _metric_trigger_counter,
 )
@@ -97,6 +98,7 @@ def render_details(report: GraphReport) -> str:
         _current_picture(report),
         _repeating_pattern(report),
         _main_fork(report),
+        _counterexample_observation(report),
         _stable_scenarios(report),
         _outcome_observations(report),
         _what_to_notice(report),
@@ -185,6 +187,20 @@ def _stable_scenarios(report: GraphReport) -> list[str]:
         for loop, count in repeated
     )
     return lines
+
+
+def _counterexample_observation(report: GraphReport) -> list[str]:
+    candidate = _metric_top_counterexample(report)
+    if not candidate:
+        return []
+    base = _format_pair(candidate.base)
+    return [
+        "Менее частый вариант",
+        f"- в этой выборке чаще: {base} -> "
+        f"{_friendly(candidate.dominant_behavior)} ({candidate.dominant_count})",
+        f"- реже встречалось: {base} -> "
+        f"{_friendly(candidate.alternative_behavior)} ({candidate.alternative_count})",
+    ]
 
 
 def _outcome_observations(report: GraphReport) -> list[str]:

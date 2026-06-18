@@ -146,6 +146,28 @@ def test_partial_coverage_renders_subtle_user_note():
     assert "episode-20260430-2" not in text
 
 
+def test_details_surface_supported_counterexample_cautiously():
+    report = build_report(
+        [
+            _load_episode(_episode("episode-20260430-1", behavior_type="avoid")),
+            _load_episode(_episode("episode-20260430-2", behavior_type="avoid")),
+            _load_episode(_episode("episode-20260430-3", behavior_type="avoid")),
+            _load_episode(_episode("episode-20260430-4", behavior_type="approach")),
+        ]
+    )
+
+    text = render_details(report)
+
+    assert "Менее частый вариант" in text
+    assert (
+        "в этой выборке чаще: контакт с людьми -> страх -> "
+        "дистанцироваться (3)"
+    ) in text
+    assert (
+        "реже встречалось: контакт с людьми -> страх -> идти в действие (1)"
+    ) in text
+
+
 def _load_episode(data):
     return Episode.model_validate(data)
 

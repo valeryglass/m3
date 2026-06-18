@@ -5,6 +5,7 @@ from app.graph_report import EpisodeSignature, GraphReport
 from app.pattern_metrics import (
     behavior_fork_episode_ids,
     behavior_forks,
+    counterexample_candidates,
     loop_counter,
     loop_episode_ids,
     outcome_episode_ids,
@@ -62,6 +63,95 @@ def test_pattern_ranking_is_deterministic():
 
     assert top_loop(report) == (("social", "fear", "approach"), 1)
     assert sorted_counter_items(Counter({"b": 1, "a": 1})) == [("a", 1), ("b", 1)]
+
+
+def test_counterexample_requires_dominance_and_keeps_episode_provenance():
+    report = _report(
+        *[
+            _signature(
+                f"episode-2026060{index}-1",
+                triggers=("social",),
+                emotions=("fear",),
+                behaviors=(behavior,),
+            )
+            for index, behavior in enumerate(
+                ("avoid", "avoid", "avoid", "approach"), start=1
+            )
+        ]
+    )
+
+    candidate = counterexample_candidates(report)[0]
+
+    assert candidate.base == ("social", "fear")
+    assert candidate.dominant_behavior == "avoid"
+    assert candidate.dominant_episode_ids == (
+        "episode-20260601-1",
+        "episode-20260602-1",
+        "episode-20260603-1",
+    )
+    assert candidate.alternative_behavior == "approach"
+    assert candidate.alternative_episode_ids == ("episode-20260604-1",)
+
+
+def test_counterexample_rejects_weak_or_tied_dominance():
+    weak = _report(
+        _signature(
+            "episode-20260601-1",
+            triggers=("social",),
+            emotions=("fear",),
+            behaviors=("avoid",),
+        ),
+        _signature(
+            "episode-20260602-1",
+            triggers=("social",),
+            emotions=("fear",),
+            behaviors=("avoid",),
+        ),
+        _signature(
+            "episode-20260603-1",
+            triggers=("social",),
+            emotions=("fear",),
+            behaviors=("approach",),
+        ),
+    )
+    tied = _report(
+        *[
+            _signature(
+                f"episode-2026060{index}-1",
+                triggers=("social",),
+                emotions=("fear",),
+                behaviors=(behavior,),
+            )
+            for index, behavior in enumerate(
+                ("avoid", "avoid", "avoid", "approach", "approach", "approach"),
+                start=1,
+            )
+        ]
+    )
+
+    assert counterexample_candidates(weak) == ()
+    assert counterexample_candidates(tied) == ()
+
+
+def test_counterexample_selects_strongest_alternative_deterministically():
+    report = _report(
+        *[
+            _signature(
+                f"episode-202606{index:02d}-1",
+                triggers=("social",),
+                emotions=("fear",),
+                behaviors=(behavior,),
+            )
+            for index, behavior in enumerate(
+                ("avoid", "avoid", "avoid", "avoid", "freeze", "approach"),
+                start=1,
+            )
+        ]
+    )
+
+    candidate = counterexample_candidates(report)[0]
+
+    assert candidate.alternative_behavior == "approach"
 
 
 def _report(*signatures: EpisodeSignature) -> GraphReport:

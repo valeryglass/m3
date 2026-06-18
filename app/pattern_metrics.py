@@ -2,8 +2,30 @@ from __future__ import annotations
 
 import re
 from collections import Counter, defaultdict
+from dataclasses import dataclass
 
 from app.graph_report import EpisodeSignature, GraphReport
+
+
+@dataclass(frozen=True)
+class CounterexampleCandidate:
+    base: tuple[str, str]
+    dominant_behavior: str
+    dominant_episode_ids: tuple[str, ...]
+    alternative_behavior: str
+    alternative_episode_ids: tuple[str, ...]
+
+    @property
+    def dominant_count(self) -> int:
+        return len(self.dominant_episode_ids)
+
+    @property
+    def alternative_count(self) -> int:
+        return len(self.alternative_episode_ids)
+
+    @property
+    def support_count(self) -> int:
+        return len(set(self.dominant_episode_ids) | set(self.alternative_episode_ids))
 
 
 WEEK_QUANT = "1week"
@@ -117,6 +139,63 @@ def top_loop(report: GraphReport) -> tuple[tuple[str, str, str] | None, int]:
 
 def sorted_counter_items(counter) -> list[tuple]:
     return sorted(counter.items(), key=lambda item: (-item[1], str(item[0])))
+
+
+def counterexample_candidates(
+    report: GraphReport,
+    *,
+    min_dominant_count: int = 3,
+    min_dominant_ratio: float = 2 / 3,
+) -> tuple[CounterexampleCandidate, ...]:
+    candidates: list[CounterexampleCandidate] = []
+    for base, behaviors in behavior_fork_episode_ids(report).items():
+        if len(behaviors) < 2:
+            continue
+        ordered = sorted(
+            behaviors.items(),
+            key=lambda item: (-len(item[1]), item[0]),
+        )
+        dominant_behavior, dominant_ids = ordered[0]
+        base_episode_ids = set().union(*behaviors.values())
+        if len(dominant_ids) < min_dominant_count:
+            continue
+        if len(dominant_ids) / len(base_episode_ids) < min_dominant_ratio:
+            continue
+        alternatives = [
+            (behavior, episode_ids)
+            for behavior, episode_ids in ordered[1:]
+            if len(episode_ids) < len(dominant_ids)
+        ]
+        if not alternatives:
+            continue
+        alternative_behavior, alternative_ids = alternatives[0]
+        candidates.append(
+            CounterexampleCandidate(
+                base=base,
+                dominant_behavior=dominant_behavior,
+                dominant_episode_ids=tuple(sorted(dominant_ids)),
+                alternative_behavior=alternative_behavior,
+                alternative_episode_ids=tuple(sorted(alternative_ids)),
+            )
+        )
+    return tuple(
+        sorted(
+            candidates,
+            key=lambda item: (
+                -item.support_count,
+                -item.dominant_count,
+                -item.alternative_count,
+                item.base,
+                item.dominant_behavior,
+                item.alternative_behavior,
+            ),
+        )
+    )
+
+
+def top_counterexample(report: GraphReport) -> CounterexampleCandidate | None:
+    candidates = counterexample_candidates(report)
+    return candidates[0] if candidates else None
 
 
 def novelty_counter(report: GraphReport) -> Counter[tuple[str, ...]]:
