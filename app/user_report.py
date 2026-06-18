@@ -9,6 +9,7 @@ from app.pattern_metrics import (
     loop_counter as _metric_loop_counter,
     outcome_pattern_counter as _metric_outcome_pattern_counter,
     sorted_counter_items as _metric_sorted_counter_items,
+    top_contrast as _metric_top_contrast,
     top_counterexample as _metric_top_counterexample,
     top_loop as _metric_top_loop,
     trigger_counter as _metric_trigger_counter,
@@ -99,6 +100,7 @@ def render_details(report: GraphReport) -> str:
         _repeating_pattern(report),
         _main_fork(report),
         _counterexample_observation(report),
+        _contrast_observation(report),
         _stable_scenarios(report),
         _outcome_observations(report),
         _what_to_notice(report),
@@ -214,6 +216,22 @@ def _outcome_observations(report: GraphReport) -> list[str]:
         for (behavior, outcome), count in items
     )
     return lines
+
+
+def _contrast_observation(report: GraphReport) -> list[str]:
+    candidate = _metric_top_contrast(report)
+    if not candidate:
+        return []
+    trigger = _friendly(candidate.trigger)
+    behavior = _friendly(candidate.behavior)
+    return [
+        "Контраст",
+        "- в этой выборке одна реакция встречалась при разных эмоциях: "
+        f"{trigger} -> {_friendly(candidate.left_emotion)} -> {behavior} "
+        f"({candidate.left_count}) и "
+        f"{trigger} -> {_friendly(candidate.right_emotion)} -> {behavior} "
+        f"({candidate.right_count})",
+    ]
 
 
 def _what_to_notice(report: GraphReport) -> list[str]:

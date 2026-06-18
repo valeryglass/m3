@@ -5,6 +5,7 @@ from app.graph_report import EpisodeSignature, GraphReport
 from app.pattern_metrics import (
     behavior_fork_episode_ids,
     behavior_forks,
+    contrast_candidates,
     counterexample_candidates,
     loop_counter,
     loop_episode_ids,
@@ -152,6 +153,62 @@ def test_counterexample_selects_strongest_alternative_deterministically():
     candidate = counterexample_candidates(report)[0]
 
     assert candidate.alternative_behavior == "approach"
+
+
+def test_contrast_requires_two_episodes_per_side_and_keeps_provenance():
+    report = _report(
+        *[
+            _signature(
+                f"episode-2026060{index}-1",
+                triggers=("social",),
+                emotions=(emotion,),
+                behaviors=("avoid",),
+            )
+            for index, emotion in enumerate(
+                ("fear", "fear", "anger", "anger"), start=1
+            )
+        ]
+    )
+
+    candidate = contrast_candidates(report)[0]
+
+    assert candidate.trigger == "social"
+    assert candidate.behavior == "avoid"
+    assert candidate.left_emotion == "anger"
+    assert candidate.left_episode_ids == (
+        "episode-20260603-1",
+        "episode-20260604-1",
+    )
+    assert candidate.right_emotion == "fear"
+    assert candidate.right_episode_ids == (
+        "episode-20260601-1",
+        "episode-20260602-1",
+    )
+
+
+def test_contrast_ignores_unsupported_side():
+    report = _report(
+        _signature(
+            "episode-20260601-1",
+            triggers=("social",),
+            emotions=("fear",),
+            behaviors=("avoid",),
+        ),
+        _signature(
+            "episode-20260602-1",
+            triggers=("social",),
+            emotions=("fear",),
+            behaviors=("avoid",),
+        ),
+        _signature(
+            "episode-20260603-1",
+            triggers=("social",),
+            emotions=("anger",),
+            behaviors=("avoid",),
+        ),
+    )
+
+    assert contrast_candidates(report) == ()
 
 
 def _report(*signatures: EpisodeSignature) -> GraphReport:

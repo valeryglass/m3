@@ -168,6 +168,24 @@ def test_details_surface_supported_counterexample_cautiously():
     ) in text
 
 
+def test_details_surface_supported_motif_contrast():
+    report = build_report(
+        [
+            _load_episode(_episode("episode-20260430-1", emotion_label="страх")),
+            _load_episode(_episode("episode-20260430-2", emotion_label="страх")),
+            _load_episode(_episode("episode-20260430-3", emotion_label="злость")),
+            _load_episode(_episode("episode-20260430-4", emotion_label="злость")),
+        ]
+    )
+
+    text = render_details(report)
+
+    assert "Контраст" in text
+    assert "одна реакция встречалась при разных эмоциях" in text
+    assert "контакт с людьми -> злость -> дистанцироваться (2)" in text
+    assert "контакт с людьми -> страх -> дистанцироваться (2)" in text
+
+
 def _load_episode(data):
     return Episode.model_validate(data)
 
@@ -178,6 +196,7 @@ def _episode(
     behavior_type="avoid",
     outcome_annotations=True,
     outcome_type="relief",
+    emotion_label="страх",
 ):
     nodes = [
         {
@@ -224,7 +243,7 @@ def _episode(
                 "value": "They will judge me.",
                 "source_quote": "they will judge me",
             },
-            "emotion": {"value": "страх", "source_quote": "страх"},
+            "emotion": {"value": emotion_label, "source_quote": emotion_label},
             "physical": {"value": "Tight chest.", "source_quote": "tight chest"},
             "behavior": {"value": "Closed the chat.", "source_quote": "Closed the chat."},
             "short_term_consequence": {"value": "Relief.", "source_quote": "Relief."},
@@ -259,12 +278,12 @@ def _episode(
             "emotion_annotations": [
                 {
                     "id": "emotion-annotation-1",
-                    "label": "страх",
+                    "label": emotion_label,
                     "intensity": 0.66,
                     "valence": -0.8,
                     "arousal": 0.8,
                     "source_field": "observed.emotion",
-                    "source_quote": "страх",
+                    "source_quote": emotion_label,
                     "confidence": 0.9,
                 }
             ],

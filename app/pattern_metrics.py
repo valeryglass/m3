@@ -8,6 +8,28 @@ from app.graph_report import EpisodeSignature, GraphReport
 
 
 @dataclass(frozen=True)
+class ContrastCandidate:
+    trigger: str
+    behavior: str
+    left_emotion: str
+    left_episode_ids: tuple[str, ...]
+    right_emotion: str
+    right_episode_ids: tuple[str, ...]
+
+    @property
+    def left_count(self) -> int:
+        return len(self.left_episode_ids)
+
+    @property
+    def right_count(self) -> int:
+        return len(self.right_episode_ids)
+
+    @property
+    def support_count(self) -> int:
+        return len(set(self.left_episode_ids) | set(self.right_episode_ids))
+
+
+@dataclass(frozen=True)
 class CounterexampleCandidate:
     base: tuple[str, str]
     dominant_behavior: str
@@ -195,6 +217,58 @@ def counterexample_candidates(
 
 def top_counterexample(report: GraphReport) -> CounterexampleCandidate | None:
     candidates = counterexample_candidates(report)
+    return candidates[0] if candidates else None
+
+
+def contrast_candidates(
+    report: GraphReport,
+    *,
+    min_count: int = 2,
+) -> tuple[ContrastCandidate, ...]:
+    by_context: defaultdict[
+        tuple[str, str], defaultdict[str, set[str]]
+    ] = defaultdict(lambda: defaultdict(set))
+    for (trigger, emotion, behavior), episode_ids in loop_episode_ids(report).items():
+        if len(episode_ids) >= min_count:
+            by_context[(trigger, behavior)][emotion].update(episode_ids)
+
+    candidates: list[ContrastCandidate] = []
+    for (trigger, behavior), emotions in by_context.items():
+        ordered = sorted(
+            emotions.items(),
+            key=lambda item: (-len(item[1]), item[0]),
+        )
+        if len(ordered) < 2:
+            continue
+        (left_emotion, left_ids), (right_emotion, right_ids) = ordered[:2]
+        candidates.append(
+            ContrastCandidate(
+                trigger=trigger,
+                behavior=behavior,
+                left_emotion=left_emotion,
+                left_episode_ids=tuple(sorted(left_ids)),
+                right_emotion=right_emotion,
+                right_episode_ids=tuple(sorted(right_ids)),
+            )
+        )
+    return tuple(
+        sorted(
+            candidates,
+            key=lambda item: (
+                -item.support_count,
+                -item.left_count,
+                -item.right_count,
+                item.trigger,
+                item.behavior,
+                item.left_emotion,
+                item.right_emotion,
+            ),
+        )
+    )
+
+
+def top_contrast(report: GraphReport) -> ContrastCandidate | None:
+    candidates = contrast_candidates(report)
     return candidates[0] if candidates else None
 
 
