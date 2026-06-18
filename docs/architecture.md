@@ -26,13 +26,16 @@ Supporting flows:
 ```text
 Telegram Capture -> UX Analytics
 Telegram Capture -> Userlist / Access Gate
-Telegram Capture -> Input Funnels -> Episode Drafts -> Gap Hydration (planned/downstream)
+Telegram Capture -> explicit userflow router
+  -> classic 10Q -> Episode Model + Storage
+  -> audio one-take -> Input Funnels -> Intake Transcripts
+  -> hidden draft tools -> Episode Drafts -> Gap Hydration
 ```
 
-Today, Telegram Capture emits UX/access events and can save completed observed
-episodes through the existing capture boundary. Planned capture work may route
-Telegram text, voice, uploaded audio, and future forms into Input Funnels,
-Episode Drafts, and Gap Hydration before confirmation.
+Telegram Capture emits UX/access events and chooses one explicit flow before
+input handlers mutate runtime state. Classic 10Q and audio one-take use separate
+runtime state. Audio one-take ends at a durable transcript source artifact;
+transcripts are not episodes or episode drafts.
 
 ## Layers
 
@@ -48,11 +51,13 @@ Episode Drafts, and Gap Hydration before confirmation.
 ## Bounded Contexts
 
 - Telegram Capture receives Telegram input, access checks, callbacks, and UX
-  event emission for the current runtime.
+  event emission, and owns explicit userflow routing for the current runtime.
 - Input Funnels normalize Telegram text, voice, audio, and future capture
   surfaces into pre-episode input artifacts.
-- Telegram Media is the planned temporary download/cleanup boundary for
+- Telegram Media is the temporary download/cleanup boundary for
   Telegram voice, audio, and audio-like documents before transcription.
+- Intake Transcripts owns durable transcript source artifacts created by the
+  explicitly armed audio one-take flow.
 - Episode Drafts stage partial observed fields before confirmation and
   persistence.
 - Gap Hydration selects the smallest useful next question for incomplete or
