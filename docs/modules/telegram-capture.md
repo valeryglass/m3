@@ -49,6 +49,10 @@ use either interface.
 The classic text flow and explicit transcript intake are usable, but prompt copy,
 frame order, and draft hydration can still evolve.
 
+Classic 10Q presents one concise question at a time after the progress line.
+Field-guide titles, examples, and tips remain internal reference material and
+are not included in Telegram question messages.
+
 Episode files are observed source artifacts. Telegram capture does not persist
 top-level `derived` or `current_derived`.
 

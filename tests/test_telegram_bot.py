@@ -68,7 +68,7 @@ def test_bot_profile_uses_tone_engine_copy():
     }
 
 
-def test_start_session_reply_uses_rich_first_card():
+def test_start_session_reply_uses_concise_first_question():
     tone = ToneEngine.default()
     session = LoopSession(
         chat_id=123,
@@ -79,7 +79,7 @@ def test_start_session_reply_uses_rich_first_card():
 
     assert tone.start_session(prompt_for_current_target(session, tone)) == (
         "□□□□□□□□□□ 0/10\n\n"
-        f"{tone.target_prompt('situation')}"
+        "Опиши ситуацию несколькими предложениями"
     )
 
 

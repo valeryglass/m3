@@ -82,7 +82,7 @@ class ToneEngine:
     def target_prompt(self, target: str) -> str:
         if target == "complete":
             return self.complete()
-        return self.field_card(target)
+        return self.prompts[target]
 
     def field_guide(self, target: str) -> dict[str, Any]:
         return FIELD_GUIDES[target]

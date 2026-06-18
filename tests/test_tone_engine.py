@@ -55,7 +55,11 @@ def test_field_guide_card_renders_source_copy():
     assert tone.field_guide("situation")["source_field"] == (
         "situation.event_description"
     )
-    assert tone.target_prompt("situation") == (
+    assert (
+        tone.target_prompt("situation")
+        == "Опиши ситуацию несколькими предложениями"
+    )
+    assert tone.field_card("situation") == (
         "Соберем эпизод\n\n"
         "<blockquote>"
         "• коллега раскритиковал мой текст в чате\n"
@@ -69,7 +73,7 @@ def test_field_guide_card_renders_source_copy():
 def test_expanded_field_cards_render_source_copy():
     tone = ToneEngine.default()
 
-    assert tone.target_prompt("trigger") == (
+    assert tone.field_card("trigger") == (
         "Выявление триггера\n\n"
         "<blockquote>"
         "• резкий комментарий в чате\n"
@@ -78,7 +82,7 @@ def test_expanded_field_cards_render_source_copy():
         "</blockquote>\n\n"
         "Что именно спровоцировало, зацепило или запустило реакцию?"
     )
-    assert tone.target_prompt("actor") == (
+    assert tone.field_card("actor") == (
         "Определение участников\n\n"
         "<blockquote>"
         "• я и коллега\n"
@@ -87,7 +91,7 @@ def test_expanded_field_cards_render_source_copy():
         "</blockquote>\n\n"
         "Кто был рядом, влиял или участвовал в ситуации?"
     )
-    assert tone.target_prompt("quote") == (
+    assert tone.field_card("quote") == (
         "Зафиксировать цитату\n\n"
         "<blockquote>"
         "• коллега: «это не подходит»\n"
@@ -102,7 +106,7 @@ def test_every_field_card_has_required_sections():
     tone = ToneEngine.default()
 
     for target in OBSERVED_FIELDS:
-        card = tone.target_prompt(target)
+        card = tone.field_card(target)
         guide = tone.field_guide(target)
         assert "🧠 CBT / ACT loop" not in card
         assert "🧩 Поле" not in card
@@ -130,7 +134,7 @@ def test_every_field_card_has_required_sections():
 def test_emotion_card_uses_plain_text_frame():
     tone = ToneEngine.default()
 
-    assert tone.target_prompt("emotion") == (
+    assert tone.field_card("emotion") == (
         "Определение эмоций\n\n"
         "<blockquote>"
         "• растерянность, оцепенение, беспомощность\n"
@@ -141,20 +145,20 @@ def test_emotion_card_uses_plain_text_frame():
     )
 
 
-def test_session_messages_render_unchanged():
+def test_session_messages_render_concise_prompts():
     tone = ToneEngine.default()
-    situation_card = tone.target_prompt("situation")
-    behavior_card = tone.target_prompt("behavior")
+    situation_prompt = tone.target_prompt("situation")
+    behavior_prompt = tone.target_prompt("behavior")
 
     assert tone.empty_answer("situation") == (
-        f"Нужен непустой ответ\n\n{situation_card}"
+        f"Нужен непустой ответ\n\n{situation_prompt}"
     )
-    assert tone.start_session(situation_card) == (
+    assert tone.start_session(situation_prompt) == (
         "□□□□□□□□□□ 0/10\n\n"
-        f"{situation_card}"
+        "Опиши ситуацию несколькими предложениями"
     )
-    assert tone.next_prompt_bridge(1, 10, behavior_card) == (
-        f"■□□□□□□□□□ 1/10\n\n{behavior_card}"
+    assert tone.next_prompt_bridge(1, 10, behavior_prompt) == (
+        f"■□□□□□□□□□ 1/10\n\n{behavior_prompt}"
     )
     assert tone.review_screen(
         {
