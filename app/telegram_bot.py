@@ -1081,6 +1081,21 @@ async def _handle_message_after_authorized(
         )
         await _reply_text(update, _audio_media_guidance())
         return
+    if decision is RouteDecision.REQUIRE_CANCEL:
+        ux_events.append(
+            telegram_event(
+                "input_rejected",
+                _telegram_update_user_id(update),
+                created_at=now,
+                chat_id=chat_id,
+                message_kind="text",
+                funnel="flow_router",
+                media_kind="text",
+                reject_reason="active_flow_requires_cancel",
+            )
+        )
+        await _reply_text(update, _cancel_active_flow_first())
+        return
     if decision is RouteDecision.SHOW_START_GUIDANCE:
         ux_events.append(
             telegram_event(

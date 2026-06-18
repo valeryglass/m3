@@ -822,6 +822,138 @@ def test_cancel_clears_audio_flow_without_classic_session(tmp_path):
     assert message.replies == [ToneEngine.default().cancel()]
 
 
+def test_cancel_clears_classic_session_without_audio_flow(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    session_store.save_session(_emotion_step_session())
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("/cancel")
+
+    _run(
+        telegram_bot._handle_cancel_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+            audio_flow_store=audio_flow_store,
+        )
+    )
+
+    assert session_store.load_session(123) is None
+    assert audio_flow_store.load_flow(123) is None
+    assert ux_events.read()[-1]["event_type"] == "session_cancelled"
+    assert message.replies == [ToneEngine.default().cancel()]
+
+
+def test_cancel_clears_inconsistent_classic_and_audio_state(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    session_store.save_session(_emotion_step_session())
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store.arm_flow(
+        123,
+        now=datetime.now(timezone.utc),
+        ttl_sec=600,
+    )
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("/cancel")
+
+    _run(
+        telegram_bot._handle_cancel_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+            audio_flow_store=audio_flow_store,
+        )
+    )
+
+    assert session_store.load_session(123) is None
+    assert audio_flow_store.load_flow(123) is None
+    assert ux_events.read()[-1]["event_type"] == "session_cancelled"
+    assert message.replies == [ToneEngine.default().cancel()]
+
+
+def test_text_with_inconsistent_classic_and_audio_state_requires_cancel(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    original_session = _emotion_step_session()
+    session_store.save_session(original_session)
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    original_flow = audio_flow_store.arm_flow(
+        123,
+        now=datetime.now(timezone.utc).replace(microsecond=0),
+        ttl_sec=600,
+    )
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    message = _FakeMessage("private text")
+
+    _run(
+        telegram_bot._handle_message_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+            audio_flow_store=audio_flow_store,
+        )
+    )
+
+    assert session_store.load_session(123) == original_session
+    assert audio_flow_store.load_flow(123) == original_flow
+    assert message.replies == [telegram_bot._cancel_active_flow_first()]
+    events = ux_events.read()
+    assert events[-1]["reject_reason"] == "active_flow_requires_cancel"
+    assert "private text" not in json.dumps(events)
+
+
+def test_help_does_not_change_classic_or_audio_state(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    original_session = _emotion_step_session()
+    session_store.save_session(original_session)
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    original_flow = audio_flow_store.arm_flow(
+        123,
+        now=datetime.now(timezone.utc).replace(microsecond=0),
+        ttl_sec=600,
+    )
+    message = _FakeMessage("/help")
+
+    _run(telegram_bot._send_help(_fake_update(123, message), ToneEngine.default()))
+
+    assert session_store.load_session(123) == original_session
+    assert audio_flow_store.load_flow(123) == original_flow
+
+
+def test_profile_does_not_change_classic_or_audio_state(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    original_session = _emotion_step_session()
+    session_store.save_session(original_session)
+    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    original_flow = audio_flow_store.arm_flow(
+        123,
+        now=datetime.now(timezone.utc).replace(microsecond=0),
+        ttl_sec=600,
+    )
+    settings = _settings(episode_dir=tmp_path / "episodes")
+    settings.episode_dir.mkdir(parents=True)
+    message = _FakeMessage("/profile")
+
+    _run(
+        telegram_bot._handle_profile_after_authorized(
+            _fake_update(123, message),
+            settings,
+            ToneEngine.default(),
+        )
+    )
+
+    assert session_store.load_session(123) == original_session
+    assert audio_flow_store.load_flow(123) == original_flow
+    assert message.replies == [
+        "Профиль пока не собран. Нужны сохранённые и обработанные эпизоды."
+    ]
+
+
 def test_capture_command_without_text_does_not_create_session(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
