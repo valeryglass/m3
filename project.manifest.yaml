@@ -34,11 +34,14 @@ modules:
       - app/telegram_bot.py
       - app/loop_extractor.py
       - app/session_store.py
+      - app/user_flow_router.py
+      - app/audio_flow_store.py
       - app/messages.py
       - app/tone_engine.py
       - app/user_report.py
       - config/tone.yaml
       - data/runtime-sessions/
+      - data/runtime-flows/
     inputs:
       - Telegram messages and callbacks
       - data/runtime-sessions/*.json
@@ -53,6 +56,8 @@ modules:
       - tone_controlled_prompts
       - user_profile_report_rendering
       - private_runtime_session_memory
+      - explicit_userflow_routing
+      - private_runtime_flow_memory
 
   telegram_media:
     stage: draft

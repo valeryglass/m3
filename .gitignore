@@ -5,6 +5,7 @@ sources/**
 episodes/*.json
 data/episodes/*.json
 data/runtime-sessions/*.json
+data/runtime-flows/**
 data/userlist/*.json
 data/ux-events/*.jsonl
 data/annotation-work/**
@@ -20,6 +21,7 @@ data/reports/**
 !data/
 !data/episodes/
 !data/runtime-sessions/
+!data/runtime-flows/
 !data/userlist/
 !data/ux-events/
 !data/annotation-work/
@@ -30,6 +32,7 @@ data/reports/**
 !data/reports/
 !data/episodes/.gitkeep
 !data/runtime-sessions/.gitkeep
+!data/runtime-flows/.gitkeep
 !data/userlist/.gitkeep
 !data/ux-events/.gitkeep
 !data/annotation-runs/.gitkeep
