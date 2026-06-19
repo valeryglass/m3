@@ -19,7 +19,9 @@ Telegram user
   -> Annotation Producer
   -> Annotation Runs
   -> Graph Reporting
-  -> Pattern Payloads
+  -> Insight Payloads
+     -> User Report Rendering
+     -> Pattern Payloads
 ```
 
 Supporting flows:
@@ -86,9 +88,11 @@ episode and does not enter episode storage or graph/report analytics.
 - Annotation Runs owns versioned selected derived annotations and readiness
   gates.
 - Graph Reporting owns computed graph views, deterministic pattern metrics,
-  and user-facing report composition.
-- Pattern Payloads owns renderer-neutral map payloads built from report-ready
-  graph signatures.
+  and user-facing report rendering.
+- Insight Payloads owns the shared deterministic analytics projection consumed
+  by report and map surfaces.
+- Pattern Payloads owns renderer-neutral map and spatial projections built from
+  the shared insight payload plus report-ready graph entities.
 - UX Analytics owns append-only loop event logs and aggregate UX views.
 - Userlist / Access owns approved-user and waitlist metadata.
 
@@ -108,15 +112,19 @@ transcript != draft
 draft != episode
 episode != annotation
 annotation != graph
-graph != report
+graph != insight payload
+insight payload != report
+insight payload != spatial layout
 report != source of truth
 ```
 
 Episodes are observed source artifacts. Annotation runs are versioned selected
 interpretations of episodes. `GraphReport` is the current computed graph view
-built from episodes plus selected annotations. Reports and payloads are
-downstream exports. They must describe evidence and gaps without making
-diagnostic claims.
+built from episodes plus selected annotations. `InsightPayload` is the shared
+deterministic analytics projection used by report rendering and Pattern
+Payloads. Reports, map payloads, and spatial payloads are downstream projections
+or exports. They must describe evidence and gaps without making diagnostic
+claims.
 
 Runtime profile and admin report paths compute projections on demand. Persistent
 report files under `data/reports/` are optional debug/export snapshots, not an

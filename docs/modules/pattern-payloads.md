@@ -2,13 +2,17 @@
 
 ## Purpose
 
-Produce renderer-neutral pattern payloads from report-ready graph signatures.
-This module keeps machine payloads separate from user-facing report text.
+Project shared insight analytics and report-ready graph entities into
+renderer-neutral map and spatial payloads. This module keeps machine payloads
+separate from user-facing report text.
 
 ## Inputs
 
 - report-ready episodes.
-- graph signatures from Graph Reporting.
+- shared `InsightPayload` analytics.
+- spatial projections derived from the same `InsightPayload`.
+- graph signatures when map-specific entities, topology, and provenance require
+  report-ready episode material.
 
 ## Outputs
 
@@ -18,9 +22,9 @@ This module keeps machine payloads separate from user-facing report text.
 
 ## Dependencies
 
-- Graph Reporting for derived episode signatures.
-- Graph Reporting for shared pattern metrics with episode-level support
-  provenance.
+- Insight Payloads for shared deterministic motifs, forks, contrasts,
+  counterexamples, outcomes, and support provenance.
+- Graph Reporting for map-specific graph entities and episode provenance.
 - Readiness gates for report inclusion.
 
 ## Interfaces
@@ -34,9 +38,14 @@ This module keeps machine payloads separate from user-facing report text.
 The payload is technical domain analytics, not diagnosis, profile
 interpretation, or therapeutic advice.
 
+`app/spatial_payload.py` projects the shared insight payload into paths, fork
+markers, and outcome links without choosing coordinates or visual layout.
+
 `app/map_payload.py` derives one-source map compiler payload JSON from graph
-signatures for future SVG, voxel, canvas, or other renderers. The payload
-contains semantic entities and links only; renderers derive their own geometry.
+signatures for future SVG, voxel, canvas, or other renderers. It embeds the
+shared insight and spatial payloads under `analytics` while retaining
+map-specific semantic entities, links, topology, and provenance. Renderers
+derive their own geometry.
 
 `app/map_topology.py`, `app/map_grid.py`, and `app/hex_world.py` form the
 hex-world spatial compiler draft. The intended boundary is:
