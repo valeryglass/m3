@@ -2,7 +2,7 @@ import json
 
 from app.analytics_loader import AnnotationCoverage
 from app.graph_report import build_report
-from app.insight_payload import build_insight_payload
+from app.insight_payload import build_insight_payload, main
 from app.schemas.episode import Episode
 
 
@@ -49,6 +49,36 @@ def test_insight_payload_to_dict_is_json_serializable_and_raw():
     assert payload_dict["kind"] == "insight_payload"
     assert "Развилка реакций" not in json.dumps(payload_dict, ensure_ascii=False)
     assert "контакт с людьми" not in json.dumps(payload_dict, ensure_ascii=False)
+
+
+def test_insight_payload_cli_writes_debug_json(tmp_path, monkeypatch, capsys):
+    episode_dir = tmp_path / "episodes"
+    episode_dir.mkdir()
+    (episode_dir / "episode-20260430-1.json").write_text(
+        json.dumps(_episode("episode-20260430-1"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    output = tmp_path / "insight.json"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "insight_payload",
+            "--episode-dir",
+            str(episode_dir),
+            "--source",
+            "telegram-chat:123",
+            "--output",
+            str(output),
+        ],
+    )
+
+    main()
+
+    assert capsys.readouterr().out.strip() == str(output)
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data["kind"] == "insight_payload"
+    assert data["sample"]["total_episodes"] == 1
+    assert data["sample"]["graph_ready_episode_ids"] == ["episode-20260430-1"]
 
 
 def _load(data):
