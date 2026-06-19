@@ -33,13 +33,13 @@ def test_summary_renders_from_minimal_valid_report():
 
     assert text.startswith("Короткий отчет")
     assert "В выборке: 3 эпизода." in text
-    assert "Фон выборки: контакт с людьми; страх; дистанцироваться." in text
+    assert "Главный повторяющийся сценарий" in text
+    assert "контакт с людьми -> страх -> дистанцироваться" in text
+    assert "Точка выбора" in text
+    assert "Что понаблюдать дальше" in text
     assert "Основной контекст" not in text
     assert "Частая эмоция" not in text
     assert "Частая реакция" not in text
-    assert "контакт с людьми -> страх -> дистанцироваться" in text
-    assert "в этих данных видно" in text
-    assert "Может быть полезно понаблюдать" in text
     assert 350 <= len(text) <= 800
 
 
@@ -51,9 +51,10 @@ def test_details_render_and_skip_missing_sections():
     text = render_details(report)
 
     assert text.startswith("Подробный отчет")
-    assert "Текущая картина" in text
-    assert "Наблюдаемые итоги" not in text
+    assert "Главный повторяющийся сценарий" in text
+    assert "Что обычно получается после реакции" not in text
     assert "Устойчивые сценарии" not in text
+    assert "Текущая картина" not in text
 
 
 def test_build_user_report_matches_direct_helpers():
@@ -93,8 +94,8 @@ def test_details_show_repeated_scenario_with_friendly_mappings():
     text = render_details(report)
 
     assert "контакт с людьми -> страх -> дистанцироваться" in text
-    assert "- контакт с людьми -> страх" in text
-    assert "- варианты: дистанцироваться (2), замирать (1)" in text
+    assert "Точка выбора" in text
+    assert "Варианты: дистанцироваться (2), замирать (1)." in text
 
 
 def test_common_raw_labels_are_rendered_as_friendly_text():
@@ -160,13 +161,8 @@ def test_details_surface_supported_counterexample_cautiously():
     text = render_details(report)
 
     assert "Менее частый вариант" in text
-    assert (
-        "в этой выборке чаще: контакт с людьми -> страх -> "
-        "дистанцироваться (3)"
-    ) in text
-    assert (
-        "реже встречалось: контакт с людьми -> страх -> идти в действие (1)"
-    ) in text
+    assert "Чаще: контакт с людьми -> страх -> дистанцироваться (3)." in text
+    assert "Реже: контакт с людьми -> страх -> идти в действие (1)." in text
 
 
 def test_details_surface_supported_motif_contrast():
@@ -182,9 +178,9 @@ def test_details_surface_supported_motif_contrast():
     text = render_details(report)
 
     assert "Контраст" in text
-    assert "одна реакция встречалась при разных эмоциях" in text
-    assert "контакт с людьми -> злость -> дистанцироваться (2)" in text
-    assert "контакт с людьми -> страх -> дистанцироваться (2)" in text
+    assert "Одна реакция — дистанцироваться — встречалась при разных эмоциях." in text
+    assert "контакт с людьми -> злость -> дистанцироваться (2)." in text
+    assert "контакт с людьми -> страх -> дистанцироваться (2)." in text
 
 
 def test_outcome_observations_show_horizon_specific_support_ratio():
@@ -198,9 +194,9 @@ def test_outcome_observations_show_horizon_specific_support_ratio():
 
     text = render_details(report)
 
-    assert "Наблюдаемые итоги" in text
-    assert "сразу: дистанцироваться -> облегчение: 2 из 3 случаев" in text
-    assert "сразу: дистанцироваться -> опыт/понимание: 1 из 3 случаев" in text
+    assert "Что обычно получается после реакции" in text
+    assert "сразу: дистанцироваться -> облегчение: 2 из 3 случаев." in text
+    assert "сразу: дистанцироваться -> опыт/понимание: 1 из 3 случаев." in text
 
 
 def test_details_prioritize_choices_and_outcomes_before_stable_scenarios():
@@ -215,10 +211,10 @@ def test_details_prioritize_choices_and_outcomes_before_stable_scenarios():
 
     text = render_details(report)
 
-    assert text.index("Развилка реакций") < text.index("Менее частый вариант")
-    assert text.index("Менее частый вариант") < text.index("Наблюдаемые итоги")
-    assert text.index("Наблюдаемые итоги") < text.index("Устойчивые сценарии")
-    assert "полезнее смотреть на развилки и итоги" in text
+    assert text.index("Точка выбора") < text.index("Менее частый вариант")
+    assert text.index("Менее частый вариант") < text.index("Что обычно получается после реакции")
+    assert "Устойчивые сценарии" not in text
+    assert "Развилка показывает место выбора." in text
 
 
 def _load_episode(data):
