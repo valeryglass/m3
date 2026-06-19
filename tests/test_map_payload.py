@@ -23,6 +23,9 @@ def test_map_payload_builds_compiler_json_for_one_source():
     assert payload["episodes"] == 3
     assert payload["timespan_quant"] == "1week"
     assert payload["similarity"] == {"version": "symbolic_v1"}
+    assert payload["analytics"]["source"] == "insight_payload"
+    assert payload["analytics"]["insight_payload"]["kind"] == "insight_payload"
+    assert payload["analytics"]["spatial_payload"]["kind"] == "spatial_payload"
     assert "clusters" in payload
     assert "neighbors" in payload
     assert payload["provenance"] == {
@@ -232,6 +235,33 @@ def test_map_payload_weights_are_normalized_within_entity_type():
 
     assert _entity(roads, "road", "avoid")["metrics"]["weight"] == 1.0
     assert _entity(roads, "road", "approach")["metrics"]["weight"] == 0.5
+
+
+def test_map_payload_exposes_same_insight_payload_for_downstream_consumers():
+    payload = build_map_payload(
+        [
+            _load(_episode("episode-20260430-1")),
+            _load(_episode("episode-20260430-2")),
+            _load(_episode("episode-20260508-1", behavior_type="approach")),
+        ],
+        source="telegram-chat:123",
+    )
+
+    insight = payload["analytics"]["insight_payload"]
+    spatial = payload["analytics"]["spatial_payload"]
+
+    assert insight["dominant_motif"] == {
+        "trigger": "social",
+        "emotion": "страх",
+        "behavior": "avoid",
+        "support_count": 2,
+        "episode_ids": ("episode-20260430-1", "episode-20260430-2"),
+    }
+    assert spatial["paths"][0]["signature"] == {
+        "trigger": "social",
+        "emotion": "страх",
+        "behavior": "avoid",
+    }
 
 
 def test_map_payload_writes_requested_path(tmp_path):

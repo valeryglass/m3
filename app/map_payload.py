@@ -11,6 +11,7 @@ from typing import Any
 from app.analytics_loader import selected_annotation_run
 from app.analytics_loader import annotation_coverage_for_episode_ids, require_full_coverage
 from app.graph_report import GraphReport, build_report, load_episodes
+from app.insight_payload import build_insight_payload
 from app.pattern_metrics import (
     WEEK_QUANT,
     loops_for_signature,
@@ -22,6 +23,7 @@ from app.pattern_metrics import (
     week_key,
 )
 from app.schemas.episode import Episode
+from app.spatial_payload import build_spatial_payload
 
 
 VERSION = "0.1"
@@ -99,6 +101,8 @@ def build_map_payload(
     source_episodes = [episode for episode in episodes if episode.source == source]
     report = build_report(source_episodes, coverage=coverage)
     active_limits = {**DEFAULT_LIMITS, **(limits or {})}
+    insight_payload = build_insight_payload(report)
+    spatial_payload = build_spatial_payload(insight_payload)
     seeds = _entity_seeds(report)
     entities, key_to_id = _finalize_entities(seeds, report, active_limits)
     links = _finalize_links(_link_seeds(report), key_to_id)
@@ -127,6 +131,11 @@ def build_map_payload(
         "episodes": len(source_episodes),
         "timespan_quant": WEEK_QUANT,
         "similarity": {"version": SIMILARITY_VERSION},
+        "analytics": {
+            "source": "insight_payload",
+            "insight_payload": insight_payload.to_dict(),
+            "spatial_payload": spatial_payload.to_dict(),
+        },
         "entities": entities,
         "links": links,
         "clusters": clusters,
