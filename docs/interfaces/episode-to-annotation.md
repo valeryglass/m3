@@ -12,10 +12,11 @@ Annotation Runs.
 
 ## Output
 
-- durable annotation-run rows containing derived nodes, annotations, and
-  relations.
+- durable, self-contained annotation-run snapshots containing derived nodes,
+  annotations, and relations.
 - deterministic producer summaries with scanned, skipped, new, pending, and
   coverage-delta counts.
+- snapshot manifest counts and producer provenance.
 - readiness audit summaries over selected derived annotations.
 
 ## Guarantees
@@ -27,6 +28,8 @@ Annotation Runs.
 - annotation-runs are durable derived graph artifacts.
 - annotation production is explicit: the producer creates annotations, while
   hydration only reads selected annotations.
+- missing-only production carries selected rows forward unchanged and writes
+  only complete replacement snapshots; delta-only runs are prohibited.
 - analytics loaders hydrate runtime `Episode.derived` from the selected
   annotation-run or compatibility fallback.
 - legacy embedded-derived episode files remain readable as fallback and

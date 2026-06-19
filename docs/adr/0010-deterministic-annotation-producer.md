@@ -34,10 +34,21 @@ Expose a hidden admin command:
 This command produces missing annotation-run rows. It does not recompute graph
 reports and should not be named as graph hydration.
 
+Missing-only production creates a complete replacement snapshot rather than a
+delta run. Rows from the selected base run are copied unchanged, newly missing
+rows are generated deterministically, and the writer rejects incomplete final
+coverage. A no-op does not create an empty run.
+
+Snapshot manifests retain legacy fields and add counts for carried-forward,
+generated, and final rows plus producer provenance identifying the base run and
+generated strategy.
+
 ## Consequences
 
 - observed episodes remain the immutable source input.
 - annotation-runs become reproducible from source episodes.
+- latest-run selection cannot silently replace a complete run with a delta-only
+  artifact.
 - analytics loaders remain consumers, not producers.
 - graph/report code does not need to know how annotations are produced.
 - future LLM annotation can be added as a strategy behind the same producer

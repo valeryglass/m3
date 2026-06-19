@@ -33,6 +33,7 @@ python -m app.annotation_producer run \
   --episode-dir data/episodes \
   --output-root data/annotation-runs \
   --only-missing \
+  --annotation-run-dir data/annotation-runs/<base-run> \
   --write
 ```
 
@@ -58,3 +59,11 @@ Admin backdoor:
 The first producer strategy is deterministic and schema-safe. LLM annotation can
 be added later as another strategy without changing the annotation-run consumer
 contract.
+
+`--only-missing` writes a self-contained snapshot, never a delta-only run.
+Existing rows are carried forward unchanged, missing rows are generated, and
+the producer refuses to write unless the final snapshot covers every known
+episode. When no rows are missing, no new run directory is created.
+
+Snapshot manifests record carried-forward, generated, and final row counts plus
+producer provenance for the base run and generated strategy.

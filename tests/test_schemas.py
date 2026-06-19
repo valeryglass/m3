@@ -549,6 +549,41 @@ def test_annotation_run_manifest_schema_accepts_valid_manifest():
 
     assert manifest.annotation_run_id == "run-20260605-1"
     assert manifest.source_episode_count == 1
+    assert manifest.carried_forward_count is None
+    assert manifest.producer_provenance is None
+
+
+def test_annotation_run_manifest_accepts_snapshot_provenance():
+    manifest = AnnotationRunManifest.model_validate(
+        {
+            "annotation_run_id": "run-20260619-1",
+            "schema_version": "episode.v1",
+            "taxonomy_version": "taxonomy.v1",
+            "prompt_version": "composed-snapshot-v1",
+            "created_at": "2026-06-19T12:00:00Z",
+            "source_episode_count": 112,
+            "carried_forward_count": 102,
+            "generated_count": 10,
+            "final_snapshot_count": 112,
+            "producer_provenance": {
+                "producer": "app.annotation_producer",
+                "mode": "missing_only_snapshot",
+                "generated_strategy": "deterministic_observed",
+                "generated_prompt_version": "deterministic-observed-v1",
+                "base_annotation_run_id": "run-20260613-annotated-full-v3",
+                "base_prompt_version": "manual-pending-episodes-v3",
+            },
+        }
+    )
+
+    assert manifest.carried_forward_count == 102
+    assert manifest.generated_count == 10
+    assert manifest.final_snapshot_count == 112
+    assert manifest.producer_provenance is not None
+    assert (
+        manifest.producer_provenance.base_annotation_run_id
+        == "run-20260613-annotated-full-v3"
+    )
 
 
 def test_annotation_run_row_schema_accepts_episode_derived_contract():

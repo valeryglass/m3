@@ -19,6 +19,7 @@ they are produced by the Annotation Producer.
 - typed annotations.
 - relations.
 - versioned annotation-run records.
+- manifest provenance for carried-forward and generated snapshot rows.
 - audit and readiness summaries.
 
 ## Dependencies
@@ -45,6 +46,10 @@ selected annotation-run or compatibility fallback.
 Annotation runs are versioned derived interpretations of observed episodes.
 They are analytical inputs, not replacements for observed episode source data.
 Hydration reads annotation-runs; it does not create them.
+
+Each selected run is a self-contained snapshot for its known episode set.
+Missing-only producer updates must carry existing rows forward unchanged and
+must not publish incomplete delta runs.
 
 Legacy embedded-derived episode files remain readable as a compatibility
 fallback. `data/annotation-work` may exist as ignored/private scratch data, but

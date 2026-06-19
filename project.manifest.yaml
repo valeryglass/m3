@@ -241,6 +241,7 @@ modules:
       - deterministic_episode_annotation
       - annotation_run_production
       - missing_annotation_backfill
+      - self_contained_annotation_snapshots
 
   graph_reporting:
     stage: experimental

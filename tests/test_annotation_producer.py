@@ -1,6 +1,12 @@
 import json
 
-from app.analytics_loader import load_analytics_episodes
+import pytest
+
+from app.analytics_loader import (
+    annotation_coverage,
+    load_analytics_episodes,
+    selected_annotation_run,
+)
 from app.annotation_producer import produce_annotation_run
 
 
@@ -19,6 +25,9 @@ def test_annotation_producer_dry_run_does_not_write(tmp_path):
     assert summary.dry_run is True
     assert summary.episode_count == 1
     assert summary.row_count == 1
+    assert summary.generated_count == 1
+    assert summary.final_snapshot_count == 1
+    assert summary.snapshot_written is False
     assert not output_root.exists()
 
 
@@ -40,11 +49,15 @@ def test_annotation_producer_write_creates_run(tmp_path):
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     assert summary.dry_run is False
     assert manifest["prompt_version"] == "deterministic-observed-v1"
+    assert manifest["carried_forward_count"] == 0
+    assert manifest["generated_count"] == 1
+    assert manifest["final_snapshot_count"] == 1
+    assert manifest["producer_provenance"]["mode"] == "full_snapshot"
     assert rows[0]["episode_id"] == "episode-20260503-1"
     assert rows[0]["derived"]["nodes"]
 
 
-def test_annotation_producer_only_missing_skips_existing(tmp_path):
+def test_annotation_producer_only_missing_writes_full_snapshot(tmp_path):
     episode_dir = tmp_path / "episodes"
     output_root = tmp_path / "annotation-runs"
     existing_run = output_root / "run-20260618-110000-deterministic"
@@ -52,13 +65,14 @@ def test_annotation_producer_only_missing_skips_existing(tmp_path):
     first = _episode("episode-20260503-1")
     second = _episode("episode-20260503-2")
     _write_json(episode_dir / "episode-20260503-1.json", first)
-    _write_json(episode_dir / "episode-20260503-2.json", second)
     produce_annotation_run(
         episode_dir,
         output_root,
         write=True,
         timestamp="20260618-110000",
     )
+    existing_rows = _read_jsonl(existing_run / "annotations.jsonl")
+    _write_json(episode_dir / "episode-20260503-2.json", second)
 
     summary = produce_annotation_run(
         episode_dir,
@@ -69,9 +83,76 @@ def test_annotation_producer_only_missing_skips_existing(tmp_path):
         timestamp="20260618-120000",
     )
 
-    rows = _read_jsonl(output_root / "run-20260618-120000-deterministic" / "annotations.jsonl")
-    assert summary.row_count == 0
-    assert rows == []
+    run_dir = output_root / "run-20260618-120000-deterministic"
+    rows = _read_jsonl(run_dir / "annotations.jsonl")
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert summary.row_count == 1
+    assert summary.carried_forward_count == 1
+    assert summary.generated_count == 1
+    assert summary.final_snapshot_count == 2
+    assert summary.snapshot_written is True
+    assert rows[0] == existing_rows[0]
+    assert [row["episode_id"] for row in rows] == [
+        "episode-20260503-1",
+        "episode-20260503-2",
+    ]
+    assert manifest["source_episode_count"] == 2
+    assert manifest["carried_forward_count"] == 1
+    assert manifest["generated_count"] == 1
+    assert manifest["final_snapshot_count"] == 2
+    assert manifest["producer_provenance"]["base_annotation_run_id"] == (
+        "run-20260618-110000-deterministic"
+    )
+    coverage = annotation_coverage(episode_dir, annotation_run_dir=run_dir)
+    assert coverage.coverage == "full"
+    assert coverage.annotation_row_count == 2
+
+
+def test_annotation_producer_preserves_102_rows_and_generates_10(tmp_path):
+    episode_dir = tmp_path / "episodes"
+    output_root = tmp_path / "annotation-runs"
+    episode_dir.mkdir()
+    for index in range(1, 103):
+        episode_id = f"episode-20260503-{index}"
+        _write_json(episode_dir / f"{episode_id}.json", _episode(episode_id))
+    produce_annotation_run(
+        episode_dir,
+        output_root,
+        write=True,
+        timestamp="20260618-110000",
+    )
+    existing_run = output_root / "run-20260618-110000-deterministic"
+    existing_rows = _read_jsonl(existing_run / "annotations.jsonl")
+    for index in range(103, 113):
+        episode_id = f"episode-20260503-{index}"
+        _write_json(episode_dir / f"{episode_id}.json", _episode(episode_id))
+
+    summary = produce_annotation_run(
+        episode_dir,
+        output_root,
+        only_missing=True,
+        annotation_run_dir=existing_run,
+        write=True,
+        timestamp="20260618-120000",
+    )
+
+    new_run = output_root / "run-20260618-120000-deterministic"
+    rows = _read_jsonl(new_run / "annotations.jsonl")
+    assert summary.carried_forward_count == 102
+    assert summary.generated_count == 10
+    assert summary.final_snapshot_count == 112
+    assert len(rows) == 112
+    rows_by_id = {row["episode_id"]: row for row in rows}
+    for existing_row in existing_rows:
+        assert rows_by_id[existing_row["episode_id"]] == existing_row
+    assert len({row["episode_id"] for row in rows}) == 112
+    latest = selected_annotation_run(
+        episode_dir,
+        annotation_run_root=output_root,
+    )
+    assert latest is not None
+    assert latest.path == new_run
+    assert len(latest.rows) == 112
 
 
 def test_annotation_producer_source_filter(tmp_path):
@@ -157,16 +238,53 @@ def test_annotation_producer_only_missing_reports_noop_when_full(tmp_path):
         output_root,
         only_missing=True,
         annotation_run_dir=existing_run,
+        write=True,
         timestamp="20260618-120000",
     )
 
     assert summary.row_count == 0
+    assert summary.carried_forward_count == 1
+    assert summary.generated_count == 0
+    assert summary.final_snapshot_count == 1
+    assert summary.snapshot_written is False
     assert summary.annotated_before == 1
     assert summary.annotated_after == 1
     assert summary.pending_before == 0
     assert summary.pending_after == 0
     assert summary.coverage_before == "full"
     assert summary.coverage_after == "full"
+    assert not (output_root / "run-20260618-120000-deterministic").exists()
+
+
+def test_annotation_producer_rejects_incomplete_missing_only_snapshot(tmp_path):
+    episode_dir = tmp_path / "episodes"
+    output_root = tmp_path / "annotation-runs"
+    existing_run = output_root / "run-20260618-110000-deterministic"
+    episode_dir.mkdir()
+    first = _episode("episode-20260503-1")
+    second = _episode("episode-20260503-2")
+    second["source"] = "telegram-chat:456"
+    _write_json(episode_dir / "episode-20260503-1.json", first)
+    produce_annotation_run(
+        episode_dir,
+        output_root,
+        write=True,
+        timestamp="20260618-110000",
+    )
+    _write_json(episode_dir / "episode-20260503-2.json", second)
+
+    with pytest.raises(ValueError, match="snapshot is incomplete"):
+        produce_annotation_run(
+            episode_dir,
+            output_root,
+            only_missing=True,
+            source="telegram-chat:123",
+            annotation_run_dir=existing_run,
+            write=True,
+            timestamp="20260618-120000",
+        )
+
+    assert not (output_root / "run-20260618-120000-deterministic").exists()
 
 
 def _episode(episode_id="episode-20260503-1"):

@@ -13,12 +13,19 @@ from pydantic import ValidationError
 from app.analytics_loader import selected_annotation_run
 from app.derived_normalizer import normalize_episode
 from app.episode_annotator import annotate_episode
-from app.schemas.annotation_run import AnnotationRunManifest, AnnotationRunRow
+from app.schemas.annotation_run import (
+    AnnotationProducerProvenance,
+    AnnotationRunManifest,
+    AnnotationRunRow,
+)
 from app.schemas.episode import Episode
 
 SCHEMA_VERSION = "episode-v1"
 TAXONOMY_VERSION = "graph-v1"
 PROMPT_VERSION = "deterministic-observed-v1"
+COMPOSED_PROMPT_VERSION = "composed-snapshot-v1"
+PRODUCER_NAME = "app.annotation_producer"
+PRODUCER_STRATEGY = "deterministic_observed"
 
 
 @dataclass(frozen=True)
@@ -37,6 +44,10 @@ class AnnotationProducerSummary:
     pending_after: int
     coverage_before: str
     coverage_after: str
+    carried_forward_count: int
+    generated_count: int
+    final_snapshot_count: int
+    snapshot_written: bool
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -54,6 +65,10 @@ class AnnotationProducerSummary:
             "pending_after": self.pending_after,
             "coverage_before": self.coverage_before,
             "coverage_after": self.coverage_after,
+            "carried_forward_count": self.carried_forward_count,
+            "generated_count": self.generated_count,
+            "final_snapshot_count": self.final_snapshot_count,
+            "snapshot_written": self.snapshot_written,
         }
 
 
@@ -80,7 +95,7 @@ def produce_annotation_run(
         annotation_run_root or output_root,
         episode_ids=all_episode_ids,
     )
-    existing_ids: set[str] = (
+    existing_ids = (
         set(selected_run.derived_by_episode_id) if selected_run is not None else set()
     )
     source_episode_ids = {
@@ -90,37 +105,88 @@ def produce_annotation_run(
     skipped_ids = before_ids if only_missing else set()
 
     episodes = _episodes_to_annotate(records, source=source, existing_ids=skipped_ids)
-    rows = tuple(
+    generated_rows = tuple(
         AnnotationRunRow(episode_id=episode.id, derived=annotate_episode(episode))
         for episode in episodes
+    )
+    carried_rows = (
+        tuple(selected_run.rows)
+        if only_missing and selected_run is not None
+        else ()
+    )
+    rows = _snapshot_rows(
+        carried_rows,
+        generated_rows,
+        known_episode_ids=all_episode_ids,
+    )
+    if only_missing and set(row.episode_id for row in rows) != all_episode_ids:
+        missing_ids = sorted(all_episode_ids - {row.episode_id for row in rows})
+        raise ValueError(
+            "missing-only annotation snapshot is incomplete: "
+            f"final={len(rows)}/{len(all_episode_ids)}; "
+            f"missing={len(missing_ids)}"
+        )
+    snapshot_written = bool(write and (not only_missing or generated_rows))
+    prompt_version = (
+        COMPOSED_PROMPT_VERSION
+        if carried_rows and generated_rows
+        else (
+            selected_run.manifest.prompt_version
+            if carried_rows and selected_run is not None
+            else PROMPT_VERSION
+        )
     )
     manifest = AnnotationRunManifest(
         annotation_run_id=selected_run_id,
         schema_version=SCHEMA_VERSION,
         taxonomy_version=TAXONOMY_VERSION,
-        prompt_version=PROMPT_VERSION,
+        prompt_version=prompt_version,
         created_at=created_at,
-        source_episode_count=len(episodes),
+        source_episode_count=len(rows),
+        carried_forward_count=len(carried_rows),
+        generated_count=len(generated_rows),
+        final_snapshot_count=len(rows),
+        producer_provenance=AnnotationProducerProvenance(
+            producer=PRODUCER_NAME,
+            mode="missing_only_snapshot" if only_missing else "full_snapshot",
+            generated_strategy=PRODUCER_STRATEGY,
+            generated_prompt_version=PROMPT_VERSION,
+            base_annotation_run_id=(
+                selected_run.manifest.annotation_run_id
+                if selected_run is not None and only_missing
+                else None
+            ),
+            base_prompt_version=(
+                selected_run.manifest.prompt_version
+                if selected_run is not None and only_missing
+                else None
+            ),
+        ),
     )
 
-    if write:
+    if snapshot_written:
         _write_run(run_dir, manifest, rows)
 
+    final_ids = {row.episode_id for row in rows}
     return AnnotationProducerSummary(
         dry_run=not write,
         episode_count=len(records),
         scanned_count=len(episodes),
         skipped_existing_count=len(skipped_ids),
-        row_count=len(rows),
+        row_count=len(generated_rows),
         run_dir=run_dir.as_posix(),
         run_id=selected_run_id,
         source=source,
         annotated_before=len(before_ids),
-        annotated_after=len(before_ids | {row.episode_id for row in rows}),
+        annotated_after=len(source_episode_ids & final_ids),
         pending_before=len(source_episode_ids - before_ids),
-        pending_after=len(source_episode_ids - (before_ids | {row.episode_id for row in rows})),
+        pending_after=len(source_episode_ids - final_ids),
         coverage_before=_coverage_label(source_episode_ids, before_ids),
-        coverage_after=_coverage_label(source_episode_ids, before_ids | {row.episode_id for row in rows}),
+        coverage_after=_coverage_label(source_episode_ids, source_episode_ids & final_ids),
+        carried_forward_count=len(carried_rows),
+        generated_count=len(generated_rows),
+        final_snapshot_count=len(rows),
+        snapshot_written=snapshot_written,
     )
 
 
@@ -128,6 +194,24 @@ def _coverage_label(episode_ids: set[str], annotated_ids: set[str]) -> str:
     if not episode_ids:
         return "empty"
     return "full" if episode_ids <= annotated_ids else "partial"
+
+
+def _snapshot_rows(
+    carried_rows: tuple[AnnotationRunRow, ...],
+    generated_rows: tuple[AnnotationRunRow, ...],
+    *,
+    known_episode_ids: set[str],
+) -> tuple[AnnotationRunRow, ...]:
+    rows_by_id: dict[str, AnnotationRunRow] = {}
+    for row in (*carried_rows, *generated_rows):
+        if row.episode_id not in known_episode_ids:
+            raise ValueError(
+                f"annotation row references unknown episode: {row.episode_id}"
+            )
+        if row.episode_id in rows_by_id:
+            raise ValueError(f"duplicate annotation row: {row.episode_id}")
+        rows_by_id[row.episode_id] = row
+    return tuple(rows_by_id[episode_id] for episode_id in sorted(rows_by_id))
 
 
 def _episodes_to_annotate(
