@@ -37,6 +37,7 @@ provenance.
 It must not contain user-facing copy, map layout decisions, hex-grid concepts,
 LLM-generated interpretations, diagnostic claims, or stable-trait claims.
 
-Reports and maps are downstream consumers of this payload. They may render or
-project the same analytics differently, but they must not reselect conflicting
+Reports and maps are downstream consumers of this payload. Reports first project
+it into report cards; maps first project it into spatial payloads. These views may
+render the same analytics differently, but they must not reselect conflicting
 primary motifs, forks, contrasts, or outcomes.

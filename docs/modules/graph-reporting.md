@@ -17,7 +17,7 @@ plus selected annotations.
 - computed `GraphReport` objects.
 - shared deterministic pattern metrics with episode-level support provenance.
 - computed material for `InsightPayload` construction.
-- plain-language `/profile` summary and details projections.
+- card-composed plain-language `/profile` summary and details projections.
 - optional Markdown debug exports.
 
 ## Dependencies
@@ -41,13 +41,14 @@ demand and is not a stored source-of-truth artifact.
 
 `app.pattern_metrics` owns reusable deterministic counts and episode-support
 sets. `app.insight_payload` packages those facts into the shared downstream
-analytics artifact. `app.user_report` renders cautious user-facing observations
-from that payload; it does not generate new annotations, choose independent map
+analytics artifact. `app.report_cards` turns that payload into report-view card
+candidates. `app.user_report` renders short and detailed `/profile` text from
+those cards; it does not generate new annotations, choose independent map
 semantics, or produce diagnostic interpretations.
 
-The detailed user report prioritizes supported choice points,
-counterexamples, contrasts, and horizon-specific outcomes before repeated
-scenario summaries. These remain facts about the current sample, not stable
+The detailed user report is composed from cards for repeated scenarios, choice
+points, counterexamples, contrasts, horizon-specific outcomes, and next
+observation questions. These remain facts about the current sample, not stable
 traits.
 
 `app.graph_report` without `--output-dir` prints Markdown only and must not

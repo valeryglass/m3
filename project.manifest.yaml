@@ -250,6 +250,7 @@ modules:
       - app/graph_report.py
       - app/pattern_metrics.py
       - app/user_report.py
+      - app/report_cards.py
       - model/graph.md
     inputs:
       - hydrated graph-ready episodes
@@ -265,6 +266,7 @@ modules:
       - source_split_reports
       - deterministic_pattern_metrics
       - user_profile_report_rendering
+      - card_composed_profile_reports
 
   insight_payloads:
     stage: experimental
