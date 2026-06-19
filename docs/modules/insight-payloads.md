@@ -41,3 +41,7 @@ Reports and maps are downstream consumers of this payload. Reports first project
 it into report cards; maps first project it into spatial payloads. These views may
 render the same analytics differently, but they must not reselect conflicting
 primary motifs, forks, contrasts, or outcomes.
+
+File export requires an explicitly selected annotation-run, full row coverage,
+and payload-eligible derived data for every episode in the selected source.
+Export fails before writing when any selected episode is pending or ineligible.

@@ -74,3 +74,7 @@ Current local export commands write map payload artifacts under
 `data/exports/hex-world/`. These directories are explicit tracked export
 surfaces, not canonical model storage. Their JSON/HTML can contain derived
 private data, so commit updates only when intentionally sharing map exports.
+
+Map payload file export requires an explicitly selected annotation-run, full
+row coverage, and payload eligibility for every episode in the selected source.
+It fails before writing when coverage or readiness is incomplete.

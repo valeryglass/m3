@@ -32,6 +32,8 @@ payload JSON.
 - timespan analytics use fixed 1-week buckets.
 - map payloads expose graph-derived semantics and provenance without choosing a
   final visual renderer.
+- file exports fail before writing unless an explicit annotation-run gives full
+  coverage and payload eligibility for every selected-source episode.
 
 ## Ownership
 

@@ -6,7 +6,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from app.analytics_loader import annotation_coverage_for_episode_ids
+from app.analytics_loader import (
+    annotation_coverage_for_episode_ids,
+    require_full_coverage,
+)
 from app.graph_report import GraphReport, build_report, load_episodes
 from app.pattern_metrics import (
     behavior_fork_episode_ids,
@@ -145,6 +148,18 @@ def build_insight_payload(report: GraphReport) -> InsightPayload:
         contrast=_contrast(report),
         outcome_patterns=_outcome_patterns(report),
     )
+
+
+def require_payload_export_ready(report: GraphReport) -> None:
+    require_full_coverage(report.coverage)
+    if report.total_episodes <= 0:
+        raise ValueError("payload export source has no episodes")
+    eligible_count = sum(1 for item in report.readiness if item.payload_eligible)
+    if eligible_count != report.total_episodes:
+        raise ValueError(
+            "payload readiness is incomplete: "
+            f"eligible={eligible_count}/{report.total_episodes}"
+        )
 
 
 def _coverage_payload(report: GraphReport) -> CoveragePayload:
@@ -356,24 +371,24 @@ def write_insight_payload(payload: InsightPayload, output_path: Path) -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Write deterministic insight payload JSON.")
     parser.add_argument("--episode-dir", default="data/episodes")
-    parser.add_argument("--annotation-run-dir")
+    parser.add_argument("--annotation-run-dir", required=True)
     parser.add_argument("--source", required=True)
     parser.add_argument("--output")
     args = parser.parse_args()
 
     episode_dir = Path(args.episode_dir)
-    annotation_run_dir = Path(args.annotation_run_dir) if args.annotation_run_dir else None
-    episodes = [
-        episode
-        for episode in load_episodes(episode_dir, annotation_run_dir=annotation_run_dir)
-        if episode.source == args.source
-    ]
+    annotation_run_dir = Path(args.annotation_run_dir)
+    all_episodes = load_episodes(episode_dir, annotation_run_dir=annotation_run_dir)
+    all_episode_ids = {episode.id for episode in all_episodes}
+    episodes = [episode for episode in all_episodes if episode.source == args.source]
     coverage = annotation_coverage_for_episode_ids(
         {episode.id for episode in episodes},
         annotation_run_dir=annotation_run_dir,
-        known_episode_ids={episode.id for episode in episodes},
+        known_episode_ids=all_episode_ids,
     )
-    payload = build_insight_payload(build_report(episodes, coverage=coverage))
+    report = build_report(episodes, coverage=coverage)
+    require_payload_export_ready(report)
+    payload = build_insight_payload(report)
     output = (
         Path(args.output)
         if args.output

@@ -3,6 +3,7 @@ import json
 import pytest
 
 from app.graph_report import load_episodes
+from app.insight_payload import main as insight_main
 from app.map_payload import build_map_payload, main, write_map_payload
 from app.schemas.episode import Episode
 
@@ -277,10 +278,16 @@ def test_map_payload_writes_requested_path(tmp_path):
 
 def test_map_payload_cli_writes_output(tmp_path, monkeypatch, capsys):
     episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
     episode_dir.mkdir()
+    episode = _episode("episode-20260430-1")
     (episode_dir / "episode-20260430-1.json").write_text(
-        json.dumps(_episode("episode-20260430-1"), ensure_ascii=False),
+        json.dumps(episode, ensure_ascii=False),
         encoding="utf-8",
+    )
+    _write_annotation_run(
+        run_dir,
+        {"episode_id": episode["id"], "derived": episode["derived"]},
     )
     output = tmp_path / "map.json"
     monkeypatch.setattr(
@@ -289,6 +296,8 @@ def test_map_payload_cli_writes_output(tmp_path, monkeypatch, capsys):
             "map_payload",
             "--episode-dir",
             str(episode_dir),
+            "--annotation-run-dir",
+            str(run_dir),
             "--source",
             "telegram-chat:123",
             "--output",
@@ -308,10 +317,16 @@ def test_map_payload_cli_writes_output(tmp_path, monkeypatch, capsys):
 
 def test_map_payload_cli_default_output_uses_exports_dir(tmp_path, monkeypatch, capsys):
     episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
     episode_dir.mkdir()
+    episode = _episode("episode-20260430-1")
     (episode_dir / "episode-20260430-1.json").write_text(
-        json.dumps(_episode("episode-20260430-1"), ensure_ascii=False),
+        json.dumps(episode, ensure_ascii=False),
         encoding="utf-8",
+    )
+    _write_annotation_run(
+        run_dir,
+        {"episode_id": episode["id"], "derived": episode["derived"]},
     )
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(
@@ -320,6 +335,8 @@ def test_map_payload_cli_default_output_uses_exports_dir(tmp_path, monkeypatch, 
             "map_payload",
             "--episode-dir",
             str(episode_dir),
+            "--annotation-run-dir",
+            str(run_dir),
             "--source",
             "telegram-chat:123",
         ],
@@ -375,6 +392,53 @@ def test_map_payload_cli_includes_annotation_run_provenance(
     assert provenance["annotation_run_id"] == "run-test"
     assert provenance["annotation_run_path"] == run_dir.as_posix()
     assert provenance["episode_dir"] == episode_dir.as_posix()
+
+
+def test_explicit_insight_and_map_exports_agree_on_full_coverage(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
+    episode_dir.mkdir()
+    episode = _episode("episode-20260430-1")
+    (episode_dir / f"{episode['id']}.json").write_text(
+        json.dumps(episode, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    _write_annotation_run(
+        run_dir,
+        {"episode_id": episode["id"], "derived": episode["derived"]},
+    )
+    insight_output = tmp_path / "insight.json"
+    map_output = tmp_path / "map.json"
+    common_args = [
+        "--episode-dir",
+        str(episode_dir),
+        "--annotation-run-dir",
+        str(run_dir),
+        "--source",
+        "telegram-chat:123",
+    ]
+
+    monkeypatch.setattr(
+        "sys.argv",
+        ["insight_payload", *common_args, "--output", str(insight_output)],
+    )
+    insight_main()
+    capsys.readouterr()
+    monkeypatch.setattr(
+        "sys.argv",
+        ["map_payload", *common_args, "--output", str(map_output)],
+    )
+    main()
+
+    insight = json.loads(insight_output.read_text(encoding="utf-8"))
+    map_payload = json.loads(map_output.read_text(encoding="utf-8"))
+    assert insight["coverage"] == map_payload["analytics"]["insight_payload"]["coverage"]
+    assert insight["coverage"]["state"] == "full"
+    assert map_payload["provenance"]["annotation_run_id"] == run_dir.name
 
 
 def test_map_payload_loads_episode_files(tmp_path):
@@ -474,7 +538,7 @@ def test_map_payload_builds_with_partial_annotation_coverage(tmp_path):
     }
 
 
-def test_map_payload_cli_require_full_coverage_fails_on_partial_run(
+def test_map_payload_cli_fails_on_partial_run_without_writing(
     tmp_path,
     monkeypatch,
 ):
@@ -493,6 +557,8 @@ def test_map_payload_cli_require_full_coverage_fails_on_partial_run(
         },
     )
     (run_dir / "annotations.jsonl").write_text("", encoding="utf-8")
+    output = tmp_path / "map.json"
+    output.write_text("existing", encoding="utf-8")
     monkeypatch.setattr(
         "sys.argv",
         [
@@ -504,13 +570,64 @@ def test_map_payload_cli_require_full_coverage_fails_on_partial_run(
             "--source",
             "telegram-chat:123",
             "--output",
-            str(tmp_path / "map.json"),
-            "--require-full-coverage",
+            str(output),
         ],
     )
 
     with pytest.raises(ValueError, match="coverage is partial"):
         main()
+
+    assert output.read_text(encoding="utf-8") == "existing"
+
+
+def test_map_payload_cli_fails_on_empty_derived_without_writing(
+    tmp_path,
+    monkeypatch,
+):
+    episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
+    episode_dir.mkdir()
+    episode = _observed_only_episode("episode-20260430-1")
+    (episode_dir / "episode-20260430-1.json").write_text(
+        json.dumps(episode, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    _write_annotation_run(
+        run_dir,
+        {
+            "episode_id": "episode-20260430-1",
+            "derived": {
+                "nodes": [],
+                "trigger_annotations": [],
+                "actor_annotations": [],
+                "cognition_annotations": [],
+                "emotion_annotations": [],
+                "behavior_annotations": [],
+                "outcome_annotations": [],
+                "relations": [],
+            },
+        },
+    )
+    output = tmp_path / "map.json"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "map_payload",
+            "--episode-dir",
+            str(episode_dir),
+            "--annotation-run-dir",
+            str(run_dir),
+            "--source",
+            "telegram-chat:123",
+            "--output",
+            str(output),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="payload readiness is incomplete"):
+        main()
+
+    assert not output.exists()
 
 
 def test_map_payload_builds_from_latest_annotation_run_by_default(tmp_path):

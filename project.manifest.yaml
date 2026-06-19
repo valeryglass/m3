@@ -290,6 +290,7 @@ modules:
       - shared_insight_payload
       - target_agnostic_analytics
       - deterministic_payload_export
+      - strict_explicit_run_export
 
   pattern_payloads:
     stage: experimental
@@ -323,6 +324,7 @@ modules:
       - fork_convergence_outcome_analysis
       - one_week_drift_novelty_stability
       - backend_map_payload
+      - strict_explicit_run_export
       - hex_world_spatial_layout
       - axial_hex_grid_math
       - map_payload_html_preview

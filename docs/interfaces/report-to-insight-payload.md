@@ -23,6 +23,8 @@ target-agnostic artifact for downstream consumers.
   contrasts, and outcome patterns.
 - payloads contain raw analytics labels, not localized report copy.
 - payloads avoid diagnostic claims and stable trait claims.
+- file exports require explicit annotation-run selection, full selected-source
+  coverage, and payload eligibility for every selected episode.
 
 ## Ownership
 

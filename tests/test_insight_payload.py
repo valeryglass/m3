@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from app.analytics_loader import AnnotationCoverage
 from app.graph_report import build_report
 from app.insight_payload import build_insight_payload, main
@@ -53,10 +55,16 @@ def test_insight_payload_to_dict_is_json_serializable_and_raw():
 
 def test_insight_payload_cli_writes_debug_json(tmp_path, monkeypatch, capsys):
     episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
     episode_dir.mkdir()
+    episode = _episode("episode-20260430-1")
     (episode_dir / "episode-20260430-1.json").write_text(
-        json.dumps(_episode("episode-20260430-1"), ensure_ascii=False),
+        json.dumps(episode, ensure_ascii=False),
         encoding="utf-8",
+    )
+    _write_annotation_run(
+        run_dir,
+        [("episode-20260430-1", episode["derived"])],
     )
     output = tmp_path / "insight.json"
     monkeypatch.setattr(
@@ -65,6 +73,8 @@ def test_insight_payload_cli_writes_debug_json(tmp_path, monkeypatch, capsys):
             "insight_payload",
             "--episode-dir",
             str(episode_dir),
+            "--annotation-run-dir",
+            str(run_dir),
             "--source",
             "telegram-chat:123",
             "--output",
@@ -81,8 +91,167 @@ def test_insight_payload_cli_writes_debug_json(tmp_path, monkeypatch, capsys):
     assert data["sample"]["graph_ready_episode_ids"] == ["episode-20260430-1"]
 
 
+def test_insight_payload_cli_accepts_full_multi_source_run(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
+    episode_dir.mkdir()
+    first = _episode("episode-20260430-1")
+    second = _episode("episode-20260430-2")
+    second["source"] = "telegram-chat:456"
+    for episode in (first, second):
+        (episode_dir / f"{episode['id']}.json").write_text(
+            json.dumps(episode, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    _write_annotation_run(
+        run_dir,
+        [(first["id"], first["derived"]), (second["id"], second["derived"])],
+    )
+    output = tmp_path / "insight.json"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "insight_payload",
+            "--episode-dir",
+            str(episode_dir),
+            "--annotation-run-dir",
+            str(run_dir),
+            "--source",
+            "telegram-chat:123",
+            "--output",
+            str(output),
+        ],
+    )
+
+    main()
+
+    assert capsys.readouterr().out.strip() == str(output)
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data["coverage"]["state"] == "full"
+    assert data["sample"]["total_episodes"] == 1
+    assert data["sample"]["payload_eligible_count"] == 1
+
+
+def test_insight_payload_cli_rejects_partial_coverage_without_writing(
+    tmp_path,
+    monkeypatch,
+):
+    episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
+    episode_dir.mkdir()
+    first = _episode("episode-20260430-1")
+    second = _episode("episode-20260430-2")
+    for episode in (first, second):
+        (episode_dir / f"{episode['id']}.json").write_text(
+            json.dumps(episode, ensure_ascii=False),
+            encoding="utf-8",
+    )
+    _write_annotation_run(run_dir, [(first["id"], first["derived"])])
+    output = tmp_path / "insight.json"
+    output.write_text("existing", encoding="utf-8")
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "insight_payload",
+            "--episode-dir",
+            str(episode_dir),
+            "--annotation-run-dir",
+            str(run_dir),
+            "--source",
+            "telegram-chat:123",
+            "--output",
+            str(output),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="coverage is partial"):
+        main()
+
+    assert output.read_text(encoding="utf-8") == "existing"
+
+
+def test_insight_payload_cli_rejects_empty_derived_without_writing(
+    tmp_path,
+    monkeypatch,
+):
+    episode_dir = tmp_path / "episodes"
+    run_dir = tmp_path / "annotation-runs" / "run-test"
+    episode_dir.mkdir()
+    episode = _episode("episode-20260430-1")
+    (episode_dir / f"{episode['id']}.json").write_text(
+        json.dumps(episode, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    _write_annotation_run(run_dir, [(episode["id"], _empty_derived())])
+    output = tmp_path / "insight.json"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "insight_payload",
+            "--episode-dir",
+            str(episode_dir),
+            "--annotation-run-dir",
+            str(run_dir),
+            "--source",
+            "telegram-chat:123",
+            "--output",
+            str(output),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="payload readiness is incomplete"):
+        main()
+
+    assert not output.exists()
+
+
 def _load(data):
     return Episode.model_validate(data)
+
+
+def _write_annotation_run(run_dir, rows):
+    run_dir.mkdir(parents=True)
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "annotation_run_id": run_dir.name,
+                "schema_version": "episode.v1",
+                "taxonomy_version": "taxonomy.v1",
+                "prompt_version": "prompt.v1",
+                "created_at": "2026-05-01T00:00:00Z",
+                "source_episode_count": len(rows),
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "annotations.jsonl").write_text(
+        "".join(
+            json.dumps(
+                {"episode_id": episode_id, "derived": derived},
+                ensure_ascii=False,
+            )
+            + "\n"
+            for episode_id, derived in rows
+        ),
+        encoding="utf-8",
+    )
+
+
+def _empty_derived():
+    return {
+        "nodes": [],
+        "trigger_annotations": [],
+        "actor_annotations": [],
+        "cognition_annotations": [],
+        "emotion_annotations": [],
+        "behavior_annotations": [],
+        "outcome_annotations": [],
+        "relations": [],
+    }
 
 
 def _episode(

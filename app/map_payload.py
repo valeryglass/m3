@@ -8,10 +8,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from app.analytics_loader import selected_annotation_run
-from app.analytics_loader import annotation_coverage_for_episode_ids, require_full_coverage
+from app.analytics_loader import annotation_coverage_for_episode_ids, selected_annotation_run
 from app.graph_report import GraphReport, build_report, load_episodes
-from app.insight_payload import build_insight_payload
+from app.insight_payload import build_insight_payload, require_payload_export_ready
 from app.pattern_metrics import (
     WEEK_QUANT,
     loops_for_signature,
@@ -171,14 +170,9 @@ def write_map_payload(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Write renderer-neutral map payload JSON.")
     parser.add_argument("--episode-dir", default="data/episodes")
-    parser.add_argument("--annotation-run-dir")
+    parser.add_argument("--annotation-run-dir", required=True)
     parser.add_argument("--source", required=True)
     parser.add_argument("--output")
-    parser.add_argument(
-        "--require-full-coverage",
-        action="store_true",
-        help="Fail when the selected annotation-run has missing rows for this source.",
-    )
     args = parser.parse_args()
 
     output = (
@@ -187,7 +181,7 @@ def main() -> None:
         else Path("data/exports/map-payload") / f"{safe_filename(args.source)}.json"
     )
     episode_dir = Path(args.episode_dir)
-    annotation_run_dir = Path(args.annotation_run_dir) if args.annotation_run_dir else None
+    annotation_run_dir = Path(args.annotation_run_dir)
     episodes = load_episodes(
         episode_dir,
         annotation_run_dir=annotation_run_dir,
@@ -198,8 +192,8 @@ def main() -> None:
         annotation_run_dir=annotation_run_dir,
         known_episode_ids=all_episode_ids,
     )
-    if args.require_full_coverage:
-        require_full_coverage(coverage)
+    source_episodes = [episode for episode in episodes if episode.source == args.source]
+    require_payload_export_ready(build_report(source_episodes, coverage=coverage))
     path = write_map_payload(
         episodes,
         output,
@@ -218,7 +212,7 @@ def main() -> None:
 def _cli_provenance(
     *,
     episode_dir: Path,
-    annotation_run_dir: Path | None,
+    annotation_run_dir: Path,
     episode_ids: set[str],
     source: str,
 ) -> dict[str, Any]:
