@@ -2,13 +2,16 @@
 
 ## Contract
 
-Graph Reporting provides computed graph-view summaries and signature counters to
-Pattern Payloads.
+Insight Payloads provide shared deterministic analytics to Pattern Payloads.
+Pattern Payloads project those analytics into renderer-neutral map and spatial
+payload JSON.
 
 ## Input
 
-- report-ready episode set.
-- signature counters, pairings, outcome contours, and 1-week buckets.
+- `InsightPayload` shared analytics artifact.
+- report-ready episode set when map-specific graph entities still need direct
+  provenance and topology.
+- optional spatial projection derived from the same `InsightPayload`.
 
 ## Output
 
@@ -19,6 +22,8 @@ Pattern Payloads.
 ## Guarantees
 
 - payloads include provenance for graph-ready and skipped episodes.
+- reports and maps consume the same shared analytics payload for primary motifs,
+  forks, contrasts, counterexamples, and outcome patterns.
 - payloads avoid diagnostic claims and stable trait claims.
 - map payloads and previews are explicit exports, not canonical source
   artifacts.
@@ -30,5 +35,5 @@ Pattern Payloads.
 
 ## Ownership
 
-- producer: `graph_reporting`
+- producer: `insight_payloads`
 - consumer: `pattern_payloads`

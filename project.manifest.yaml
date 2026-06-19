@@ -258,7 +258,7 @@ modules:
       - optional Markdown debug exports
     interfaces:
       - annotation_to_report
-      - report_to_payload
+      - report_to_insight_payload
     capabilities:
       - graph_readiness_summary
       - signature_counts
@@ -266,12 +266,35 @@ modules:
       - deterministic_pattern_metrics
       - user_profile_report_rendering
 
+  insight_payloads:
+    stage: experimental
+    enabled: true
+    purpose: Produce shared deterministic analytics payloads for report and map consumers.
+    owned_paths:
+      - app/insight_payload.py
+      - docs/modules/insight-payloads.md
+      - data/exports/insight-payload/
+    inputs:
+      - computed GraphReport views
+      - deterministic pattern metrics
+    outputs:
+      - target-agnostic InsightPayload JSON
+      - shared analytics entities for report and map consumers
+    interfaces:
+      - report_to_insight_payload
+      - report_to_payload
+    capabilities:
+      - shared_insight_payload
+      - target_agnostic_analytics
+      - deterministic_payload_export
+
   pattern_payloads:
     stage: experimental
     enabled: true
     purpose: Produce renderer-neutral pattern payloads from report-ready episodes.
     owned_paths:
       - app/map_payload.py
+      - app/spatial_payload.py
       - app/map_topology.py
       - app/map_grid.py
       - app/hex_world.py
@@ -281,7 +304,8 @@ modules:
       - data/exports/hex-world/
     inputs:
       - report-ready episodes
-      - graph signature counters
+      - shared InsightPayload analytics
+      - spatial payload projections
     outputs:
       - explicit map payload JSON exports
       - explicit hex-world layout JSON exports
@@ -373,9 +397,16 @@ interfaces:
       - graph_reporting
     contract_doc: docs/interfaces/annotation-to-report.md
 
-  report_to_payload:
+  report_to_insight_payload:
     state: open
     owner: graph_reporting
+    consumers:
+      - insight_payloads
+    contract_doc: docs/interfaces/report-to-insight-payload.md
+
+  report_to_payload:
+    state: open
+    owner: insight_payloads
     consumers:
       - pattern_payloads
     contract_doc: docs/interfaces/report-to-payload.md

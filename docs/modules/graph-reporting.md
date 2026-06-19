@@ -16,6 +16,7 @@ plus selected annotations.
 
 - computed `GraphReport` objects.
 - shared deterministic pattern metrics with episode-level support provenance.
+- computed material for `InsightPayload` construction.
 - plain-language `/profile` summary and details projections.
 - optional Markdown debug exports.
 
@@ -27,6 +28,7 @@ plus selected annotations.
 ## Interfaces
 
 - `annotation_to_report`
+- `report_to_insight_payload`
 
 ## Lifecycle
 
@@ -38,9 +40,10 @@ Report shapes are useful locally, but not yet frozen as stable public outputs.
 demand and is not a stored source-of-truth artifact.
 
 `app.pattern_metrics` owns reusable deterministic counts and episode-support
-sets for report and payload consumers. `app.user_report` composes those facts
-into cautious user-facing observations; it does not generate new annotations
-or diagnostic interpretations.
+sets. `app.insight_payload` packages those facts into the shared downstream
+analytics artifact. `app.user_report` renders cautious user-facing observations
+from that payload; it does not generate new annotations, choose independent map
+semantics, or produce diagnostic interpretations.
 
 The detailed user report prioritizes supported choice points,
 counterexamples, contrasts, and horizon-specific outcomes before repeated
