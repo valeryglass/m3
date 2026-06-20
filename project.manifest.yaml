@@ -272,6 +272,7 @@ modules:
       - deterministic_pattern_metrics
       - user_profile_report_rendering
       - card_composed_profile_reports
+      - accepted_domain_graph_signatures
 
   insight_payloads:
     stage: experimental
@@ -295,6 +296,7 @@ modules:
       - target_agnostic_analytics
       - deterministic_payload_export
       - strict_explicit_run_export
+      - primary_domain_analytics
 
   pattern_payloads:
     stage: experimental

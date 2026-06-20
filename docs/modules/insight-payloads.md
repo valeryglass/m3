@@ -13,6 +13,7 @@ and map consumers.
 ## Outputs
 
 - target-agnostic `InsightPayload` objects.
+- domain distributions and compact primary-domain analytics summaries.
 - optional explicit JSON debug exports under `data/exports/insight-payload/`.
 
 ## Dependencies
@@ -33,6 +34,11 @@ and map consumers.
 report-ready graph material. It carries raw analytics entities such as motifs,
 forks, counterexamples, contrasts, outcome patterns, coverage, gaps, and
 provenance.
+
+Version `0.2` adds primary/secondary domain distribution and compact summaries
+per primary domain: support, dominant motif, main fork, and top outcomes.
+Primary-domain summaries partition episodes; secondary domains remain
+distribution metadata.
 
 It must not contain user-facing copy, map layout decisions, hex-grid concepts,
 LLM-generated interpretations, diagnostic claims, or stable-trait claims.

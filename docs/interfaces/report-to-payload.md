@@ -24,6 +24,8 @@ payload JSON.
 - payloads include provenance for graph-ready and skipped episodes.
 - reports and maps consume the same shared analytics payload for primary motifs,
   forks, contrasts, counterexamples, and outcome patterns.
+- map analytics embed the same primary-domain summaries selected by the shared
+  insight payload.
 - payloads avoid diagnostic claims and stable trait claims.
 - map payloads and previews are explicit exports, not canonical source
   artifacts.

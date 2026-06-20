@@ -19,7 +19,7 @@ def test_map_payload_builds_compiler_json_for_one_source():
     payload = build_map_payload(episodes, source="telegram-chat:123")
 
     assert payload["kind"] == "map_payload"
-    assert payload["version"] == "0.1"
+    assert payload["version"] == "0.2"
     assert payload["source"] == "telegram-chat:123"
     assert payload["episodes"] == 3
     assert payload["timespan_quant"] == "1week"

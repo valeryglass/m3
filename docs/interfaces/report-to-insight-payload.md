@@ -21,6 +21,8 @@ target-agnostic artifact for downstream consumers.
 - analytics use distinct supporting episode IDs where support counts are shown.
 - payloads retain provenance for supported motifs, forks, counterexamples,
   contrasts, and outcome patterns.
+- payloads retain distinct episode provenance for primary/secondary life-domain
+  support and compact primary-domain summaries.
 - payloads contain raw analytics labels, not localized report copy.
 - payloads avoid diagnostic claims and stable trait claims.
 - file exports require explicit annotation-run selection, full selected-source

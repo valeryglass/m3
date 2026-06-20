@@ -43,6 +43,8 @@ class EpisodeSignature:
     relation_types: tuple[str, ...]
     short_term_consequence: str
     long_term_consequence: str
+    primary_domain: str = "unknown"
+    secondary_domains: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -104,6 +106,19 @@ def build_signature(episode: Episode) -> EpisodeSignature:
         relation_types=_sorted_unique(item.type for item in derived.relations),
         short_term_consequence=episode.observed.short_term_consequence.value.strip(),
         long_term_consequence=episode.observed.long_term_consequence.value.strip(),
+        primary_domain=next(
+            (
+                item.domain
+                for item in derived.domain_annotations
+                if item.role == "primary"
+            ),
+            "unknown",
+        ),
+        secondary_domains=_sorted_unique(
+            item.domain
+            for item in derived.domain_annotations
+            if item.role == "secondary"
+        ),
     )
 
 
@@ -127,8 +142,45 @@ def build_report(
         build_signature(episode) for episode in episodes if episode.id in graph_ready_ids
     )
 
-    return GraphReport(
+    return _report_from_signatures(
         total_episodes=len(episodes),
+        coverage=coverage,
+        readiness=readiness,
+        signatures=signatures,
+    )
+
+
+def subset_report(report: GraphReport, episode_ids: set[str]) -> GraphReport:
+    readiness = tuple(
+        item for item in report.readiness if item.episode_id in episode_ids
+    )
+    signatures = tuple(
+        item for item in report.graph_ready if item.episode_id in episode_ids
+    )
+    return _report_from_signatures(
+        total_episodes=len(episode_ids),
+        coverage=AnnotationCoverage(
+            observed_count=len(episode_ids),
+            annotation_row_count=len(episode_ids),
+            annotated_count=len(episode_ids),
+            pending_count=0,
+            pending_episode_ids=(),
+            coverage="full",
+        ),
+        readiness=readiness,
+        signatures=signatures,
+    )
+
+
+def _report_from_signatures(
+    *,
+    total_episodes: int,
+    coverage: AnnotationCoverage,
+    readiness: tuple[EpisodeReadiness, ...],
+    signatures: tuple[EpisodeSignature, ...],
+) -> GraphReport:
+    return GraphReport(
+        total_episodes=total_episodes,
         coverage=coverage,
         graph_ready=signatures,
         readiness=readiness,

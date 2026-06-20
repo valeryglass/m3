@@ -17,6 +17,7 @@ plus selected annotations.
 - computed `GraphReport` objects.
 - shared deterministic pattern metrics with episode-level support provenance.
 - computed material for `InsightPayload` construction.
+- graph signatures carrying accepted primary/secondary life domains.
 - card-composed plain-language `/profile` summary and details projections.
 - optional Markdown debug exports.
 
@@ -50,6 +51,9 @@ The detailed user report is composed from cards for repeated scenarios, choice
 points, counterexamples, contrasts, horizon-specific outcomes, and next
 observation questions. These remain facts about the current sample, not stable
 traits.
+
+Life-domain values enter graph signatures only from accepted
+`domain_annotations`. Graph Reporting does not classify situation text.
 
 `app.graph_report` without `--output-dir` prints Markdown only and must not
 write report files. Markdown export happens only when `--output-dir` is

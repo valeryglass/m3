@@ -10,7 +10,7 @@ from app.analytics_loader import (
     annotation_coverage_for_episode_ids,
     require_full_coverage,
 )
-from app.graph_report import GraphReport, build_report, load_episodes
+from app.graph_report import GraphReport, build_report, load_episodes, subset_report
 from app.pattern_metrics import (
     behavior_fork_episode_ids,
     contrast_candidates,
@@ -23,7 +23,7 @@ from app.pattern_metrics import (
 )
 
 
-VERSION = "0.1"
+VERSION = "0.2"
 
 
 @dataclass(frozen=True)
@@ -117,6 +117,24 @@ class OutcomePatternPayload:
 
 
 @dataclass(frozen=True)
+class DomainSupportPayload:
+    domain: str
+    role: str
+    support_count: int
+    episode_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class DomainSummaryPayload:
+    domain: str
+    support_count: int
+    episode_ids: tuple[str, ...]
+    dominant_motif: MotifPayload | None
+    main_fork: ForkPayload | None
+    outcome_patterns: tuple[OutcomePatternPayload, ...]
+
+
+@dataclass(frozen=True)
 class InsightPayload:
     kind: str
     version: str
@@ -129,6 +147,8 @@ class InsightPayload:
     counterexample: CounterexamplePayload | None
     contrast: ContrastPayload | None
     outcome_patterns: tuple[OutcomePatternPayload, ...]
+    domain_distribution: tuple[DomainSupportPayload, ...]
+    domain_summaries: tuple[DomainSummaryPayload, ...]
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -147,6 +167,8 @@ def build_insight_payload(report: GraphReport) -> InsightPayload:
         counterexample=_counterexample(report),
         contrast=_contrast(report),
         outcome_patterns=_outcome_patterns(report),
+        domain_distribution=_domain_distribution(report),
+        domain_summaries=_domain_summaries(report),
     )
 
 
@@ -347,6 +369,59 @@ def _outcome_patterns(report: GraphReport) -> tuple[OutcomePatternPayload, ...]:
             )
         )
     return tuple(patterns)
+
+
+def _domain_distribution(report: GraphReport) -> tuple[DomainSupportPayload, ...]:
+    support: dict[tuple[str, str], set[str]] = {}
+    for signature in report.graph_ready:
+        support.setdefault(("primary", signature.primary_domain), set()).add(
+            signature.episode_id
+        )
+        for domain in signature.secondary_domains:
+            support.setdefault(("secondary", domain), set()).add(
+                signature.episode_id
+            )
+    return tuple(
+        DomainSupportPayload(
+            domain=domain,
+            role=role,
+            support_count=len(episode_ids),
+            episode_ids=tuple(sorted(episode_ids)),
+        )
+        for (role, domain), episode_ids in sorted(
+            support.items(),
+            key=lambda item: (
+                0 if item[0][0] == "primary" else 1,
+                -len(item[1]),
+                item[0][1],
+            ),
+        )
+    )
+
+
+def _domain_summaries(report: GraphReport) -> tuple[DomainSummaryPayload, ...]:
+    primary_support: dict[str, set[str]] = {}
+    for signature in report.graph_ready:
+        primary_support.setdefault(signature.primary_domain, set()).add(
+            signature.episode_id
+        )
+    summaries = []
+    for domain, episode_ids in sorted(
+        primary_support.items(),
+        key=lambda item: (-len(item[1]), item[0]),
+    ):
+        domain_report = subset_report(report, episode_ids)
+        summaries.append(
+            DomainSummaryPayload(
+                domain=domain,
+                support_count=len(episode_ids),
+                episode_ids=tuple(sorted(episode_ids)),
+                dominant_motif=_dominant_motif(domain_report),
+                main_fork=_main_fork(domain_report),
+                outcome_patterns=_outcome_patterns(domain_report),
+            )
+        )
+    return tuple(summaries)
 
 
 def _top_value(counter) -> str | None:

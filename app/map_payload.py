@@ -25,7 +25,7 @@ from app.schemas.episode import Episode
 from app.spatial_payload import build_spatial_payload
 
 
-VERSION = "0.1"
+VERSION = "0.2"
 SIMILARITY_VERSION = "symbolic_v1"
 SIMILARITY_WEIGHTS = {
     "trigger": 0.40,
