@@ -35,6 +35,7 @@ Outcome nodes and `outcome_annotations` are supported in the current contract.
 observed = user-stated evidence
 derived.nodes = runtime/annotation-run graph node candidates
 derived.*_annotations = taxonomy-backed classifications of nodes or spans
+derived.domain_annotations = provenance-backed life-domain classifications
 derived.relations = runtime/annotation-run graph-ready edges
 taxonomy = allowed label dictionaries in schema/docs
 signatures = later cross-episode patterns

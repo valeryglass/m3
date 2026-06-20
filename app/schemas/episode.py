@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 EmotionLabel = Literal[
@@ -18,6 +18,18 @@ EmotionLabel = Literal[
 ]
 TriggerType = Literal["external", "internal", "social", "physical", "memory", "thought"]
 ActorRole = Literal["self", "other", "group", "institution", "unknown"]
+LifeDomain = Literal[
+    "work_study",
+    "close_relationships_family",
+    "health_body",
+    "money_resources",
+    "home_daily_life",
+    "projects_creativity",
+    "social_public",
+    "unknown",
+]
+DomainRole = Literal["primary", "secondary"]
+DomainMethod = Literal["deterministic_rule", "explicit_review"]
 CognitionKind = Literal[
     "evaluation",
     "prediction",
@@ -230,6 +242,29 @@ class OutcomeAnnotation(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
 
 
+class DomainAnnotation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(pattern=r"^domain-annotation-[0-9]+$")
+    domain: LifeDomain
+    role: DomainRole
+    method: DomainMethod
+    source_field: Literal[
+        "observed.situation",
+        "observed.trigger",
+        "observed.actor",
+        "observed.quote",
+    ]
+    source_quote: str = Field(min_length=1)
+    confidence: float = Field(ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def validate_unknown_role(self):
+        if self.domain == "unknown" and self.role != "primary":
+            raise ValueError("unknown domain may only be primary")
+        return self
+
+
 class Observed(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -255,7 +290,24 @@ class Derived(BaseModel):
     emotion_annotations: list[EmotionAnnotation]
     behavior_annotations: list[BehaviorAnnotation]
     outcome_annotations: list[OutcomeAnnotation] = Field(default_factory=list)
+    domain_annotations: list[DomainAnnotation] = Field(default_factory=list)
     relations: list[GraphRelation] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_domain_annotations(self):
+        primary = [item for item in self.domain_annotations if item.role == "primary"]
+        secondary = [item for item in self.domain_annotations if item.role == "secondary"]
+        if len(primary) > 1:
+            raise ValueError("domain annotations allow at most one primary")
+        if len(secondary) > 1:
+            raise ValueError("domain annotations allow at most one secondary")
+        if secondary and not primary:
+            raise ValueError("secondary domain requires a primary domain")
+        if primary and primary[0].domain == "unknown" and secondary:
+            raise ValueError("unknown primary domain cannot have a secondary domain")
+        if primary and secondary and primary[0].domain == secondary[0].domain:
+            raise ValueError("primary and secondary domains must differ")
+        return self
 
 
 def empty_derived_model() -> Derived:
@@ -267,6 +319,7 @@ def empty_derived_model() -> Derived:
         emotion_annotations=[],
         behavior_annotations=[],
         outcome_annotations=[],
+        domain_annotations=[],
         relations=[],
     )
 

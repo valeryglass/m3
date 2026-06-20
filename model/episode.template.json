@@ -40,6 +40,7 @@
     "emotion_annotations": [],
     "behavior_annotations": [],
     "outcome_annotations": [],
+    "domain_annotations": [],
     "relations": []
   }
 }

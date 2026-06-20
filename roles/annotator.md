@@ -65,9 +65,14 @@ The derived object contains exactly these lists:
   "emotion_annotations": [],
   "behavior_annotations": [],
   "outcome_annotations": [],
+  "domain_annotations": [],
   "relations": []
 }
 ```
+
+`domain_annotations` classify the life area evidenced by the situation. Use at
+most one primary and one secondary domain, cite exact observed evidence, and
+retain `unknown` when the evidence is insufficient.
 
 ## Node First
 

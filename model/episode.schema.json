@@ -79,6 +79,7 @@
         "emotion_annotations": [],
         "behavior_annotations": [],
         "outcome_annotations": [],
+        "domain_annotations": [],
         "relations": []
       },
       "required": [
@@ -131,6 +132,14 @@
           "items": {
             "$ref": "#/$defs/outcome_annotation"
           },
+          "default": []
+        },
+        "domain_annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/domain_annotation"
+          },
+          "maxItems": 2,
           "default": []
         },
         "relations": {
@@ -591,6 +600,68 @@
           "enum": [
             "observed.short_term_consequence",
             "observed.long_term_consequence"
+          ]
+        },
+        "source_quote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
+      }
+    },
+    "domain_annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "domain",
+        "role",
+        "method",
+        "source_field",
+        "source_quote",
+        "confidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^domain-annotation-[0-9]+$"
+        },
+        "domain": {
+          "type": "string",
+          "enum": [
+            "work_study",
+            "close_relationships_family",
+            "health_body",
+            "money_resources",
+            "home_daily_life",
+            "projects_creativity",
+            "social_public",
+            "unknown"
+          ]
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "primary",
+            "secondary"
+          ]
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "deterministic_rule",
+            "explicit_review"
+          ]
+        },
+        "source_field": {
+          "type": "string",
+          "enum": [
+            "observed.situation",
+            "observed.trigger",
+            "observed.actor",
+            "observed.quote"
           ]
         },
         "source_quote": {

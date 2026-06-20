@@ -228,6 +228,8 @@ modules:
     owned_paths:
       - app/episode_annotator.py
       - app/annotation_producer.py
+      - app/domain_classifier.py
+      - app/domain_enrichment.py
       - docs/modules/annotation-producer.md
     inputs:
       - validated observed source Episode JSON
@@ -242,6 +244,8 @@ modules:
       - annotation_run_production
       - missing_annotation_backfill
       - self_contained_annotation_snapshots
+      - life_domain_annotation
+      - reviewed_domain_enrichment
 
   graph_reporting:
     stage: experimental

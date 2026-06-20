@@ -153,6 +153,17 @@
         "confidence": 0.9
       }
     ],
+    "domain_annotations": [
+      {
+        "id": "domain-annotation-1",
+        "domain": "social_public",
+        "role": "primary",
+        "method": "explicit_review",
+        "source_field": "observed.situation",
+        "source_quote": "I wanted to ask something in the group chat",
+        "confidence": 0.9
+      }
+    ],
     "relations": [
       {
         "id": "relation-1",

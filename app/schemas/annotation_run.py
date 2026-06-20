@@ -18,6 +18,16 @@ class AnnotationProducerProvenance(BaseModel):
     base_prompt_version: str | None = None
 
 
+class DomainEnrichmentProvenance(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    classifier_version: str = Field(min_length=1)
+    base_annotation_run_id: str = Field(min_length=1)
+    rule_classified_count: int = Field(ge=0)
+    reviewed_count: int = Field(ge=0)
+    unknown_count: int = Field(ge=0)
+
+
 class AnnotationRunManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -31,6 +41,7 @@ class AnnotationRunManifest(BaseModel):
     generated_count: int | None = Field(default=None, ge=0)
     final_snapshot_count: int | None = Field(default=None, ge=0)
     producer_provenance: AnnotationProducerProvenance | None = None
+    domain_enrichment_provenance: DomainEnrichmentProvenance | None = None
 
 
 class AnnotationRunRow(BaseModel):

@@ -63,6 +63,15 @@ source_quote
 confidence 0.0..1.0
 ```
 
+Life-domain classification is also derived. `domain_annotations` classify the
+life area evidenced by an episode situation while preserving an exact observed
+source quote and confidence. Reports consume accepted domain annotations; they
+must not infer domains directly from raw text.
+
+Initial domains are work/study, close relationships/family, health/body,
+money/resources, home/daily life, projects/creativity, social/public, and
+unknown. An episode has at most one primary and one secondary domain.
+
 Traceability chain examples:
 
 ```text

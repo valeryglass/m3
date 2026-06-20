@@ -20,6 +20,7 @@ they are produced by the Annotation Producer.
 - relations.
 - versioned annotation-run records.
 - manifest provenance for carried-forward and generated snapshot rows.
+- optional domain-enrichment provenance and domain annotations.
 - audit and readiness summaries.
 
 ## Dependencies
@@ -50,6 +51,9 @@ Hydration reads annotation-runs; it does not create them.
 Each selected run is a self-contained snapshot for its known episode set.
 Missing-only producer updates must carry existing rows forward unchanged and
 must not publish incomplete delta runs.
+
+Domain enrichment also writes a complete replacement snapshot. It must preserve
+the selected base run except for the new `domain_annotations` field.
 
 Legacy embedded-derived episode files remain readable as a compatibility
 fallback. `data/annotation-work` may exist as ignored/private scratch data, but

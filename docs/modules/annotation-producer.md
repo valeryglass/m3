@@ -67,3 +67,25 @@ episode. When no rows are missing, no new run directory is created.
 
 Snapshot manifests record carried-forward, generated, and final row counts plus
 producer provenance for the base run and generated strategy.
+
+Life-domain enrichment is a separate preservation workflow:
+
+```bash
+python -m app.domain_enrichment prepare-review \
+  --episode-dir data/episodes \
+  --annotation-run-dir data/annotation-runs/<base-run> \
+  --review-queue data/annotation-work/domain-review.json
+```
+
+After every queued episode has a private reviewed override:
+
+```bash
+python -m app.domain_enrichment write-snapshot \
+  --episode-dir data/episodes \
+  --annotation-run-dir data/annotation-runs/<base-run> \
+  --run-id <new-run-id> \
+  --review-overrides data/annotation-work/domain-overrides.json
+```
+
+The enrichment writer preserves every existing derived field and adds only
+`domain_annotations`.

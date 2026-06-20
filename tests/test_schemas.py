@@ -16,6 +16,7 @@ def _empty_derived():
         "emotion_annotations": [],
         "behavior_annotations": [],
         "outcome_annotations": [],
+        "domain_annotations": [],
         "relations": [],
     }
 
@@ -584,6 +585,29 @@ def test_annotation_run_manifest_accepts_snapshot_provenance():
         manifest.producer_provenance.base_annotation_run_id
         == "run-20260613-annotated-full-v3"
     )
+
+
+def test_annotation_run_manifest_accepts_domain_enrichment_provenance():
+    manifest = AnnotationRunManifest.model_validate(
+        {
+            "annotation_run_id": "run-20260620-domains",
+            "schema_version": "episode-v1",
+            "taxonomy_version": "graph-v1",
+            "prompt_version": "composed-snapshot-v1",
+            "created_at": "2026-06-20T10:00:00Z",
+            "source_episode_count": 112,
+            "domain_enrichment_provenance": {
+                "classifier_version": "life-domain-rules-v1",
+                "base_annotation_run_id": "run-20260619-150000-deterministic",
+                "rule_classified_count": 70,
+                "reviewed_count": 42,
+                "unknown_count": 3,
+            },
+        }
+    )
+
+    assert manifest.domain_enrichment_provenance is not None
+    assert manifest.domain_enrichment_provenance.reviewed_count == 42
 
 
 def test_annotation_run_row_schema_accepts_episode_derived_contract():

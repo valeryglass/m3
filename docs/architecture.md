@@ -102,6 +102,8 @@ Observed data is user-stated or minimally normalized episode evidence.
 
 Derived data is interpretation over observed evidence. Every derived object must
 include provenance through `source_field`, `source_quote`, and `confidence`.
+Life-domain annotations are derived classifications over situation evidence;
+they are produced in annotation snapshots before report or payload analytics.
 
 The project keeps these boundaries explicit:
 

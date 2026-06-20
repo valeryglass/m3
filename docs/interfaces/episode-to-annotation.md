@@ -14,6 +14,7 @@ Annotation Runs.
 
 - durable, self-contained annotation-run snapshots containing derived nodes,
   annotations, and relations.
+- optional life-domain annotations grounded in observed situation evidence.
 - deterministic producer summaries with scanned, skipped, new, pending, and
   coverage-delta counts.
 - snapshot manifest counts and producer provenance.
@@ -24,6 +25,8 @@ Annotation Runs.
 - annotation-run derived payloads must preserve the observed vs derived boundary.
 - every derived item must include `source_field`, `source_quote`, and
   `confidence`.
+- domain classification is produced explicitly in annotation snapshots; report
+  and payload consumers do not infer domains from raw text.
 - unsupported schema fields must not be emitted.
 - annotation-runs are durable derived graph artifacts.
 - annotation production is explicit: the producer creates annotations, while

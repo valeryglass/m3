@@ -255,6 +255,7 @@ class _DerivedBuilder:
             emotion_annotations=self.emotion_annotations,
             behavior_annotations=self.behavior_annotations,
             outcome_annotations=self.outcome_annotations,
+            domain_annotations=[],
             relations=self.relations,
         )
 
