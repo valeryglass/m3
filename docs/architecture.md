@@ -88,8 +88,10 @@ graph/report analytics directly.
   Episode Drafts.
 - Episode Drafts stage provisional observed fields before confirmation and
   persistence.
-- Gap Hydration selects the smallest useful next question for incomplete or
-  weak episode drafts.
+- Draft Review Sessions own complete provisional observed fields while the user
+  chooses Save or Cancel.
+- Gap Hydration is an experimental next-question module. Production non-10Q
+  capture does not use it.
 - Episode Model + Storage owns the JSON contract, Pydantic mirror, persistence,
   and legacy normalization.
 - Annotation Producer owns deterministic `Episode.observed -> Derived` business
@@ -120,6 +122,8 @@ The project keeps these boundaries explicit:
 input != episode
 transcript != episode
 transcript != draft until explicit user acceptance
+capture artifact != draft
+capture extraction != episode
 draft != episode
 episode != annotation
 annotation != graph

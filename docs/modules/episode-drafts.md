@@ -10,9 +10,8 @@ without weakening the saved episode schema.
 
 ## Inputs
 
-- normalized input artifacts from Input Funnels.
-- field updates from classic question flow replies.
-- gap answers selected by Gap Hydration.
+- deterministic projection from a completed classic 10Q session.
+- successful source-grounded Capture Extraction results.
 - user confirmation or discard actions.
 - explicitly accepted transcript text from Intake Transcripts.
 
@@ -48,6 +47,7 @@ EpisodeDraft:
 
 - drafts are provisional and not source-of-truth artifacts.
 - drafts may be incomplete.
+- production review sessions contain schema-complete observed fields.
 - only confirmed drafts can be saved as observed episodes.
 - saved episodes must still validate against the canonical schema.
 - draft fields should preserve source quotes where possible.
@@ -73,11 +73,13 @@ Rules:
 ## Ownership
 
 - producer: `episode_drafts`
-- consumers: `gap_hydration`, `episode_model_storage`
+- consumer: `episode_model_storage`
 
 ## Lifecycle
 
 `draft`
 
 The module is the shared provisional boundary for all four Telegram capture
-modes. `LoopSession` remains the private runtime holder for hydrated drafts.
+modes. `LoopSession` is limited to active classic 10Q progression.
+`DraftReviewSession` owns complete provisional fields awaiting Save or Cancel.
+Legacy completed `LoopSession` review files migrate on load.

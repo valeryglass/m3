@@ -4,8 +4,10 @@
 
 Select the smallest useful next question for a partial episode draft.
 
-Gap Hydration is reusable across all capture views: classic question flow,
-one-take text, one-take voice, three-block narrative, and future forms.
+Gap Hydration is retained as an experimental utility for future incomplete
+draft workflows. Production Telegram capture does not call it: classic 10Q
+collects fields directly, while 3B, 1T, and audio require schema-complete
+extraction before review.
 
 ## Inputs
 
@@ -47,7 +49,6 @@ Candidate priority order:
 
 ## Lifecycle
 
-`draft`
+`experimental`
 
-The first useful version can be rule-based. More complex scoring should wait
-until alpha data shows where users leave gaps.
+It has no production capture ownership under ADR 0014.

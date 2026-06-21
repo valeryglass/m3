@@ -47,11 +47,12 @@ modules:
       - data/runtime-sessions/*.json
     outputs:
       - observed episode drafts
+      - mode-specific capture evidence
       - observed source episode files
       - data/ux-events/*.jsonl
     interfaces:
       - capture_to_episode
-      - input_to_draft
+      - capture_to_draft
       - draft_to_episode
     capabilities:
       - ten_step_episode_collection
@@ -61,6 +62,7 @@ modules:
       - private_runtime_flow_memory
       - first_class_capture_modes
       - transcript_confirmation_routing
+      - direct_extraction_to_review
 
   telegram_media:
     stage: draft
@@ -102,6 +104,53 @@ modules:
       - surface_input_normalization
       - pre_episode_artifact_boundary
 
+  capture_artifacts:
+    stage: experimental
+    enabled: true
+    purpose: Persist complete mode-specific capture evidence before extraction.
+    owned_paths:
+      - app/capture_artifacts.py
+      - app/schemas/capture.py
+      - docs/modules/capture-artifacts.md
+      - data/capture-artifacts/
+    inputs:
+      - completed 10Q field evidence
+      - completed three-block evidence
+      - one-take text
+      - confirmed IntakeTranscript text
+    outputs:
+      - private immutable CaptureArtifact JSON
+    interfaces:
+      - capture_to_draft
+    capabilities:
+      - exact_capture_piece_retention
+      - source_piece_hashing
+      - raw_audio_free_capture_provenance
+
+  capture_extraction:
+    stage: experimental
+    enabled: true
+    purpose: Project source-grounded capture evidence into schema-complete EpisodeDrafts.
+    owned_paths:
+      - app/capture_extraction.py
+      - app/openai_capture_extractor.py
+      - docs/modules/capture-extraction.md
+      - data/capture-extractions/
+    inputs:
+      - private CaptureArtifact JSON
+      - explicit extraction provider configuration
+    outputs:
+      - private CaptureExtraction sidecars
+      - schema-complete EpisodeDrafts
+      - typed safe failure codes
+    interfaces:
+      - capture_to_draft
+    capabilities:
+      - deterministic_classic_projection
+      - strict_structured_output_extraction
+      - source_quote_grounding
+      - typed_extraction_failures
+
 
   intake_transcripts:
     stage: draft
@@ -128,26 +177,28 @@ modules:
     owned_paths:
       - app/episode_drafts.py
       - app/draft_review.py
+      - app/draft_review_sessions.py
       - docs/modules/episode-drafts.md
     inputs:
-      - normalized input artifacts
-      - field updates from capture flows
-      - gap answers
+      - direct classic field projection
+      - successful CaptureExtraction results
       - user confirmation decisions
     outputs:
-      - partial episode drafts
+      - complete provisional episode drafts
+      - private DraftReviewSession JSON
       - confirmed observed fields
     interfaces:
-      - input_to_draft
+      - capture_to_draft
       - draft_to_episode
     capabilities:
       - provisional_episode_staging
       - confirmation_boundary
+      - separate_review_session_storage
 
   gap_hydration:
-    stage: draft
+    stage: experimental
     enabled: true
-    purpose: Select the smallest useful next question for incomplete episode drafts.
+    purpose: Explore next-question selection for incomplete drafts outside production capture.
     owned_paths:
       - app/gap_hydration.py
       - docs/modules/gap-hydration.md
@@ -379,6 +430,13 @@ modules:
       - waitlist_profile_capture
 
 interfaces:
+  capture_to_draft:
+    state: experimental
+    owner: capture_extraction
+    consumers:
+      - episode_drafts
+    contract_doc: docs/interfaces/capture-to-draft.md
+
   input_to_draft:
     state: draft
     owner: input_funnels

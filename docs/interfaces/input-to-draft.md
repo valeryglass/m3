@@ -1,5 +1,8 @@
 # input_to_draft
 
+This draft interface is retained for experimental input-funnel work. ADR 0014
+routes production Telegram capture through `capture_to_draft`.
+
 ## Contract
 
 Input Funnels hand normalized input artifacts to Episode Drafts. Episode Drafts

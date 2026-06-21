@@ -7,7 +7,7 @@ schema validation and persistence.
 
 ## Input
 
-- a complete or sufficiently hydrated episode draft.
+- a schema-complete draft held by `DraftReviewSession`.
 - explicit user confirmation.
 - source metadata needed to construct the episode `source` field.
 
@@ -24,6 +24,9 @@ schema validation and persistence.
 - saved episodes validate against the schema.
 - an audio-derived save may link its source `IntakeTranscript` to the new
   episode identifier without storing transcript metadata in the episode.
+- a save links its `CaptureExtraction` sidecar to the new episode identifier.
+- Cancel removes review state but retains private capture and extraction
+  evidence.
 
 ## Ownership
 

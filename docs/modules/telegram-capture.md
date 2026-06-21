@@ -7,8 +7,9 @@ Adapt Telegram messages and callbacks into the capture pipeline.
 Telegram Capture owns Telegram-specific receiving, access checks, callbacks,
 UX events, and explicit userflow routing. It should not own the full interview
 architecture. `/start` and `/10q` enter `classic_10q`; `/3b`, `/1t`, and `/1a`
-arm first-class pre-draft flows. All accepted inputs enter Episode Drafts and
-Gap Hydration. Audio requires an additional transcript-confirmation gate.
+arm first-class pre-draft flows. Completed 3B, 1T, and accepted audio evidence
+is persisted as a `CaptureArtifact`, extracted into a complete draft, and sent
+directly to review. Audio requires an additional transcript-confirmation gate.
 
 ## Inputs
 
@@ -17,13 +18,14 @@ Gap Hydration. Audio requires an additional transcript-confirmation gate.
 - Telegram callback data where still used by bot control flow.
 - private in-progress session memory under `data/runtime-sessions/`.
 - private explicit flow state under `data/runtime-flows/`.
+- private review state under `data/runtime-sessions/review/`.
 - tone configuration from `config/tone.yaml`.
 
 ## Outputs
 
-- normalized input artifacts when using the draft pipeline.
+- private `CaptureArtifact` and `CaptureExtraction` records.
 - durable `IntakeTranscript` source artifacts when using `one_take_audio`.
-- confirmed observed episode fields when using the legacy direct path.
+- schema-complete provisional fields in `DraftReviewSession`.
 - completed private observed source episode files under `data/episodes/`.
 - private UX event records under `data/ux-events/`.
 
@@ -38,15 +40,15 @@ Gap Hydration. Audio requires an additional transcript-confirmation gate.
 ## Interfaces
 
 - `capture_to_episode`
-- `input_to_draft`
+- `capture_to_draft`
 - `draft_to_episode`
 
 ## Lifecycle
 
 `experimental`
 
-The four capture strategies are usable, but prompt copy, frame order, and draft
-hydration can still evolve.
+The four capture strategies are usable, but extraction prompts, provider
+operations, and review copy can still evolve.
 
 Classic 10Q presents one concise question at a time after the progress line.
 Field-guide titles, examples, and tips remain internal reference material and

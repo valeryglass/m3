@@ -9,6 +9,7 @@ audio transcript intake deployable.
 - Default transcription provider is `whisper`; local alpha smoke uses
   `.venv/bin/whisper`.
 - Whisper command, model, and language values are known to the operator.
+- `OPENAI_API_KEY` and explicit `M3_CAPTURE_EXTRACTION_MODEL` are configured.
 - Raw audio retention remains disabled; media is temporary-only.
 - Test user is approved in the userlist.
 
@@ -30,16 +31,17 @@ valid command before inviting alpha users.
 | idle text | stays idle; returns `/start` guidance | none | no `LoopSession`, download, transcription, or transcript |
 | idle voice/audio/document | stays idle; same `/start` guidance | none | no download, transcription, `LoopSession`, or transcript |
 | idle `/start` or `/10q` | idle -> `classic_10q` | classic runtime session only | no pre-draft state |
-| idle `/1t` then text | `one_take_text` -> draft hydration | draft-backed runtime session | no episode before Save |
-| idle `/3b` then three answers | `three_block` -> draft hydration | restart-safe pre-draft state, then draft session | no inferred missing fields |
+| idle `/1t` then text | `one_take_text` -> extraction -> review | CaptureArtifact, CaptureExtraction, review session | no gap questions or episode before Save |
+| idle `/3b` then three answers | `three_block` -> extraction -> review | restart-safe pre-draft state, CaptureArtifact, CaptureExtraction, review | no gap questions or invented evidence |
 | classic 10Q text answer | remains `classic_10q`; advances current question | updated classic runtime session | no audio state or transcript |
 | classic 10Q media | remains `classic_10q`; existing text-required reply | unchanged classic runtime session | no download or transcription |
 | idle `/1a` | idle -> `one_take_audio`; asks for voice/audio | short-lived capture flow state | no `LoopSession` or episode |
 | `one_take_audio` text | remains armed; asks for voice/audio or `/cancel` | unchanged capture flow state | no draft or transcript |
 | supported media | transcription -> full transcript -> confirmation | private `IntakeTranscript`; confirmation state | no draft, episode, or raw-audio archive before Continue |
 | reject transcript | confirmation -> idle | transcript retained | no draft or episode |
-| continue transcript | confirmation -> draft hydration | draft session linked to transcript | no episode before final Save |
-| final Save | review -> idle | observed Episode plus transcript backlink | no raw-audio archive |
+| continue transcript | confirmation -> extraction -> review | CaptureArtifact, CaptureExtraction, review linked to transcript | no episode before final Save |
+| extraction failure | flow -> idle with safe restart message | CaptureArtifact plus failed CaptureExtraction | no draft, review, fallback, or episode |
+| final Save | review -> idle | observed Episode plus extraction and transcript backlinks | no raw-audio archive |
 | `/cancel` from classic | `classic_10q` -> idle | classic runtime state removed | no audio state created |
 | `/cancel` from audio | `one_take_audio` -> idle | capture flow state removed | existing transcript, if any, remains; no episode |
 | `/help` during either flow | flow state unchanged; current help copy | none | no session/flow mutation |
@@ -86,8 +88,8 @@ Use honest wording:
 ```text
 Audio input is enabled for short voice/audio notes. Audio is transcribed first
 and stored as a private IntakeTranscript. The complete transcript must be
-accepted before draft hydration, and the final draft must be saved before an
-episode exists. Raw audio is temporary-only by default.
+accepted before grounded schema extraction, and the extracted draft must be
+saved before an episode exists. Raw audio is temporary-only by default.
 ```
 
 Do not claim:

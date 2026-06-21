@@ -2,14 +2,14 @@
 
 ## Completed Foundation Track
 
-### Input Funnels And Episode Draft Hydration
+### First-Class Capture And Schema Extraction
 
 Status: promoted to first-class draft capture modes.
 
 The epic produced reusable input and draft boundaries:
 
 ```text
-explicit capture command -> InputArtifact -> EpisodeDraft -> Gap Hydration -> Draft Review -> confirmed episode
+explicit capture command -> CaptureArtifact -> Capture Extraction -> Draft Review -> confirmed episode
 ```
 
 Accepted alpha result:
@@ -19,9 +19,12 @@ Accepted alpha result:
 - `/3b` collects three sequential blocks.
 - `/1a` arms voice/audio capture; hidden `/1v` is an alias.
 - hidden `/capture`, `/capture3`, and `/voice` remain compatibility routes.
-- voice/audio/document inputs can be normalized as input artifacts.
+- completed capture evidence is persisted privately before extraction.
+- non-10Q modes require grounded structured extraction and go directly to
+  review.
+- classic 10Q uses deterministic direct projection.
 - draft review is explicit before persistence.
-- funnel, gap-question, confirmation, save, discard, and rejection metrics are
+- funnel, extraction, confirmation, save, discard, and rejection metrics are
   visible in UX analytics.
 
 Containment decisions supersede earlier automatic-capture experiments:
@@ -30,6 +33,8 @@ Containment decisions supersede earlier automatic-capture experiments:
 - idle text and media return `/start` guidance.
 - commands do not replace active work without `/cancel`.
 - audio enters the Episode Draft path only after full transcript confirmation.
+- non-10Q extraction failure creates no draft or review and never falls back to
+  10Q or Gap Hydration.
 - episode schema, annotation runs, graph reports, and map payload behavior are
   intentionally unchanged.
 
@@ -52,13 +57,15 @@ weakening the episode schema or retaining raw audio by default.
   -> transcription
   -> IntakeTranscript source artifact
   -> complete transcript confirmation
-  -> EpisodeDraft
-  -> Gap Hydration
+  -> CaptureArtifact
+  -> Capture Extraction
+  -> DraftReviewSession
   -> final Save confirmation
 ```
 
-Audio creates an `EpisodeDraft` only after the user accepts the complete
-transcript. Final episode persistence still requires the shared Save review.
+Audio creates a `CaptureArtifact` only after the user accepts the complete
+transcript. Successful extraction creates the shared Save review; final episode
+persistence still requires explicit Save.
 
 ### PR-A0 Audio transcription ADR
 
@@ -110,7 +117,8 @@ Acceptance:
 - voice note -> download -> transcribe -> persist `IntakeTranscript`.
 - raw audio is not saved.
 - the bot shows the complete transcript and requires Continue or Reject.
-- Continue creates a situation-only draft; no episode exists before final Save.
+- Continue starts grounded schema extraction; no draft exists on extraction
+  failure and no episode exists before final Save.
 
 ### PR-A4 Audio/document fallback to transcript artifact
 
