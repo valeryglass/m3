@@ -61,6 +61,7 @@ class CaptureExtractionProvider(Protocol):
 class UnavailableCaptureExtractionProvider:
     provider_name = "unavailable"
     prompt_version = PROMPT_VERSION
+    _m3_run_inline_for_tests = True
 
     def __init__(self, model: str = "unconfigured") -> None:
         self.model = model or "unconfigured"

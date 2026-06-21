@@ -4,6 +4,18 @@ import asyncio
 from pathlib import Path
 from threading import Thread
 from time import monotonic
+from app.capture_artifacts import build_capture_artifact, save_capture_artifact
+from app.capture_extraction import (
+    UnavailableCaptureExtractionProvider,
+    link_capture_extraction_to_episode,
+    project_classic_10q,
+    run_capture_extraction,
+)
+from app.draft_review_sessions import (
+    DraftReviewSessionStore,
+    review_session_from_extraction,
+)
+from app.openai_capture_extractor import OpenAICaptureExtractionProvider
 from app.config import (
     Settings,
     admin_chat_ids_for_settings,
@@ -33,13 +45,10 @@ from app.report_runner import (
     build_ux_report_text,
 )
 from app.user_report import render_details, render_summary
-from app.episode_drafts import draft_from_input_artifact, draft_from_three_blocks
 from app.input_funnels import (
-    InputArtifact,
     artifact_text,
     audio_document_input_artifact,
     audio_input_artifact,
-    text_input_artifact,
     voice_input_artifact,
 )
 from app.intake_transcripts import (
@@ -54,7 +63,6 @@ from app.loop_extractor import (
     completed_draft_field_count,
     completed_observed_count,
     new_session,
-    new_session_from_draft,
     prompt_for_current_target,
     status_text,
     target_fields,
@@ -84,11 +92,16 @@ def main() -> None:
     settings = load_settings()
     storage = JsonStorage(settings.episode_dir)
     session_store = LoopSessionStore(settings.runtime_session_dir)
+    review_store = DraftReviewSessionStore(
+        settings.runtime_session_dir,
+        loop_session_store=session_store,
+    )
     capture_flow_store = CaptureFlowStore(settings.runtime_flow_dir)
     userlist = JsonUserList(settings.userlist_path)
     ux_events = UxEventLog(settings.ux_event_log)
     tone = load_tone_engine(settings.tone_config)
     transcription_provider = _transcription_provider_for_settings(settings)
+    extraction_provider = _capture_extraction_provider_for_settings(settings)
 
     try:
         from telegram import BotCommand, Update
@@ -115,6 +128,7 @@ def main() -> None:
             ux_events,
             tone,
             audio_flow_store=capture_flow_store,
+            review_store=review_store,
         )
 
     async def ten_question(
@@ -130,6 +144,7 @@ def main() -> None:
             ux_events,
             tone,
             audio_flow_store=capture_flow_store,
+            review_store=review_store,
         )
 
     async def one_take_text(
@@ -145,6 +160,7 @@ def main() -> None:
             capture_flow_store,
             settings,
             mode=FlowKind.ONE_TAKE_TEXT,
+            review_store=review_store,
         )
 
     async def three_block(
@@ -160,6 +176,7 @@ def main() -> None:
             capture_flow_store,
             settings,
             mode=FlowKind.THREE_BLOCK,
+            review_store=review_store,
         )
 
     async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -167,23 +184,14 @@ def main() -> None:
             update, settings, tone, ux_events, userlist, context.bot
         ):
             return
-        chat_id = update.effective_chat.id
-        now = utc_now()
-        session = session_store.load_session(chat_id)
-        if _expire_initial_session_if_stale(
+        await _handle_status_after_authorized(
+            update,
             session_store,
+            review_store,
             ux_events,
-            session,
-            chat_id,
-            now,
-            settings.initial_session_ttl_sec,
-        ):
-            await _reply_text(update, _expired_initial_session_text(tone))
-            return
-        if session is None:
-            await _reply_text(update, tone.no_active_loop())
-            return
-        await _reply_text(update, status_text(session, tone))
+            settings,
+            tone,
+        )
 
     async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
@@ -211,6 +219,7 @@ def main() -> None:
             settings,
             tone,
             audio_flow_store=capture_flow_store,
+            review_store=review_store,
         )
 
     async def capture(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -225,6 +234,8 @@ def main() -> None:
             settings,
             tone,
             capture_flow_store=capture_flow_store,
+            review_store=review_store,
+            extraction_provider=extraction_provider,
         )
 
     async def capture3(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -239,6 +250,8 @@ def main() -> None:
             settings,
             tone,
             capture_flow_store=capture_flow_store,
+            review_store=review_store,
+            extraction_provider=extraction_provider,
         )
 
     async def voice_command(
@@ -253,6 +266,7 @@ def main() -> None:
             session_store,
             capture_flow_store,
             settings,
+            review_store=review_store,
         )
 
     async def voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -269,6 +283,7 @@ def main() -> None:
             settings=settings,
             transcription_provider=transcription_provider,
             audio_flow_store=capture_flow_store,
+            review_store=review_store,
         )
 
     async def audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -285,6 +300,7 @@ def main() -> None:
             settings=settings,
             transcription_provider=transcription_provider,
             audio_flow_store=capture_flow_store,
+            review_store=review_store,
         )
 
     async def document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -301,6 +317,7 @@ def main() -> None:
             settings=settings,
             transcription_provider=transcription_provider,
             audio_flow_store=capture_flow_store,
+            review_store=review_store,
         )
 
     async def message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -315,6 +332,8 @@ def main() -> None:
             settings,
             tone,
             audio_flow_store=capture_flow_store,
+            review_store=review_store,
+            extraction_provider=extraction_provider,
         )
 
     async def episode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -323,7 +342,8 @@ def main() -> None:
         ):
             return
         await _handle_episode_callback_after_authorized(
-            update, storage, session_store, ux_events, tone
+            update, storage, session_store, ux_events, tone,
+            review_store=review_store,
         )
 
     async def transcript_callback(
@@ -339,6 +359,9 @@ def main() -> None:
             capture_flow_store,
             ux_events,
             tone,
+            settings=settings,
+            review_store=review_store,
+            extraction_provider=extraction_provider,
         )
 
     async def profile_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -462,6 +485,29 @@ def _transcription_provider_for_settings(settings):
             language=getattr(settings, "whisper_language", None),
         )
     return MissingTranscriptionProvider()
+
+
+def _capture_extraction_provider_for_settings(settings):
+    api_key = getattr(settings, "openai_api_key", "")
+    model = getattr(settings, "capture_extraction_model", "")
+    if not api_key or not model:
+        return UnavailableCaptureExtractionProvider(model)
+    return OpenAICaptureExtractionProvider(api_key=api_key, model=model)
+
+
+def target_fields_for_review() -> tuple[str, ...]:
+    return (
+        "situation",
+        "trigger",
+        "actor",
+        "quote",
+        "automatic_thought",
+        "emotion",
+        "behavior",
+        "physical",
+        "short_term_consequence",
+        "long_term_consequence",
+    )
 
 
 def _visible_command_menu(tone) -> tuple[dict[str, str], ...]:
@@ -642,9 +688,13 @@ async def _handle_start_after_authorized(
     tone,
     *,
     audio_flow_store: CaptureFlowStore | None = None,
+    review_store: DraftReviewSessionStore | None = None,
 ) -> None:
     chat_id = update.effective_chat.id
     now = utc_now()
+    if review_store is not None and review_store.load_session(chat_id, now=now):
+        await _reply_text(update, _cancel_active_flow_first())
+        return
     session = session_store.load_session(chat_id)
     audio_flow = (
         audio_flow_store.load_flow(chat_id, now=now)
@@ -671,6 +721,41 @@ async def _handle_start_after_authorized(
     )
 
 
+async def _handle_status_after_authorized(
+    update,
+    session_store: LoopSessionStore,
+    review_store: DraftReviewSessionStore,
+    ux_events: UxEventLog,
+    settings: Settings,
+    tone,
+) -> None:
+    chat_id = update.effective_chat.id
+    now = utc_now()
+    review = review_store.load_session(chat_id, now=now)
+    if review is not None:
+        await _reply_text(
+            update,
+            tone.review_screen(review.observed, target_fields_for_review()),
+            reply_markup=_review_reply_markup(),
+        )
+        return
+    session = session_store.load_session(chat_id)
+    if _expire_initial_session_if_stale(
+        session_store,
+        ux_events,
+        session,
+        chat_id,
+        now,
+        settings.initial_session_ttl_sec,
+    ):
+        await _reply_text(update, _expired_initial_session_text(tone))
+        return
+    if session is None:
+        await _reply_text(update, tone.no_active_loop())
+        return
+    await _reply_text(update, status_text(session, tone))
+
+
 async def _handle_cancel_after_authorized(
     update,
     session_store: LoopSessionStore,
@@ -679,6 +764,7 @@ async def _handle_cancel_after_authorized(
     tone,
     *,
     audio_flow_store: CaptureFlowStore | None = None,
+    review_store: DraftReviewSessionStore | None = None,
 ) -> None:
     chat_id = update.effective_chat.id
     now = utc_now()
@@ -688,15 +774,20 @@ async def _handle_cancel_after_authorized(
         if audio_flow_store is not None
         else None
     )
+    review = (
+        review_store.load_session(chat_id, now=now)
+        if review_store is not None
+        else None
+    )
     session_expired = _expire_initial_session_if_stale(
         session_store, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
     )
     if session_expired:
         session = None
-    if session_expired and audio_flow is None:
+    if session_expired and audio_flow is None and review is None:
         await _reply_text(update, _expired_initial_session_text(tone))
         return
-    if session is None and audio_flow is None:
+    if session is None and audio_flow is None and review is None:
         await _reply_text(update, tone.no_active_loop())
         return
     if session is not None and session.session_id is not None:
@@ -711,6 +802,8 @@ async def _handle_cancel_after_authorized(
         session_store.delete_session(chat_id)
     if audio_flow_store is not None:
         audio_flow_store.delete_flow(chat_id)
+    if review_store is not None:
+        review_store.delete_session(chat_id)
     await _reply_text(update, tone.cancel())
 
 
@@ -719,9 +812,14 @@ async def _handle_voice_command_after_authorized(
     session_store: LoopSessionStore,
     audio_flow_store: CaptureFlowStore,
     settings: Settings,
+    *,
+    review_store: DraftReviewSessionStore | None = None,
 ) -> None:
     chat_id = update.effective_chat.id
     now = utc_now()
+    if review_store is not None and review_store.load_session(chat_id, now=now):
+        await _reply_text(update, _cancel_active_flow_first())
+        return
     session = session_store.load_session(chat_id)
     audio_flow = audio_flow_store.load_flow(chat_id, now=now)
     decision = route_user_input(
@@ -762,9 +860,13 @@ async def _handle_capture_mode_command_after_authorized(
     settings: Settings,
     *,
     mode: FlowKind,
+    review_store: DraftReviewSessionStore | None = None,
 ) -> None:
     chat_id = update.effective_chat.id
     now = utc_now()
+    if review_store is not None and review_store.load_session(chat_id, now=now):
+        await _reply_text(update, _cancel_active_flow_first())
+        return
     session = session_store.load_session(chat_id)
     capture_flow = capture_flow_store.load_flow(chat_id, now=now)
     input_kind = {
@@ -798,161 +900,132 @@ async def _handle_capture_mode_command_after_authorized(
     await _reply_text(update, _three_block_prompt(0))
 
 
-async def _start_text_capture_session(
+async def _extract_capture_to_review(
     update,
-    session_store: LoopSessionStore,
+    review_store: DraftReviewSessionStore,
     ux_events: UxEventLog,
     tone,
     *,
     chat_id: int,
-    text: str,
+    settings,
+    extraction_provider,
+    mode: str,
+    pieces,
     now,
-    existing_session=None,
-    cancel_reason: str | None = None,
-    funnel: str = "one_take_text",
-) -> None:
-    artifact = text_input_artifact(
-        text,
-        source_ref=_telegram_update_metadata(update),
-    )
-    await _start_input_artifact_capture_session(
-        update,
-        session_store,
-        ux_events,
-        tone,
-        chat_id=chat_id,
-        artifact=artifact,
-        now=now,
-        existing_session=existing_session,
-        cancel_reason=cancel_reason,
-        funnel=funnel,
-    )
-
-
-async def _start_input_artifact_capture_session(
-    update,
-    session_store: LoopSessionStore,
-    ux_events: UxEventLog,
-    tone,
-    *,
-    chat_id: int,
-    artifact,
-    now,
-    existing_session=None,
-    cancel_reason: str | None = None,
-    funnel: str = "input_artifact",
+    media_kind: str,
     intake_transcript_path: str | None = None,
+    message_id: int | None = None,
 ) -> None:
-    capture_text = artifact_text(artifact)
-    await _start_episode_draft_capture_session(
-        update,
-        session_store,
-        ux_events,
-        tone,
+    artifact = build_capture_artifact(
         chat_id=chat_id,
-        draft=draft_from_input_artifact(artifact),
-        answer_chars=len(capture_text),
-        now=now,
-        existing_session=existing_session,
-        cancel_reason=cancel_reason,
-        funnel=funnel,
-        media_kind=artifact.media_kind,
+        mode=mode,
+        media_kind=media_kind,
+        pieces=pieces,
+        created_at=now,
+        message_id=message_id,
+        source_metadata={
+            key: value
+            for key, value in _telegram_update_metadata(update).items()
+            if key in {"message_id", "message_kind", "command"}
+        },
         intake_transcript_path=intake_transcript_path,
     )
-
-
-async def _start_episode_draft_capture_session(
-    update,
-    session_store: LoopSessionStore,
-    ux_events: UxEventLog,
-    tone,
-    *,
-    chat_id: int,
-    draft,
-    answer_chars: int,
-    now,
-    existing_session=None,
-    cancel_reason: str | None = None,
-    funnel: str = "unknown",
-    media_kind: str | None = None,
-    intake_transcript_path: str | None = None,
-) -> None:
-    if (
-        cancel_reason is not None
-        and existing_session is not None
-        and existing_session.session_id is not None
-    ):
-        ux_events.append(
-            _session_cancelled_event(
-                existing_session,
-                str(chat_id),
-                now=now,
-                cancel_reason=cancel_reason,
-            )
-        )
-
-    session = new_session_from_draft(
-        chat_id,
-        draft,
-        session_id=new_session_id(str(chat_id), now),
-        episode_date=_episode_date_for_now(now),
-        flow_mode=funnel,
-        capture_funnel=funnel,
-        media_kind=media_kind,
+    artifact_path = save_capture_artifact(
+        getattr(
+            settings,
+            "capture_artifact_dir",
+            review_store.review_dir.parent / "capture-artifacts",
+        ),
+        artifact,
     )
-    session.intake_transcript_path = intake_transcript_path
     ux_events.append(
         base_event(
             "input_received",
-            session.session_id,
+            artifact.capture_id,
             str(chat_id),
             created_at=now,
-            funnel=funnel,
+            funnel=mode,
             media_kind=media_kind,
-            answer_chars=answer_chars,
+            answer_chars=sum(len(piece.text) for piece in artifact.pieces),
         )
     )
+    outcome = await _run_capture_extraction_in_worker(
+        artifact,
+        extraction_provider,
+        getattr(
+            settings,
+            "capture_extraction_dir",
+            review_store.review_dir.parent / "capture-extractions",
+        ),
+    )
+    if outcome.draft is None:
+        ux_events.append(
+            base_event(
+                "capture_extraction_failed",
+                artifact.capture_id,
+                str(chat_id),
+                created_at=utc_now(),
+                funnel=mode,
+                media_kind=media_kind,
+                    failure_code=outcome.extraction.failure_code,
+            )
+        )
+        await _reply_text(update, _capture_extraction_failed_text(), parse_mode=None)
+        return
+    review = review_session_from_extraction(
+        chat_id=chat_id,
+        mode=mode,
+        observed=outcome.draft.observed,
+        episode_date=_episode_date_for_now(now),
+        now=now,
+        capture_id=artifact.capture_id,
+        capture_artifact_path=artifact_path,
+        extraction_id=outcome.extraction.extraction_id,
+        extraction_path=outcome.path,
+        intake_transcript_path=intake_transcript_path,
+        media_kind=media_kind,
+    )
+    review_store.save_session(review)
     ux_events.append(
         base_event(
             "draft_created",
-            session.session_id,
+            review.review_id,
             str(chat_id),
-            created_at=now,
-            funnel=funnel,
+            created_at=utc_now(),
+            funnel=mode,
             media_kind=media_kind,
-            draft_fields=len(draft.observed),
+            draft_fields=len(review.observed),
         )
     )
-    ux_events.append(
-        base_event(
-            "session_started",
-            session.session_id,
-            str(chat_id),
-            created_at=now,
-        )
-    )
-    ux_events.append(
-        base_event(
-            "step_answered",
-            session.session_id,
-            str(chat_id),
-            created_at=now,
-            target="situation",
-            target_index=0,
-            duration_sec=0,
-            advanced=True,
-            answer_chars=answer_chars,
-        )
-    )
-    _log_step_prompted(ux_events, session, str(chat_id), now=now)
-    session_store.save_session(session)
     await _reply_text(
         update,
-        tone.next_prompt_bridge(
-            completed_observed_count(session),
-            len(target_fields(session)),
-            prompt_for_current_target(session, tone),
-        ),
+        tone.review_screen(review.observed, target_fields_for_review()),
+        reply_markup=_review_reply_markup(),
+    )
+
+
+async def _run_capture_extraction_in_worker(artifact, provider, output_root):
+    if getattr(provider, "_m3_run_inline_for_tests", False):
+        return run_capture_extraction(artifact, provider, output_root)
+    loop = asyncio.get_running_loop()
+    future = loop.create_future()
+
+    def worker() -> None:
+        try:
+            result = run_capture_extraction(artifact, provider, output_root)
+        except BaseException as exc:  # pragma: no cover - surfaced by handler
+            loop.call_soon_threadsafe(future.set_exception, exc)
+        else:
+            loop.call_soon_threadsafe(future.set_result, result)
+
+    Thread(target=worker, daemon=True).start()
+    return await future
+
+
+def _capture_extraction_failed_text() -> str:
+    return (
+        "Не удалось надежно разобрать этот эпизод. Исходный материал сохранен "
+        "приватно; начни заново той же командой."
     )
 
 
@@ -964,9 +1037,14 @@ async def _handle_capture_after_authorized(
     tone,
     *,
     capture_flow_store: CaptureFlowStore | None = None,
+    review_store: DraftReviewSessionStore | None = None,
+    extraction_provider=None,
 ) -> None:
     chat_id = update.effective_chat.id
     now = utc_now()
+    if review_store is not None and review_store.load_session(chat_id, now=now):
+        await _reply_text(update, _cancel_active_flow_first())
+        return
     existing_session = session_store.load_session(chat_id)
     if _expire_initial_session_if_stale(
         session_store,
@@ -999,16 +1077,26 @@ async def _handle_capture_after_authorized(
         await _reply_text(update, "Используй /capture текст эпизода")
         return
 
-    await _start_text_capture_session(
+    review_store = review_store or DraftReviewSessionStore(
+        getattr(settings, "runtime_session_dir", session_store.session_dir),
+        loop_session_store=session_store,
+    )
+    extraction_provider = extraction_provider or _capture_extraction_provider_for_settings(
+        settings
+    )
+    await _extract_capture_to_review(
         update,
-        session_store,
+        review_store,
         ux_events,
         tone,
         chat_id=chat_id,
-        text=text,
+        settings=settings,
+        extraction_provider=extraction_provider,
+        mode="one_take_text",
+        pieces=(("one_take_text", text),),
         now=now,
-        existing_session=existing_session,
-        funnel="one_take_text",
+        media_kind="text",
+        message_id=getattr(update.message, "message_id", None),
     )
 
 
@@ -1020,9 +1108,14 @@ async def _handle_capture3_after_authorized(
     tone,
     *,
     capture_flow_store: CaptureFlowStore | None = None,
+    review_store: DraftReviewSessionStore | None = None,
+    extraction_provider=None,
 ) -> None:
     chat_id = update.effective_chat.id
     now = utc_now()
+    if review_store is not None and review_store.load_session(chat_id, now=now):
+        await _reply_text(update, _cancel_active_flow_first())
+        return
     existing_session = session_store.load_session(chat_id)
     if _expire_initial_session_if_stale(
         session_store,
@@ -1058,19 +1151,31 @@ async def _handle_capture3_after_authorized(
         )
         return
 
-    draft = draft_from_three_blocks(*blocks)
-    await _start_episode_draft_capture_session(
+    review_store = review_store or DraftReviewSessionStore(
+        getattr(settings, "runtime_session_dir", session_store.session_dir),
+        loop_session_store=session_store,
+    )
+    extraction_provider = extraction_provider or _capture_extraction_provider_for_settings(
+        settings
+    )
+    await _extract_capture_to_review(
         update,
-        session_store,
+        review_store,
         ux_events,
         tone,
         chat_id=chat_id,
-        draft=draft,
-        answer_chars=sum(len(block) for block in blocks),
+        settings=settings,
+        extraction_provider=extraction_provider,
+        mode="three_block",
+        pieces=tuple(
+            zip(
+                ("outside_context", "inner_context", "response_outcome"),
+                blocks,
+            )
+        ),
         now=now,
-        existing_session=existing_session,
-        funnel="three_block",
         media_kind="three_block",
+        message_id=getattr(update.message, "message_id", None),
     )
 
 
@@ -1084,6 +1189,7 @@ async def _handle_voice_after_authorized(
     settings=None,
     transcription_provider=None,
     audio_flow_store: CaptureFlowStore | None = None,
+    review_store: DraftReviewSessionStore | None = None,
 ) -> None:
     if await _reject_unrouted_media_input(
         update,
@@ -1091,6 +1197,7 @@ async def _handle_voice_after_authorized(
         ux_events,
         tone,
         audio_flow_store=audio_flow_store,
+        review_store=review_store,
         funnel="one_take_audio",
         media_kind="voice",
     ):
@@ -1154,6 +1261,7 @@ async def _handle_audio_after_authorized(
     settings=None,
     transcription_provider=None,
     audio_flow_store: CaptureFlowStore | None = None,
+    review_store: DraftReviewSessionStore | None = None,
 ) -> None:
     if await _reject_unrouted_media_input(
         update,
@@ -1161,6 +1269,7 @@ async def _handle_audio_after_authorized(
         ux_events,
         tone,
         audio_flow_store=audio_flow_store,
+        review_store=review_store,
         funnel="one_take_audio",
         media_kind="audio",
     ):
@@ -1220,6 +1329,7 @@ async def _handle_document_after_authorized(
     settings=None,
     transcription_provider=None,
     audio_flow_store: CaptureFlowStore | None = None,
+    review_store: DraftReviewSessionStore | None = None,
 ) -> None:
     if await _reject_unrouted_media_input(
         update,
@@ -1227,6 +1337,7 @@ async def _handle_document_after_authorized(
         ux_events,
         tone,
         audio_flow_store=audio_flow_store,
+        review_store=review_store,
         funnel="one_take_audio",
         media_kind="document",
     ):
@@ -1284,10 +1395,24 @@ async def _handle_message_after_authorized(
     tone,
     *,
     audio_flow_store: CaptureFlowStore | None = None,
+    review_store: DraftReviewSessionStore | None = None,
+    extraction_provider=None,
 ) -> None:
     chat_id = update.effective_chat.id
-    session = session_store.load_session(chat_id)
     now = utc_now()
+    review_store = review_store or DraftReviewSessionStore(
+        getattr(settings, "runtime_session_dir", session_store.session_dir),
+        loop_session_store=session_store,
+    )
+    review = review_store.load_session(chat_id, now=now)
+    if review is not None:
+        await _reply_text(
+            update,
+            tone.review_screen(review.observed, target_fields_for_review()),
+            reply_markup=_review_reply_markup(),
+        )
+        return
+    session = session_store.load_session(chat_id)
     if _expire_initial_session_if_stale(
         session_store, ux_events, session, chat_id, now, settings.initial_session_ttl_sec
     ):
@@ -1305,20 +1430,27 @@ async def _handle_message_after_authorized(
         input_kind=InputKind.TEXT,
     )
     if decision is RouteDecision.HANDLE_ONE_TAKE_TEXT:
-        text = (getattr(update.message, "text", "") or "").strip()
-        if not text:
+        text = getattr(update.message, "text", "") or ""
+        if not text.strip():
             await _reply_text(update, _one_take_text_guidance())
             return
         audio_flow_store.delete_flow(chat_id)
-        await _start_text_capture_session(
+        await _extract_capture_to_review(
             update,
-            session_store,
+            review_store,
             ux_events,
             tone,
             chat_id=chat_id,
-            text=text,
+            settings=settings,
+            extraction_provider=(
+                extraction_provider
+                or _capture_extraction_provider_for_settings(settings)
+            ),
+            mode="one_take_text",
+            pieces=(("one_take_text", text),),
             now=now,
-            funnel="one_take_text",
+            media_kind="text",
+            message_id=getattr(update.message, "message_id", None),
         )
         return
     if decision is RouteDecision.HANDLE_THREE_BLOCK_TEXT:
@@ -1334,17 +1466,27 @@ async def _handle_message_after_authorized(
             return
         blocks = (*audio_flow.blocks, text)
         audio_flow_store.delete_flow(chat_id)
-        await _start_episode_draft_capture_session(
+        await _extract_capture_to_review(
             update,
-            session_store,
+            review_store,
             ux_events,
             tone,
             chat_id=chat_id,
-            draft=draft_from_three_blocks(*blocks),
-            answer_chars=sum(len(block) for block in blocks),
+            settings=settings,
+            extraction_provider=(
+                extraction_provider
+                or _capture_extraction_provider_for_settings(settings)
+            ),
+            mode="three_block",
+            pieces=tuple(
+                zip(
+                    ("outside_context", "inner_context", "response_outcome"),
+                    blocks,
+                )
+            ),
             now=now,
-            funnel="three_block",
             media_kind="text",
+            message_id=getattr(update.message, "message_id", None),
         )
         return
     if decision is RouteDecision.TRANSCRIPT_CONFIRMATION_REQUIRED:
@@ -1401,13 +1543,6 @@ async def _handle_message_after_authorized(
         return
     if decision is not RouteDecision.HANDLE_CLASSIC_10Q_TEXT:
         raise RuntimeError(f"Unsupported text route decision: {decision}")
-    if session.awaiting_save_confirmation:
-        await _reply_text(
-            update,
-            tone.review_screen(session.observed, target_fields(session)),
-            reply_markup=_review_reply_markup(),
-        )
-        return
     _ensure_episode_date(session, now)
     if session.session_id is None:
         session.session_id = new_session_id(str(chat_id), now)
@@ -1441,11 +1576,53 @@ async def _handle_message_after_authorized(
         )
     )
     if result.should_save:
-        session.awaiting_save_confirmation = True
-        session_store.save_session(session)
+        artifact = build_capture_artifact(
+            chat_id=chat_id,
+            mode="classic_10q",
+            media_kind="text",
+            pieces=tuple(
+                (field, session.observed[field]["value"])
+                for field in target_fields(session)
+                if session.observed.get(field) is not None
+            ),
+            created_at=now,
+            message_id=getattr(update.message, "message_id", None),
+            source_metadata={"message_kind": "text"},
+        )
+        artifact_path = save_capture_artifact(
+            getattr(
+                settings,
+                "capture_artifact_dir",
+                review_store.review_dir.parent / "capture-artifacts",
+            ),
+            artifact,
+        )
+        outcome = project_classic_10q(
+            artifact,
+            getattr(
+                settings,
+                "capture_extraction_dir",
+                review_store.review_dir.parent / "capture-extractions",
+            ),
+            created_at=now,
+        )
+        review = review_session_from_extraction(
+            chat_id=chat_id,
+            mode="classic_10q",
+            observed=outcome.draft.observed,
+            episode_date=session.episode_date,
+            now=now,
+            capture_id=artifact.capture_id,
+            capture_artifact_path=artifact_path,
+            extraction_id=outcome.extraction.extraction_id,
+            extraction_path=outcome.path,
+            media_kind="text",
+        )
+        review_store.save_session(review)
+        session_store.delete_session(chat_id)
         await _reply_text(
             update,
-            tone.review_screen(session.observed, target_fields(session)),
+            tone.review_screen(review.observed, target_fields_for_review()),
             reply_markup=_review_reply_markup(),
         )
         return
@@ -1467,85 +1644,107 @@ async def _handle_episode_callback_after_authorized(
     session_store: LoopSessionStore,
     ux_events: UxEventLog,
     tone,
+    *,
+    review_store: DraftReviewSessionStore | None = None,
 ) -> None:
     query = getattr(update, "callback_query", None)
     if query is not None:
         await query.answer()
     chat_id = update.effective_chat.id
-    session = session_store.load_session(chat_id)
-    if session is None or not session.awaiting_save_confirmation:
+    review_store = review_store or DraftReviewSessionStore(
+        session_store.session_dir,
+        loop_session_store=session_store,
+    )
+    now = utc_now()
+    review = review_store.load_session(chat_id, now=now)
+    if review is None:
         if query is not None:
             await _reply_to_callback(query, tone.no_active_loop())
         return
 
-    now = utc_now()
     data = getattr(query, "data", "") if query is not None else ""
+    event_kwargs = {
+        "funnel": review.mode,
+        "media_kind": review.media_kind or "text",
+    }
+    draft_fields = sum(
+        1 for value in review.observed.values() if value is not None
+    )
     if data == "episode:save":
-        event_kwargs = _session_funnel_event_kwargs(session)
         ux_events.append(
             base_event(
                 "draft_confirmed",
-                session.session_id,
+                review.review_id,
                 str(chat_id),
                 created_at=now,
-                draft_fields=completed_draft_field_count(session),
+                draft_fields=draft_fields,
                 **event_kwargs,
             )
         )
-        episode_path = storage.save_episode(session)
-        if session.intake_transcript_path:
+        episode_path = storage.save_observed_episode(
+            chat_id=chat_id,
+            episode_date=review.episode_date,
+            observed=review.observed,
+        )
+        if review.extraction_path:
+            link_capture_extraction_to_episode(
+                Path(review.extraction_path),
+                episode_path.stem,
+            )
+        if review.intake_transcript_path:
             link_intake_transcript_to_episode(
-                Path(session.intake_transcript_path),
+                Path(review.intake_transcript_path),
                 episode_path.stem,
             )
         episode_count = storage.episode_count_for_chat(chat_id)
         ux_events.append(
             base_event(
                 "episode_saved",
-                session.session_id,
+                review.review_id,
                 str(chat_id),
                 created_at=now,
-                draft_fields=completed_draft_field_count(session),
+                draft_fields=draft_fields,
                 **event_kwargs,
             )
         )
         ux_events.append(
             base_event(
                 "session_completed",
-                session.session_id,
+                review.review_id,
                 str(chat_id),
                 created_at=now,
             )
         )
-        session_store.delete_session(chat_id)
+        review_store.delete_session(chat_id)
         await _reply_to_callback(query, tone.saved_episode(tone.complete(), episode_count))
         return
     if data == "episode:cancel":
         ux_events.append(
             base_event(
                 "draft_discarded",
-                session.session_id,
+                review.review_id,
                 str(chat_id),
                 created_at=now,
                 cancel_reason="review_cancel",
-                draft_fields=completed_draft_field_count(session),
-                **_session_funnel_event_kwargs(session),
+                draft_fields=draft_fields,
+                **event_kwargs,
             )
         )
         ux_events.append(
-            _session_cancelled_event(
-                session,
+            base_event(
+                "session_cancelled",
+                review.review_id,
                 str(chat_id),
-                now=now,
+                created_at=now,
                 cancel_reason="review_cancel",
             )
         )
-        session_store.delete_session(chat_id)
+        review_store.delete_session(chat_id)
         await _reply_to_callback(query, tone.cancel())
         return
     if query is not None:
         await _reply_to_callback(
-            query, tone.review_screen(session.observed, target_fields(session))
+            query, tone.review_screen(review.observed, target_fields_for_review())
         )
 
 
@@ -1555,6 +1754,10 @@ async def _handle_transcript_callback_after_authorized(
     capture_flow_store: CaptureFlowStore,
     ux_events: UxEventLog,
     tone,
+    *,
+    settings=None,
+    review_store: DraftReviewSessionStore | None = None,
+    extraction_provider=None,
 ) -> None:
     query = getattr(update, "callback_query", None)
     if query is not None:
@@ -1606,27 +1809,27 @@ async def _handle_transcript_callback_after_authorized(
     if transcript.chat_id != chat_id:
         raise ValueError("transcript chat id does not match active flow")
     capture_flow_store.delete_flow(chat_id)
-    artifact = InputArtifact(
-        source="telegram",
-        media_kind=transcript.media_kind,
-        transcript=transcript.text,
-        source_ref={
-            "chat_id": transcript.chat_id,
-            "message_id": transcript.message_id,
-            "message_kind": transcript.media_kind,
-            "transcript_id": transcript.transcript_id,
-        },
+    review_store = review_store or DraftReviewSessionStore(
+        getattr(settings, "runtime_session_dir", session_store.session_dir),
+        loop_session_store=session_store,
     )
-    await _start_input_artifact_capture_session(
+    await _extract_capture_to_review(
         update,
-        session_store,
+        review_store,
         ux_events,
         tone,
         chat_id=chat_id,
-        artifact=artifact,
+        settings=settings,
+        extraction_provider=(
+            extraction_provider
+            or _capture_extraction_provider_for_settings(settings)
+        ),
+        mode="one_take_audio",
+        pieces=(("transcript", transcript.text),),
         now=now,
-        funnel="one_take_audio",
+        media_kind=transcript.media_kind,
         intake_transcript_path=str(transcript_path),
+        message_id=transcript.message_id,
     )
 
 
@@ -1991,10 +2194,17 @@ async def _reject_unrouted_media_input(
     tone,
     *,
     audio_flow_store: CaptureFlowStore | None,
+    review_store: DraftReviewSessionStore | None = None,
     funnel: str,
     media_kind: str,
 ) -> bool:
     chat_id = update.effective_chat.id
+    if (
+        review_store is not None
+        and review_store.load_session(chat_id, now=utc_now()) is not None
+    ):
+        await _reply_text(update, _cancel_active_flow_first())
+        return True
     audio_flow = (
         audio_flow_store.load_flow(chat_id, now=utc_now())
         if audio_flow_store is not None

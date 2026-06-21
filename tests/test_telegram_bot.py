@@ -8,6 +8,14 @@ import pytest
 import app.telegram_bot as telegram_bot
 from app.audio_flow_store import AudioFlowStore
 from app.capture_flow_store import CaptureFlowStore
+from app.capture_extraction import (
+    UnavailableCaptureExtractionProvider,
+    source_piece,
+)
+from app.draft_review_sessions import (
+    DraftReviewSessionStore,
+    review_session_from_extraction,
+)
 from app.episode_drafts import observed_text_field
 from app.intake_transcripts import (
     build_intake_transcript,
@@ -19,6 +27,7 @@ from app.loop_extractor import LoopSession, prompt_for_current_target
 from app.messages import TARGETS
 from app.session_store import LoopSessionStore
 from app.storage import JsonStorage
+from app.schemas.capture import CaptureExtractionResult
 from app.tone_engine import ToneEngine
 from app.transcription import TranscriptResult, TranscriptionFailed
 from app.userlist import APPROVED, PAUSED, WAITLISTED, JsonUserList
@@ -33,6 +42,47 @@ INTERNAL_PROFILE_TERMS = (
     "annotation",
     "signature",
 )
+
+
+class _GroundedExtractionProvider:
+    provider_name = "test"
+    model = "test-model"
+    prompt_version = "test-v1"
+    _m3_run_inline_for_tests = True
+
+    def extract(self, artifact):
+        roles = {piece.role: piece.text for piece in artifact.pieces}
+        if artifact.mode == "three_block":
+            role_by_field = {
+                "situation": "outside_context",
+                "automatic_thought": "inner_context",
+                "emotion": "inner_context",
+                "physical": "inner_context",
+                "behavior": "response_outcome",
+                "short_term_consequence": "response_outcome",
+                "long_term_consequence": "response_outcome",
+            }
+        else:
+            role = "transcript" if artifact.mode == "one_take_audio" else "one_take_text"
+            role_by_field = {field: role for field in (
+                "situation",
+                "automatic_thought",
+                "emotion",
+                "physical",
+                "behavior",
+                "short_term_consequence",
+                "long_term_consequence",
+            )}
+        fields = {
+            field: source_piece(role, field, roles[role])
+            for field, role in role_by_field.items()
+        }
+        return CaptureExtractionResult(
+            **fields,
+            trigger=None,
+            actor=None,
+            quote=None,
+        )
 
 
 def test_telegram_bot_module_imports_without_contacting_telegram():
@@ -785,8 +835,11 @@ def test_first_class_capture_command_does_not_replace_active_session(tmp_path):
     assert message.replies == [telegram_bot._cancel_active_flow_first()]
 
 
-def test_one_take_text_enters_shared_draft_hydration(tmp_path):
+def test_one_take_text_extracts_directly_to_review(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    review_store = DraftReviewSessionStore(
+        tmp_path / "runtime-sessions", loop_session_store=session_store
+    )
     capture_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
     capture_flow_store.arm_flow(
         123,
@@ -806,20 +859,93 @@ def test_one_take_text_enters_shared_draft_hydration(tmp_path):
             _settings(),
             ToneEngine.default(),
             audio_flow_store=capture_flow_store,
+            review_store=review_store,
+            extraction_provider=_GroundedExtractionProvider(),
         )
     )
 
-    session = session_store.load_session(123)
+    review = review_store.load_session(123)
     assert capture_flow_store.load_flow(123) is None
-    assert session is not None
-    assert session.flow_mode == "one_take_text"
-    assert session.capture_funnel == "one_take_text"
-    assert session.observed == {"situation": observed_text_field(text)}
-    assert session.awaiting_save_confirmation is False
+    assert session_store.load_session(123) is None
+    assert review is not None
+    assert review.mode == "one_take_text"
+    assert review.observed["situation"]["source_quote"] == text
+    assert "gap_question_asked" not in {
+        event["event_type"] for event in ux_events.read()
+    }
 
 
-def test_three_block_collects_sequential_answers_then_hydrates(tmp_path):
+def test_one_take_extraction_failure_creates_no_review_or_episode(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    review_store = DraftReviewSessionStore(
+        tmp_path / "runtime-sessions", loop_session_store=session_store
+    )
+    capture_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
+    capture_flow_store.arm_flow(
+        123,
+        mode="one_take_text",
+        now=datetime.now(timezone.utc),
+        ttl_sec=600,
+    )
+    settings = _settings()
+    settings.capture_artifact_dir = tmp_path / "capture-artifacts"
+    settings.capture_extraction_dir = tmp_path / "capture-extractions"
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    private_text = "private capture evidence"
+    message = _FakeMessage(private_text)
+
+    _run(
+        telegram_bot._handle_message_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            settings,
+            ToneEngine.default(),
+            audio_flow_store=capture_flow_store,
+            review_store=review_store,
+            extraction_provider=UnavailableCaptureExtractionProvider(),
+        )
+    )
+
+    assert session_store.load_session(123) is None
+    assert review_store.load_session(123) is None
+    assert capture_flow_store.load_flow(123) is None
+    assert len(list(settings.capture_artifact_dir.rglob("*.json"))) == 1
+    assert len(list(settings.capture_extraction_dir.rglob("*.json"))) == 1
+    assert message.replies == [telegram_bot._capture_extraction_failed_text()]
+    assert private_text not in json.dumps(ux_events.read(), ensure_ascii=False)
+
+
+def test_status_renders_review_before_loop_state(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    review_store = DraftReviewSessionStore(
+        tmp_path / "runtime-sessions", loop_session_store=session_store
+    )
+    legacy = _complete_review_session()
+    session_store.save_session(legacy)
+    message = _FakeMessage("/status")
+
+    _run(
+        telegram_bot._handle_status_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            review_store,
+            UxEventLog(tmp_path / "ux" / "events.jsonl"),
+            _settings(),
+            ToneEngine.default(),
+        )
+    )
+
+    assert review_store.load_session(123) is not None
+    assert session_store.load_session(123) is None
+    assert message.replies[0].endswith("Сохраняем?")
+
+
+def test_three_block_collects_sequential_answers_then_reviews(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    review_store = DraftReviewSessionStore(
+        tmp_path / "runtime-sessions", loop_session_store=session_store
+    )
     capture_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
     capture_flow_store.arm_flow(
         123,
@@ -841,24 +967,24 @@ def test_three_block_collects_sequential_answers_then_hydrates(tmp_path):
                 _settings(),
                 ToneEngine.default(),
                 audio_flow_store=capture_flow_store,
+                review_store=review_store,
+                extraction_provider=_GroundedExtractionProvider(),
             )
         )
 
-    session = session_store.load_session(123)
+    review = review_store.load_session(123)
     assert capture_flow_store.load_flow(123) is None
-    assert session is not None
-    assert session.flow_mode == "three_block"
-    assert session.capture_funnel == "three_block"
-    assert session.observed == {
-        "situation": observed_text_field("факт"),
-        "automatic_thought": observed_text_field("мысль"),
-        "behavior": observed_text_field("замолчал"),
-    }
+    assert review is not None
+    assert review.mode == "three_block"
+    assert review.observed["situation"]["source_quote"] == "факт"
+    assert review.observed["automatic_thought"]["source_quote"] == "мысль"
+    assert review.observed["behavior"]["source_quote"] == "замолчал"
     assert first.replies == [telegram_bot._three_block_prompt(1)]
     assert second.replies == [telegram_bot._three_block_prompt(2)]
-    assert third.replies == [
-        f"■■■□□□□□□□ 3/10\n\n{ToneEngine.default().target_prompt('trigger')}"
-    ]
+    assert third.replies[0].endswith("Сохраняем?")
+    assert "gap_question_asked" not in {
+        event["event_type"] for event in ux_events.read()
+    }
 
 
 def test_voice_command_arms_audio_flow_without_creating_classic_session(
@@ -1189,8 +1315,11 @@ def test_capture_command_without_text_does_not_create_session(tmp_path):
     assert message.replies == ["Используй /capture текст эпизода"]
 
 
-def test_capture_command_starts_session_from_one_take_text(tmp_path):
+def test_capture_command_extracts_one_take_text_to_review(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    review_store = DraftReviewSessionStore(
+        tmp_path / "runtime-sessions", loop_session_store=session_store
+    )
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage("/capture коллега резко ответил в чате")
 
@@ -1201,28 +1330,21 @@ def test_capture_command_starts_session_from_one_take_text(tmp_path):
             ux_events,
             _settings(),
             ToneEngine.default(),
+            review_store=review_store,
+            extraction_provider=_GroundedExtractionProvider(),
         )
     )
 
-    loaded = session_store.load_session(123)
+    loaded = review_store.load_session(123)
     assert loaded is not None
-    assert loaded.target_index == 1
-    assert loaded.observed == {
-        "situation": {
-            "value": "коллега резко ответил в чате",
-            "source_quote": "коллега резко ответил в чате",
-        }
-    }
-    assert message.replies == [
-        f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
-    ]
+    assert session_store.load_session(123) is None
+    assert loaded.observed["situation"]["source_quote"] == (
+        "коллега резко ответил в чате"
+    )
+    assert message.replies[0].endswith("Сохраняем?")
     assert [event["event_type"] for event in ux_events.read()] == [
         "input_received",
         "draft_created",
-        "session_started",
-        "step_answered",
-        "step_prompted",
-        "gap_question_asked",
     ]
 
 
@@ -1282,8 +1404,11 @@ def test_capture3_command_without_three_blocks_does_not_create_session(tmp_path)
     ]
 
 
-def test_capture3_command_starts_session_from_three_blocks(tmp_path):
+def test_capture3_command_extracts_three_blocks_to_review(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    review_store = DraftReviewSessionStore(
+        tmp_path / "runtime-sessions", loop_session_store=session_store
+    )
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage("/capture3 факт | мысль внутри | я замолчал")
 
@@ -1294,35 +1419,26 @@ def test_capture3_command_starts_session_from_three_blocks(tmp_path):
             ux_events,
             _settings(),
             ToneEngine.default(),
+            review_store=review_store,
+            extraction_provider=_GroundedExtractionProvider(),
         )
     )
 
-    loaded = session_store.load_session(123)
+    loaded = review_store.load_session(123)
     assert loaded is not None
-    assert loaded.target_index == 1
-    assert loaded.observed == {
-        "situation": {"value": "факт", "source_quote": "факт"},
-        "automatic_thought": {
-            "value": "мысль внутри",
-            "source_quote": "мысль внутри",
-        },
-        "behavior": {"value": "я замолчал", "source_quote": "я замолчал"},
-    }
+    assert session_store.load_session(123) is None
+    assert loaded.observed["situation"]["source_quote"] == "факт"
+    assert loaded.observed["automatic_thought"]["source_quote"] == "мысль внутри"
+    assert loaded.observed["behavior"]["source_quote"] == "я замолчал"
     events = ux_events.read()
     assert [event["event_type"] for event in events] == [
         "input_received",
         "draft_created",
-        "session_started",
-        "step_answered",
-        "step_prompted",
-        "gap_question_asked",
     ]
     assert events[0]["funnel"] == "three_block"
     assert events[0]["media_kind"] == "three_block"
-    assert events[1]["draft_fields"] == 3
-    assert message.replies == [
-        f"■■■□□□□□□□ 3/10\n\n{ToneEngine.default().target_prompt('trigger')}"
-    ]
+    assert events[1]["draft_fields"] == 7
+    assert message.replies[0].endswith("Сохраняем?")
 
 
 def test_capture3_command_requires_cancel_for_existing_session(tmp_path):
@@ -1412,44 +1528,39 @@ def test_idle_voice_requires_start_without_transcription(tmp_path):
     assert events[0]["reject_reason"] == "idle_requires_start"
 
 
-def test_transcribed_voice_artifact_can_start_same_draft_session(tmp_path):
+def test_transcribed_voice_artifact_extracts_directly_to_review(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    review_store = DraftReviewSessionStore(
+        tmp_path / "runtime-sessions", loop_session_store=session_store
+    )
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    artifact = voice_input_artifact("voice-file-id", transcript="голосовой эпизод")
     message = _FakeMessage("", voice=SimpleNamespace(file_id="voice-file-id"))
 
     _run(
-        telegram_bot._start_input_artifact_capture_session(
+        telegram_bot._extract_capture_to_review(
             _fake_update(123, message),
-            session_store,
+            review_store,
             ux_events,
             ToneEngine.default(),
             chat_id=123,
-            artifact=artifact,
+            settings=_settings(),
+            extraction_provider=_GroundedExtractionProvider(),
+            mode="one_take_audio",
+            pieces=(("transcript", "голосовой эпизод"),),
             now=datetime(2026, 5, 3, 9, 44, tzinfo=timezone.utc),
+            media_kind="voice",
         )
     )
 
-    loaded = session_store.load_session(123)
+    loaded = review_store.load_session(123)
     assert loaded is not None
-    assert loaded.observed == {
-        "situation": {
-            "value": "голосовой эпизод",
-            "source_quote": "голосовой эпизод",
-        }
-    }
-    assert loaded.target_index == 1
+    assert loaded.observed["situation"]["source_quote"] == "голосовой эпизод"
+    assert session_store.load_session(123) is None
     assert [event["event_type"] for event in ux_events.read()] == [
         "input_received",
         "draft_created",
-        "session_started",
-        "step_answered",
-        "step_prompted",
-        "gap_question_asked",
     ]
-    assert message.replies == [
-        f"■□□□□□□□□□ 1/10\n\n{ToneEngine.default().target_prompt('trigger')}"
-    ]
+    assert message.replies[0].endswith("Сохраняем?")
 
 def test_idle_voice_without_file_id_still_requires_start(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
@@ -1784,6 +1895,9 @@ def test_empty_answer_retries_without_bridge(tmp_path):
 def test_final_answer_opens_save_review_with_all_fields(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes")
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    review_store = DraftReviewSessionStore(
+        tmp_path / "runtime-sessions", loop_session_store=session_store
+    )
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     session = LoopSession(
         chat_id=123,
@@ -1812,13 +1926,14 @@ def test_final_answer_opens_save_review_with_all_fields(tmp_path):
             ux_events,
             _settings(),
             ToneEngine.default(),
+            review_store=review_store,
         )
     )
 
-    loaded = session_store.load_session(123)
+    loaded = review_store.load_session(123)
     assert loaded is not None
-    assert loaded.awaiting_save_confirmation is True
-    assert loaded.target_index == 10
+    assert loaded.mode == "classic_10q"
+    assert session_store.load_session(123) is None
     assert message.replies == [
         "■■■■■■■■■■ 10/10 💯\n\n"
         "ситуация: s\n"
@@ -1846,10 +1961,11 @@ def test_final_answer_opens_save_review_with_all_fields(tmp_path):
             ux_events,
             _settings(),
             ToneEngine.default(),
+            review_store=review_store,
         )
     )
 
-    loaded = session_store.load_session(123)
+    loaded = review_store.load_session(123)
     assert loaded is not None
     assert loaded.observed["long_term_consequence"]["value"] == "lt"
     assert followup.replies[0].endswith("Сохраняем?")
@@ -2479,8 +2595,11 @@ def test_armed_audio_flow_accepts_supported_media_and_completes(
     )
 
 
-def test_transcript_continue_enters_shared_draft_hydration(tmp_path):
+def test_transcript_continue_extracts_directly_to_review(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    review_store = DraftReviewSessionStore(
+        tmp_path / "runtime-sessions", loop_session_store=session_store
+    )
     capture_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
     now = datetime.now(timezone.utc)
     capture_flow_store.arm_flow(
@@ -2516,20 +2635,21 @@ def test_transcript_continue_enters_shared_draft_hydration(tmp_path):
             capture_flow_store,
             ux_events,
             ToneEngine.default(),
+            settings=_settings(),
+            review_store=review_store,
+            extraction_provider=_GroundedExtractionProvider(),
         )
     )
 
-    session = session_store.load_session(123)
+    review = review_store.load_session(123)
     assert query.answered is True
     assert capture_flow_store.load_flow(123) is None
-    assert session is not None
-    assert session.flow_mode == "one_take_audio"
-    assert session.capture_funnel == "one_take_audio"
-    assert session.media_kind == "voice"
-    assert session.intake_transcript_path == str(transcript_path)
-    assert session.observed == {
-        "situation": observed_text_field("точная расшифровка")
-    }
+    assert review is not None
+    assert review.mode == "one_take_audio"
+    assert review.media_kind == "voice"
+    assert review.intake_transcript_path == str(transcript_path)
+    assert review.observed["situation"]["source_quote"] == "точная расшифровка"
+    assert session_store.load_session(123) is None
 
 
 def test_transcript_reject_keeps_source_without_creating_draft(tmp_path):

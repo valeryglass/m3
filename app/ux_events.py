@@ -64,6 +64,7 @@ def base_event(
     funnel: str | None = None,
     media_kind: str | None = None,
     draft_fields: int | None = None,
+    failure_code: str | None = None,
 ) -> dict[str, Any]:
     event: dict[str, Any] = {
         "event_type": event_type,
@@ -81,6 +82,7 @@ def base_event(
         "funnel": funnel,
         "media_kind": media_kind,
         "draft_fields": draft_fields,
+        "failure_code": failure_code,
     }
     event.update({key: value for key, value in optional.items() if value is not None})
     return event
