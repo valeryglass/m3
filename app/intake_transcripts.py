@@ -77,6 +77,13 @@ def load_intake_transcript(path: Path) -> IntakeTranscript:
     return IntakeTranscript.model_validate_json(path.read_text(encoding="utf-8"))
 
 
+def link_intake_transcript_to_episode(path: Path, episode_id: str) -> IntakeTranscript:
+    transcript = load_intake_transcript(path)
+    linked = transcript.model_copy(update={"episode_id": episode_id})
+    save_intake_transcript(path.parents[1], linked)
+    return linked
+
+
 def _required_int(metadata: dict[str, Any], key: str) -> int:
     value = metadata.get(key)
     if value is None:

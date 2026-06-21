@@ -197,7 +197,10 @@ def test_session_messages_render_concise_prompts():
         "Бот не ставит диагнозы и не даёт советов\n"
         "Он помогает аккуратно зафиксировать один эпизод по CBT/ACT-фрейму\n\n"
         "Команды:\n"
-        "/start — начать один эпизод\n"
+        "/start или /10q — десять коротких вопросов\n"
+        "/3b — три последовательных блока\n"
+        "/1t — один текст, затем только недостающее\n"
+        "/1a — одно голосовое или аудио\n"
         "/cancel — отменить сессию\n"
         "/help — показать команды\n\n"
         "Связь: @mesto3"
@@ -334,11 +337,19 @@ def test_progress_bar_renders_fixed_rail():
 def test_command_descriptions_render_unchanged():
     tone = ToneEngine.default()
 
-    assert tone.command_description("start") == "Начать новый эпизод"
+    assert tone.command_description("start") == "Начать 10 вопросов"
+    assert tone.command_description("10q") == "Эпизод через 10 вопросов"
+    assert tone.command_description("3b") == "Эпизод через 3 блока"
+    assert tone.command_description("1t") == "Эпизод одним текстом"
+    assert tone.command_description("1a") == "Эпизод голосом или аудио"
     assert tone.command_description("cancel") == "Отменить сессию"
     assert tone.command_description("help") == "Показать команды"
     assert COMMAND_DESCRIPTIONS == {
-        "start": "Начать новый эпизод",
+        "start": "Начать 10 вопросов",
+        "10q": "Эпизод через 10 вопросов",
+        "3b": "Эпизод через 3 блока",
+        "1t": "Эпизод одним текстом",
+        "1a": "Эпизод голосом или аудио",
         "cancel": "Отменить сессию",
         "help": "Показать команды",
     }

@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from app.input_funnels import voice_input_artifact
 from app.intake_transcripts import (
     build_intake_transcript,
+    link_intake_transcript_to_episode,
     load_intake_transcript,
     save_intake_transcript,
     transcript_path,
@@ -67,3 +68,12 @@ def test_save_intake_transcript_overwrites_same_source_without_duplicate(tmp_pat
 
     assert first == second
     assert list((tmp_path / "telegram-chat-225672").glob("*.json")) == [first]
+
+
+def test_link_intake_transcript_to_episode_updates_existing_artifact(tmp_path):
+    path = save_intake_transcript(tmp_path, build_intake_transcript(_artifact()))
+
+    linked = link_intake_transcript_to_episode(path, "episode-20260621-1")
+
+    assert linked.episode_id == "episode-20260621-1"
+    assert load_intake_transcript(path).episode_id == "episode-20260621-1"

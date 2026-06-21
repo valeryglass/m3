@@ -7,13 +7,22 @@ import pytest
 
 import app.telegram_bot as telegram_bot
 from app.audio_flow_store import AudioFlowStore
+from app.capture_flow_store import CaptureFlowStore
+from app.episode_drafts import observed_text_field
+from app.intake_transcripts import (
+    build_intake_transcript,
+    load_intake_transcript,
+    save_intake_transcript,
+)
+from app.input_funnels import voice_input_artifact
 from app.loop_extractor import LoopSession, prompt_for_current_target
+from app.messages import TARGETS
 from app.session_store import LoopSessionStore
 from app.storage import JsonStorage
 from app.tone_engine import ToneEngine
 from app.transcription import TranscriptResult, TranscriptionFailed
 from app.userlist import APPROVED, PAUSED, WAITLISTED, JsonUserList
-from app.input_funnels import voice_input_artifact
+from app.user_flow_router import FlowKind
 from app.ux_events import UxEventLog, format_utc
 
 
@@ -35,6 +44,11 @@ def test_visible_command_menu_excludes_hidden_status():
 
     assert telegram_bot.REGISTERED_COMMANDS == (
         "start",
+        "10q",
+        "3b",
+        "1t",
+        "1a",
+        "1v",
         "status",
         "cancel",
         "help",
@@ -49,7 +63,11 @@ def test_visible_command_menu_excludes_hidden_status():
         "admin_annotate_gaps",
     )
     assert telegram_bot._visible_command_menu(tone) == (
-        {"command": "start", "description": "Начать новый эпизод"},
+        {"command": "start", "description": "Начать 10 вопросов"},
+        {"command": "10q", "description": "Эпизод через 10 вопросов"},
+        {"command": "3b", "description": "Эпизод через 3 блока"},
+        {"command": "1t", "description": "Эпизод одним текстом"},
+        {"command": "1a", "description": "Эпизод голосом или аудио"},
         {"command": "cancel", "description": "Отменить сессию"},
         {"command": "help", "description": "Показать команды"},
     )
@@ -124,7 +142,10 @@ def test_send_help_replies_without_creating_session(tmp_path):
         "Бот не ставит диагнозы и не даёт советов\n"
         "Он помогает аккуратно зафиксировать один эпизод по CBT/ACT-фрейму\n\n"
         "Команды:\n"
-        "/start — начать один эпизод\n"
+        "/start или /10q — десять коротких вопросов\n"
+        "/3b — три последовательных блока\n"
+        "/1t — один текст, затем только недостающее\n"
+        "/1a — одно голосовое или аудио\n"
         "/cancel — отменить сессию\n"
         "/help — показать команды\n\n"
         "Связь: @mesto3"
@@ -702,6 +723,144 @@ def test_plain_text_without_session_requires_start(tmp_path):
     assert private_text not in json.dumps(events, ensure_ascii=False)
 
 
+@pytest.mark.parametrize(
+    ("mode", "expected_status", "expected_reply"),
+    [
+        (
+            FlowKind.ONE_TAKE_TEXT,
+            "awaiting_text",
+            telegram_bot._one_take_text_guidance(),
+        ),
+        (
+            FlowKind.THREE_BLOCK,
+            "awaiting_three_block",
+            telegram_bot._three_block_prompt(0),
+        ),
+    ],
+)
+def test_first_class_text_commands_arm_capture_flow(
+    tmp_path, mode, expected_status, expected_reply
+):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    capture_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
+    message = _FakeMessage(f"/{mode.value}")
+
+    _run(
+        telegram_bot._handle_capture_mode_command_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            capture_flow_store,
+            _settings(),
+            mode=mode,
+        )
+    )
+
+    flow = capture_flow_store.load_flow(123)
+    assert flow is not None
+    assert flow.mode == mode.value
+    assert flow.status == expected_status
+    assert session_store.load_session(123) is None
+    assert message.replies == [expected_reply]
+
+
+def test_first_class_capture_command_does_not_replace_active_session(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    original = _emotion_step_session()
+    session_store.save_session(original)
+    capture_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
+    message = _FakeMessage("/1t")
+
+    _run(
+        telegram_bot._handle_capture_mode_command_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            capture_flow_store,
+            _settings(),
+            mode=FlowKind.ONE_TAKE_TEXT,
+        )
+    )
+
+    assert session_store.load_session(123) == original
+    assert capture_flow_store.load_flow(123) is None
+    assert message.replies == [telegram_bot._cancel_active_flow_first()]
+
+
+def test_one_take_text_enters_shared_draft_hydration(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    capture_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
+    capture_flow_store.arm_flow(
+        123,
+        mode="one_take_text",
+        now=datetime.now(timezone.utc),
+        ttl_sec=600,
+    )
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    text = "коллега резко ответил в чате"
+    message = _FakeMessage(text)
+
+    _run(
+        telegram_bot._handle_message_after_authorized(
+            _fake_update(123, message),
+            session_store,
+            ux_events,
+            _settings(),
+            ToneEngine.default(),
+            audio_flow_store=capture_flow_store,
+        )
+    )
+
+    session = session_store.load_session(123)
+    assert capture_flow_store.load_flow(123) is None
+    assert session is not None
+    assert session.flow_mode == "one_take_text"
+    assert session.capture_funnel == "one_take_text"
+    assert session.observed == {"situation": observed_text_field(text)}
+    assert session.awaiting_save_confirmation is False
+
+
+def test_three_block_collects_sequential_answers_then_hydrates(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    capture_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
+    capture_flow_store.arm_flow(
+        123,
+        mode="three_block",
+        now=datetime.now(timezone.utc),
+        ttl_sec=600,
+    )
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+
+    first = _FakeMessage("факт")
+    second = _FakeMessage("мысль")
+    third = _FakeMessage("замолчал")
+    for message in (first, second, third):
+        _run(
+            telegram_bot._handle_message_after_authorized(
+                _fake_update(123, message),
+                session_store,
+                ux_events,
+                _settings(),
+                ToneEngine.default(),
+                audio_flow_store=capture_flow_store,
+            )
+        )
+
+    session = session_store.load_session(123)
+    assert capture_flow_store.load_flow(123) is None
+    assert session is not None
+    assert session.flow_mode == "three_block"
+    assert session.capture_funnel == "three_block"
+    assert session.observed == {
+        "situation": observed_text_field("факт"),
+        "automatic_thought": observed_text_field("мысль"),
+        "behavior": observed_text_field("замолчал"),
+    }
+    assert first.replies == [telegram_bot._three_block_prompt(1)]
+    assert second.replies == [telegram_bot._three_block_prompt(2)]
+    assert third.replies == [
+        f"■■■□□□□□□□ 3/10\n\n{ToneEngine.default().target_prompt('trigger')}"
+    ]
+
+
 def test_voice_command_arms_audio_flow_without_creating_classic_session(
     tmp_path, monkeypatch
 ):
@@ -796,7 +955,7 @@ def test_start_during_audio_flow_requires_cancel(tmp_path):
     assert message.replies == [telegram_bot._cancel_active_flow_first()]
 
 
-def test_start_during_classic_session_keeps_explicit_restart_behavior(tmp_path):
+def test_start_during_classic_session_requires_cancel(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     session_store.save_session(_emotion_step_session())
     audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
@@ -815,9 +974,10 @@ def test_start_during_classic_session_keeps_explicit_restart_behavior(tmp_path):
 
     loaded = session_store.load_session(123)
     assert loaded is not None
-    assert loaded.target_index == 0
-    assert loaded.observed == {}
-    assert ux_events.read()[0]["cancel_reason"] == "restart"
+    assert loaded.target_index == 5
+    assert loaded.observed == _emotion_step_session().observed
+    assert ux_events.read() == []
+    assert message.replies == [telegram_bot._cancel_active_flow_first()]
 
 
 def test_text_during_audio_flow_keeps_flow_armed(tmp_path):
@@ -1066,7 +1226,7 @@ def test_capture_command_starts_session_from_one_take_text(tmp_path):
     ]
 
 
-def test_capture_command_restarts_existing_session_with_cancel_event(tmp_path):
+def test_capture_command_requires_cancel_for_existing_session(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     existing = LoopSession(
@@ -1092,12 +1252,11 @@ def test_capture_command_restarts_existing_session_with_cancel_event(tmp_path):
     loaded = session_store.load_session(123)
     assert loaded is not None
     assert loaded.observed["situation"] == {
-        "value": "новый эпизод",
-        "source_quote": "новый эпизод",
+        "value": "old",
+        "source_quote": "old",
     }
-    events = ux_events.read()
-    assert events[0]["event_type"] == "session_cancelled"
-    assert events[0]["cancel_reason"] == "capture_restart"
+    assert ux_events.read() == []
+    assert message.replies == [telegram_bot._cancel_active_flow_first()]
 
 
 
@@ -1166,7 +1325,7 @@ def test_capture3_command_starts_session_from_three_blocks(tmp_path):
     ]
 
 
-def test_capture3_command_restarts_existing_session_with_cancel_event(tmp_path):
+def test_capture3_command_requires_cancel_for_existing_session(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     existing = LoopSession(
@@ -1192,12 +1351,11 @@ def test_capture3_command_restarts_existing_session_with_cancel_event(tmp_path):
     loaded = session_store.load_session(123)
     assert loaded is not None
     assert loaded.observed["situation"] == {
-        "value": "новый факт",
-        "source_quote": "новый факт",
+        "value": "old",
+        "source_quote": "old",
     }
-    events = ux_events.read()
-    assert events[0]["event_type"] == "session_cancelled"
-    assert events[0]["cancel_reason"] == "capture3_restart"
+    assert ux_events.read() == []
+    assert message.replies == [telegram_bot._cancel_active_flow_first()]
 
 def test_voice_input_artifact_from_update_preserves_telegram_metadata():
     voice = SimpleNamespace(
@@ -1249,7 +1407,7 @@ def test_idle_voice_requires_start_without_transcription(tmp_path):
     assert message.replies == [ToneEngine.default().no_active_loop_start()]
     events = ux_events.read()
     assert [event["event_type"] for event in events] == ["input_rejected"]
-    assert events[0]["funnel"] == "voice"
+    assert events[0]["funnel"] == "one_take_audio"
     assert events[0]["media_kind"] == "voice"
     assert events[0]["reject_reason"] == "idle_requires_start"
 
@@ -1363,7 +1521,7 @@ def test_idle_audio_requires_start_without_transcription(tmp_path):
     assert message.replies == [ToneEngine.default().no_active_loop_start()]
     events = ux_events.read()
     assert [event["event_type"] for event in events] == ["input_rejected"]
-    assert events[0]["funnel"] == "audio"
+    assert events[0]["funnel"] == "one_take_audio"
     assert events[0]["media_kind"] == "audio"
     assert events[0]["reject_reason"] == "idle_requires_start"
 
@@ -1408,7 +1566,7 @@ def test_idle_audio_document_requires_start_without_transcription(tmp_path):
     assert message.replies == [ToneEngine.default().no_active_loop_start()]
     events = ux_events.read()
     assert [event["event_type"] for event in events] == ["input_rejected"]
-    assert events[0]["funnel"] == "audio_document"
+    assert events[0]["funnel"] == "one_take_audio"
     assert events[0]["media_kind"] == "document"
     assert events[0]["reject_reason"] == "idle_requires_start"
 
@@ -1861,6 +2019,7 @@ def test_start_new_session_prompts_without_observed_answer(tmp_path):
     assert loaded is not None
     assert session.target_index == 0
     assert loaded.target_index == 0
+    assert loaded.flow_mode == "classic_10q"
     assert loaded.observed == {}
     assert ux_events.read() == [
         {
@@ -1881,7 +2040,7 @@ def test_start_new_session_prompts_without_observed_answer(tmp_path):
             "created_at": "2026-05-03T09:44:00Z",
             "draft_fields": 0,
             "event_type": "gap_question_asked",
-            "funnel": "ten_question",
+            "funnel": "classic_10q",
             "media_kind": "text",
             "session_id": session.session_id,
             "target": "situation",
@@ -2301,19 +2460,175 @@ def test_armed_audio_flow_accepts_supported_media_and_completes(
         )
     )
 
-    assert audio_flow_store.load_flow(123) is None
+    flow = audio_flow_store.load_flow(123)
+    assert flow is not None
+    assert flow.status == "awaiting_transcript_confirmation"
     assert session_store.load_session(123) is None
     transcript_path = (
         settings.intake_transcript_dir / "telegram-chat-123" / "message-42.json"
     )
     assert transcript_path.exists()
     assert "голосовой эпизод" in transcript_path.read_text(encoding="utf-8")
-    assert message.replies[-1] == telegram_bot._audio_intake_completed_text(
-        "голосовой эпизод"
-    )
+    assert message.replies[-3:] == [
+        "Готово, расшифровал. Проверь текст:",
+        "голосовой эпизод",
+        "Продолжить с этой расшифровкой?",
+    ]
     assert [event["event_type"] for event in ux_events.read()][-1] == (
         "transcript_created"
     )
+
+
+def test_transcript_continue_enters_shared_draft_hydration(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    capture_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
+    now = datetime.now(timezone.utc)
+    capture_flow_store.arm_flow(
+        123,
+        mode="one_take_audio",
+        now=now,
+        ttl_sec=600,
+    )
+    transcript = build_intake_transcript(
+        voice_input_artifact(
+            "file-id",
+            transcript="точная расшифровка",
+            source_ref={"chat_id": 123, "message_id": 42},
+        ),
+        created_at=now,
+    )
+    transcript_path = save_intake_transcript(
+        tmp_path / "intake-transcripts", transcript
+    )
+    capture_flow_store.await_transcript_confirmation(
+        123,
+        transcript_path,
+        now=now,
+        ttl_sec=600,
+    )
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    query = _FakeCallbackQuery("transcript:continue")
+
+    _run(
+        telegram_bot._handle_transcript_callback_after_authorized(
+            _fake_callback_update(123, query),
+            session_store,
+            capture_flow_store,
+            ux_events,
+            ToneEngine.default(),
+        )
+    )
+
+    session = session_store.load_session(123)
+    assert query.answered is True
+    assert capture_flow_store.load_flow(123) is None
+    assert session is not None
+    assert session.flow_mode == "one_take_audio"
+    assert session.capture_funnel == "one_take_audio"
+    assert session.media_kind == "voice"
+    assert session.intake_transcript_path == str(transcript_path)
+    assert session.observed == {
+        "situation": observed_text_field("точная расшифровка")
+    }
+
+
+def test_transcript_reject_keeps_source_without_creating_draft(tmp_path):
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    capture_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
+    now = datetime.now(timezone.utc)
+    capture_flow_store.arm_flow(
+        123,
+        mode="one_take_audio",
+        now=now,
+        ttl_sec=600,
+    )
+    transcript_path = save_intake_transcript(
+        tmp_path / "intake-transcripts",
+        build_intake_transcript(
+            voice_input_artifact(
+                "file-id",
+                transcript="не использовать",
+                source_ref={"chat_id": 123, "message_id": 42},
+            ),
+            created_at=now,
+        ),
+    )
+    capture_flow_store.await_transcript_confirmation(
+        123,
+        transcript_path,
+        now=now,
+        ttl_sec=600,
+    )
+    query = _FakeCallbackQuery("transcript:reject")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+
+    _run(
+        telegram_bot._handle_transcript_callback_after_authorized(
+            _fake_callback_update(123, query),
+            session_store,
+            capture_flow_store,
+            ux_events,
+            ToneEngine.default(),
+        )
+    )
+
+    assert capture_flow_store.load_flow(123) is None
+    assert session_store.load_session(123) is None
+    assert transcript_path.exists()
+    assert load_intake_transcript(transcript_path).episode_id is None
+    assert ux_events.read()[0]["event_type"] == "transcript_rejected"
+
+
+def test_saved_audio_draft_links_transcript_to_episode(tmp_path):
+    transcript_path = save_intake_transcript(
+        tmp_path / "intake-transcripts",
+        build_intake_transcript(
+            voice_input_artifact(
+                "file-id",
+                transcript="голосовой эпизод",
+                source_ref={"chat_id": 123, "message_id": 42},
+            )
+        ),
+    )
+    observed = {
+        target: observed_text_field(f"value-{target}")
+        for target in TARGETS
+    }
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    session_store.save_session(
+        LoopSession(
+            chat_id=123,
+            session_id="session-audio",
+            episode_date="2026-06-21",
+            observed=observed,
+            awaiting_save_confirmation=True,
+            capture_funnel="one_take_audio",
+            media_kind="voice",
+            intake_transcript_path=str(transcript_path),
+        )
+    )
+    query = _FakeCallbackQuery("episode:save")
+
+    _run(
+        telegram_bot._handle_episode_callback_after_authorized(
+            _fake_callback_update(123, query),
+            JsonStorage(tmp_path / "episodes"),
+            session_store,
+            UxEventLog(tmp_path / "ux" / "events.jsonl"),
+            ToneEngine.default(),
+        )
+    )
+
+    assert load_intake_transcript(transcript_path).episode_id == "episode-20260621-1"
+
+
+def test_transcript_chunks_preserve_complete_text():
+    text = "a" * 8001
+
+    chunks = telegram_bot._split_telegram_text(text)
+
+    assert "".join(chunks) == text
+    assert all(len(chunk) <= telegram_bot.TELEGRAM_TEXT_LIMIT for chunk in chunks)
 
 
 def test_unsupported_document_while_audio_armed_keeps_flow(tmp_path):
