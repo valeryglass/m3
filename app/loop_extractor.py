@@ -19,6 +19,14 @@ from app.tone_engine import ToneEngine
 
 
 FLOW_UNIFIED = "uniflow"
+CAPTURE_FLOW_MODES = frozenset(
+    {
+        "classic_10q",
+        "three_block",
+        "one_take_text",
+        "one_take_audio",
+    }
+)
 OBSERVED_FIELDS = TARGETS
 @dataclass
 class LoopSession:
@@ -26,6 +34,7 @@ class LoopSession:
     flow_mode: str = FLOW_UNIFIED
     capture_funnel: str | None = None
     media_kind: str | None = None
+    intake_transcript_path: str | None = None
     session_id: str | None = None
     target_index: int = 0
     last_prompted_at: str | None = None
@@ -46,6 +55,7 @@ class LoopSession:
             flow_mode=flow_mode,
             capture_funnel=data.get("capture_funnel"),
             media_kind=data.get("media_kind"),
+            intake_transcript_path=data.get("intake_transcript_path"),
             session_id=data.get("session_id"),
             target_index=_target_index_for_observed(observed, flow_mode),
             last_prompted_at=data.get("last_prompted_at"),
@@ -64,6 +74,7 @@ class LoopSession:
             "flow_mode": self.flow_mode,
             "capture_funnel": self.capture_funnel,
             "media_kind": self.media_kind,
+            "intake_transcript_path": self.intake_transcript_path,
             "session_id": self.session_id,
             "target_index": self.target_index,
             "last_prompted_at": self.last_prompted_at,
@@ -228,6 +239,8 @@ def _target_index_for_observed(
 
 
 def _normalize_flow_mode(flow_mode: Any) -> str:
+    if flow_mode in CAPTURE_FLOW_MODES:
+        return str(flow_mode)
     return FLOW_UNIFIED
 
 

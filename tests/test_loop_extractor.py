@@ -208,6 +208,22 @@ def test_session_from_dict_restores_save_confirmation_state():
     assert session.to_dict()["awaiting_save_confirmation"] is True
 
 
+def test_session_round_trip_preserves_optional_transcript_link():
+    session = LoopSession(
+        chat_id=123,
+        flow_mode="one_take_audio",
+        capture_funnel="one_take_audio",
+        media_kind="voice",
+        intake_transcript_path="data/intake-transcripts/chat/message.json",
+    )
+
+    loaded = LoopSession.from_dict(session.to_dict())
+
+    assert loaded.intake_transcript_path == session.intake_transcript_path
+    assert loaded.flow_mode == "one_take_audio"
+    assert loaded.capture_funnel == "one_take_audio"
+
+
 def test_session_from_dict_drops_legacy_derived_keys():
     session = LoopSession.from_dict(
         {
