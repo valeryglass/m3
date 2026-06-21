@@ -11,6 +11,8 @@ data/ux-events/*.jsonl
 data/annotation-work/**
 data/annotation-runs/**
 data/intake-transcripts/**
+data/capture-artifacts/**
+data/capture-extractions/**
 data/backups/**
 data/exports/**
 data/reports/**
@@ -27,6 +29,8 @@ data/reports/**
 !data/annotation-work/
 !data/annotation-runs/
 !data/intake-transcripts/
+!data/capture-artifacts/
+!data/capture-extractions/
 !data/backups/
 !data/exports/
 !data/reports/
@@ -37,6 +41,8 @@ data/reports/**
 !data/ux-events/.gitkeep
 !data/annotation-runs/.gitkeep
 !data/intake-transcripts/.gitkeep
+!data/capture-artifacts/.gitkeep
+!data/capture-extractions/.gitkeep
 !data/exports/.gitkeep
 !data/exports/map-payload/
 !data/exports/map-payload/**

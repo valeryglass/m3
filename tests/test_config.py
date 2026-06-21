@@ -29,6 +29,10 @@ def test_load_settings_uses_default_data_paths():
     assert str(settings.tone_config) == "config/tone.yaml"
     assert str(settings.audio_temp_dir) == "data/runtime-audio"
     assert str(settings.intake_transcript_dir) == "data/intake-transcripts"
+    assert str(settings.capture_artifact_dir) == "data/capture-artifacts"
+    assert str(settings.capture_extraction_dir) == "data/capture-extractions"
+    assert settings.openai_api_key == ""
+    assert settings.capture_extraction_model == ""
     assert settings.audio_max_duration_sec == 300
     assert settings.audio_max_file_size_bytes == 20 * 1024 * 1024
     assert settings.transcription_provider == "whisper"
@@ -67,6 +71,10 @@ def test_load_settings_allows_overrides():
             "M3_TELEGRAM_OWNER_CHAT_ID": "225672",
             "M3_AUDIO_TEMP_DIR": "/tmp/audio",
             "M3_INTAKE_TRANSCRIPT_DIR": "/tmp/transcripts",
+            "M3_CAPTURE_ARTIFACT_DIR": "/tmp/captures",
+            "M3_CAPTURE_EXTRACTION_DIR": "/tmp/extractions",
+            "OPENAI_API_KEY": "test-key",
+            "M3_CAPTURE_EXTRACTION_MODEL": "test-model",
             "M3_AUDIO_MAX_DURATION_SEC": "180",
             "M3_AUDIO_MAX_FILE_SIZE_BYTES": "1048576",
             "M3_TRANSCRIPTION_PROVIDER": "whisper",
@@ -90,6 +98,10 @@ def test_load_settings_allows_overrides():
     assert settings.telegram_owner_chat_id == 225672
     assert str(settings.audio_temp_dir) == "/tmp/audio"
     assert str(settings.intake_transcript_dir) == "/tmp/transcripts"
+    assert str(settings.capture_artifact_dir) == "/tmp/captures"
+    assert str(settings.capture_extraction_dir) == "/tmp/extractions"
+    assert settings.openai_api_key == "test-key"
+    assert settings.capture_extraction_model == "test-model"
     assert settings.audio_max_duration_sec == 180
     assert settings.audio_max_file_size_bytes == 1048576
     assert settings.transcription_provider == "whisper"

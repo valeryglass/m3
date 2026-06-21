@@ -29,6 +29,10 @@ class Settings:
     tone_config: Path
     audio_temp_dir: Path
     intake_transcript_dir: Path
+    capture_artifact_dir: Path
+    capture_extraction_dir: Path
+    openai_api_key: str
+    capture_extraction_model: str
     audio_max_duration_sec: int
     audio_max_file_size_bytes: int
     transcription_provider: str
@@ -101,6 +105,16 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         tone_config=Path(source.get("M3_TONE_CONFIG", "config/tone.yaml")),
         audio_temp_dir=Path(source.get("M3_AUDIO_TEMP_DIR", "data/runtime-audio")),
         intake_transcript_dir=Path(source.get("M3_INTAKE_TRANSCRIPT_DIR", "data/intake-transcripts")),
+        capture_artifact_dir=Path(
+            source.get("M3_CAPTURE_ARTIFACT_DIR", "data/capture-artifacts")
+        ),
+        capture_extraction_dir=Path(
+            source.get("M3_CAPTURE_EXTRACTION_DIR", "data/capture-extractions")
+        ),
+        openai_api_key=source.get("OPENAI_API_KEY", "").strip(),
+        capture_extraction_model=source.get(
+            "M3_CAPTURE_EXTRACTION_MODEL", ""
+        ).strip(),
         audio_max_duration_sec=int(source.get("M3_AUDIO_MAX_DURATION_SEC", "300")),
         audio_max_file_size_bytes=int(
             source.get("M3_AUDIO_MAX_FILE_SIZE_BYTES", str(20 * 1024 * 1024))
