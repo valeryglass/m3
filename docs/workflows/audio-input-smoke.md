@@ -29,20 +29,23 @@ valid command before inviting alpha users.
 |---|---|---|---|
 | idle text | stays idle; returns `/start` guidance | none | no `LoopSession`, download, transcription, or transcript |
 | idle voice/audio/document | stays idle; same `/start` guidance | none | no download, transcription, `LoopSession`, or transcript |
-| idle `/start` | idle -> `classic_10q` | classic runtime session only | no audio state |
+| idle `/start` or `/10q` | idle -> `classic_10q` | classic runtime session only | no pre-draft state |
+| idle `/1t` then text | `one_take_text` -> draft hydration | draft-backed runtime session | no episode before Save |
+| idle `/3b` then three answers | `three_block` -> draft hydration | restart-safe pre-draft state, then draft session | no inferred missing fields |
 | classic 10Q text answer | remains `classic_10q`; advances current question | updated classic runtime session | no audio state or transcript |
 | classic 10Q media | remains `classic_10q`; existing text-required reply | unchanged classic runtime session | no download or transcription |
-| idle hidden `/voice` | idle -> `audio_one_take`; asks for voice/audio | short-lived audio flow state | no `LoopSession` or episode |
-| `audio_one_take` text | remains armed; asks for voice/audio or `/cancel` | unchanged audio flow state | no classic session or transcript |
-| `audio_one_take` supported media | `audio_intake_started` -> transcription -> preview -> `audio_intake_completed` -> idle | one private `IntakeTranscript` source artifact | no `EpisodeDraft`, `LoopSession`, episode, or raw-audio archive |
-| post-audio idle text | stays idle; returns `/start` guidance | existing transcript remains source-only | no automatic classic session |
+| idle `/1a` | idle -> `one_take_audio`; asks for voice/audio | short-lived capture flow state | no `LoopSession` or episode |
+| `one_take_audio` text | remains armed; asks for voice/audio or `/cancel` | unchanged capture flow state | no draft or transcript |
+| supported media | transcription -> full transcript -> confirmation | private `IntakeTranscript`; confirmation state | no draft, episode, or raw-audio archive before Continue |
+| reject transcript | confirmation -> idle | transcript retained | no draft or episode |
+| continue transcript | confirmation -> draft hydration | draft session linked to transcript | no episode before final Save |
+| final Save | review -> idle | observed Episode plus transcript backlink | no raw-audio archive |
 | `/cancel` from classic | `classic_10q` -> idle | classic runtime state removed | no audio state created |
-| `/cancel` from audio | `audio_one_take` -> idle | audio flow state removed | no transcript or episode created by cancel |
+| `/cancel` from audio | `one_take_audio` -> idle | capture flow state removed | existing transcript, if any, remains; no episode |
 | `/help` during either flow | flow state unchanged; current help copy | none | no session/flow mutation |
 | `/profile` during either flow | flow state unchanged; current report behavior | none | no session/flow mutation |
 
-Hidden `/capture` and `/capture3` remain explicit developer routes for draft
-testing. They are not normal idle entrypoints and are not part of audio intake.
+Hidden `/capture`, `/capture3`, `/voice`, and `/1v` remain compatibility routes.
 
 ## Event And Lifecycle Expectations
 
@@ -74,16 +77,17 @@ transcription_pending
 ```
 
 Validation, download, transcription, or transcript-storage failure leaves
-`audio_one_take` armed for an explicit retry or `/cancel`.
+`one_take_audio` armed for an explicit retry or `/cancel`.
 
 ## Release Notes
 
 Use honest wording:
 
 ```text
-Audio input is enabled for short voice/audio notes. Audio is transcribed first,
-then stored as a private IntakeTranscript source artifact. Audio intake does not
-create an EpisodeDraft or episode. Raw audio is temporary-only by default.
+Audio input is enabled for short voice/audio notes. Audio is transcribed first
+and stored as a private IntakeTranscript. The complete transcript must be
+accepted before draft hydration, and the final draft must be saved before an
+episode exists. Raw audio is temporary-only by default.
 ```
 
 Do not claim:

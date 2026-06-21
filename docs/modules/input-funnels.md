@@ -7,8 +7,8 @@ artifacts.
 
 Input Funnels do not own the episode schema, annotation logic, graph reporting,
 or user-facing reports. They adapt surface-specific input into a normalized
-shape. The explicit userflow chooses the consumer: hidden text tools can use
-Episode Drafts; `audio_one_take` persists an `IntakeTranscript` source artifact.
+shape. Text input can seed Episode Drafts directly. Audio first persists an
+`IntakeTranscript`, then may seed a draft only after explicit confirmation.
 
 ## Inputs
 
@@ -47,14 +47,14 @@ InputArtifact:
 - surface-specific metadata stays outside the canonical episode schema unless a
   future ADR promotes it.
 - unsupported media can be rejected before draft creation.
-- audio artifacts are not converted into `EpisodeDraft` by the current
-  `audio_one_take` flow.
+- audio artifacts cannot create a draft before successful transcription and
+  explicit transcript confirmation.
 
 ## Ownership
 
 - producer: surface adapters such as `telegram_capture`
-- consumers: `episode_drafts` for explicit text tools; `intake_transcripts` for
-  `audio_one_take`
+- consumers: `episode_drafts` for accepted text/transcript evidence;
+  `intake_transcripts` for transcribed audio
 
 ## Lifecycle
 

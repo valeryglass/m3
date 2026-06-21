@@ -35,6 +35,7 @@ modules:
       - app/loop_extractor.py
       - app/session_store.py
       - app/user_flow_router.py
+      - app/capture_flow_store.py
       - app/audio_flow_store.py
       - app/messages.py
       - app/tone_engine.py
@@ -50,12 +51,16 @@ modules:
       - data/ux-events/*.jsonl
     interfaces:
       - capture_to_episode
+      - input_to_draft
+      - draft_to_episode
     capabilities:
       - ten_step_episode_collection
       - tone_controlled_prompts
       - private_runtime_session_memory
       - explicit_userflow_routing
       - private_runtime_flow_memory
+      - first_class_capture_modes
+      - transcript_confirmation_routing
 
   telegram_media:
     stage: draft
@@ -114,6 +119,7 @@ modules:
     capabilities:
       - transcript_source_artifact_storage
       - raw_audio_free_provenance
+      - confirmed_episode_backlink
 
   episode_drafts:
     stage: draft

@@ -60,6 +60,8 @@ These paths must survive container rebuilds:
 ```text
 data/episodes/
 data/runtime-sessions/
+data/runtime-flows/
+data/intake-transcripts/
 data/userlist/
 data/ux-events/
 data/annotation-runs/   # when used
@@ -88,12 +90,18 @@ At minimum:
 
 ```text
 /start
+/10q
+/1t then one text
+/3b then three answers
 classic 10Q text answer
 classic 10Q media rejection
 /cancel
-/voice
+/1a
 voice note under limit
-post-audio idle text guidance
+transcript reject
+/1a and voice note again
+transcript continue
+gap hydration and final Save
 /profile
 /report_ux
 ```

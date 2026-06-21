@@ -4,6 +4,9 @@
 
 Accepted for `mvp2/userflow-containment`.
 
+Superseded for active flow names and transcript-to-draft continuation by ADR
+0013. Its explicit routing and no-silent-flow-replacement rules remain accepted.
+
 ## Decision
 
 Telegram input is routed by explicit userflow state before handlers mutate

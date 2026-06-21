@@ -22,6 +22,8 @@ return a provisional draft, not a saved episode.
 
 - no canonical episode is persisted by this interface.
 - audio and transcripts remain pre-episode evidence.
+- transcript text may seed only `observed.situation` after explicit transcript
+  confirmation.
 - all downstream persistence still goes through `draft_to_episode` and Episode
   Model + Storage.
 

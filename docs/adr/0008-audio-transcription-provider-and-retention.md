@@ -4,6 +4,10 @@
 
 Accepted planning decision for `mvp2/audio-input`.
 
+The provider and retention policy remains accepted. ADR 0013 supersedes the
+former decision to stop after transcript persistence by adding explicit
+transcript confirmation and draft hydration.
+
 ## Decision
 
 Production audio input must be wired in two steps:

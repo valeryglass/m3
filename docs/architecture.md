@@ -30,29 +30,35 @@ Supporting flows:
 Telegram Capture -> UX Analytics
 Telegram Capture -> Userlist / Access Gate
 Telegram Capture -> explicit userflow router
-  -> classic 10Q -> Episode Model + Storage
-  -> audio_one_take -> Input Funnels -> Intake Transcripts
-  -> hidden draft tools -> Episode Drafts -> Gap Hydration
+  -> /start or /10q -> classic_10q
+  -> /3b -> three_block
+  -> /1t -> one_take_text
+  -> /1a -> one_take_audio
+  -> Input Funnels -> Episode Drafts -> Gap Hydration
+  -> confirmation -> Episode Model + Storage
 ```
 
 Telegram Capture emits UX/access events and chooses one explicit flow before
-input handlers mutate runtime state. `/start` is the normal `classic_10q`
-entrypoint; hidden `/voice` arms `audio_one_take`. The flows use separate
-runtime state and require `/cancel` before switching.
+input handlers mutate runtime state. The four visible methods use typed
+pre-draft state where needed and one draft-backed `LoopSession` after initial
+input. They require `/cancel` before switching.
 
 ```text
-audio_one_take
+one_take_audio
   -> audio_intake_started
   -> temporary media
   -> transcription
   -> IntakeTranscript source artifact
-  -> transcript preview
-  -> audio_intake_completed
-  -> idle
+  -> explicit transcript confirmation
+  -> situation-only EpisodeDraft
+  -> Gap Hydration
+  -> Save/Cancel review
+  -> observed Episode
 ```
 
-Audio intake never enters Episode Drafts. An `IntakeTranscript` is not an
-episode and does not enter episode storage or graph/report analytics.
+An `IntakeTranscript` remains source evidence, not an episode. It enters the
+draft path only after explicit transcript confirmation and never enters
+graph/report analytics directly.
 
 ## Layers
 
@@ -70,13 +76,13 @@ episode and does not enter episode storage or graph/report analytics.
 - Telegram Capture receives Telegram input, access checks, callbacks, and UX
   event emission, and owns explicit userflow routing for the current runtime.
 - Input Funnels normalize Telegram text, voice, audio, and future capture
-  surfaces into input artifacts. Consumers are selected by the explicit flow:
-  hidden text tools may use Episode Drafts, while `audio_one_take` uses Intake
-  Transcripts.
+  surfaces into input artifacts. Accepted text or transcript evidence may seed
+  Episode Drafts through the explicit flow.
 - Telegram Media is the temporary download/cleanup boundary for
   Telegram voice, audio, and audio-like documents before transcription.
 - Intake Transcripts owns durable transcript source artifacts created by the
-  explicitly armed audio one-take flow.
+  explicitly armed audio one-take flow and their optional confirmed-episode
+  backlink.
 - Episode Drafts stage partial observed fields before confirmation and
   persistence.
 - Gap Hydration selects the smallest useful next question for incomplete or
@@ -110,7 +116,7 @@ The project keeps these boundaries explicit:
 ```text
 input != episode
 transcript != episode
-transcript != draft
+transcript != draft until explicit user acceptance
 draft != episode
 episode != annotation
 annotation != graph

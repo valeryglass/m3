@@ -87,11 +87,12 @@ project.manifest.yaml -- structural source of truth
 - Episode JSON artifacts belong under `data/episodes/` and are not committed.
 - UX event logs belong under `data/ux-events/` and are not committed.
 - Runtime flow state belongs under `data/runtime-flows/` and is not committed.
-- Audio intake must remain explicit: `/voice` arms `audio_one_take`, successful
-  media creates an `IntakeTranscript`, and the flow returns to idle.
-- `IntakeTranscript` is source material only. Do not route audio intake through
-  `EpisodeDraft`, create an episode, or change the episode schema without a
-  later explicit extraction/validation decision.
+- Audio intake must remain explicit: `/1a` arms `one_take_audio`, successful
+  media creates an `IntakeTranscript`, and the complete transcript requires
+  explicit Continue or Reject confirmation.
+- `IntakeTranscript` remains source material. Continue may seed only
+  `EpisodeDraft.observed.situation`; Gap Hydration and final Save confirmation
+  remain mandatory before episode creation. Raw audio is never retained.
 - Tone engine changes interface wording only; do not let tone rules modify CBT data.
 - When uncertain about categorization or model expansion, ask before expanding.
 

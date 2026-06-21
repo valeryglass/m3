@@ -6,9 +6,9 @@ Adapt Telegram messages and callbacks into the capture pipeline.
 
 Telegram Capture owns Telegram-specific receiving, access checks, callbacks,
 UX events, and explicit userflow routing. It should not own the full interview
-architecture. `/start` enters `classic_10q`; hidden `/voice` arms
-`audio_one_take`. Hidden text developer routes may use Episode Drafts and Gap
-Hydration, but audio intake ends at an `IntakeTranscript` source artifact.
+architecture. `/start` and `/10q` enter `classic_10q`; `/3b`, `/1t`, and `/1a`
+arm first-class pre-draft flows. All accepted inputs enter Episode Drafts and
+Gap Hydration. Audio requires an additional transcript-confirmation gate.
 
 ## Inputs
 
@@ -22,7 +22,7 @@ Hydration, but audio intake ends at an `IntakeTranscript` source artifact.
 ## Outputs
 
 - normalized input artifacts when using the draft pipeline.
-- durable `IntakeTranscript` source artifacts when using `audio_one_take`.
+- durable `IntakeTranscript` source artifacts when using `one_take_audio`.
 - confirmed observed episode fields when using the legacy direct path.
 - completed private observed source episode files under `data/episodes/`.
 - private UX event records under `data/ux-events/`.
@@ -38,17 +38,15 @@ Hydration, but audio intake ends at an `IntakeTranscript` source artifact.
 ## Interfaces
 
 - `capture_to_episode`
-
-Planned downstream capture work may use `input_to_draft` and `draft_to_episode`
-after Telegram-specific receiving and access checks. `audio_one_take` does not
-use either interface.
+- `input_to_draft`
+- `draft_to_episode`
 
 ## Lifecycle
 
 `experimental`
 
-The classic text flow and explicit transcript intake are usable, but prompt copy,
-frame order, and draft hydration can still evolve.
+The four capture strategies are usable, but prompt copy, frame order, and draft
+hydration can still evolve.
 
 Classic 10Q presents one concise question at a time after the progress line.
 Field-guide titles, examples, and tips remain internal reference material and

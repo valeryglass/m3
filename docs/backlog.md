@@ -9,6 +9,21 @@ and too early for accepted model docs.
 
 ## Epic: Input Funnels And Episode Draft Hydration
 
+### First-Class Draft Capture Modes
+
+Status: implemented.
+
+- CAP-01: accepted ADR 0013 and typed pre-draft capture state.
+- CAP-02: promoted `/10q`, `/3b`, `/1t`, and `/1a`; retained hidden aliases.
+- CAP-03: marked classic capture as the `classic_10q` draft strategy.
+- CAP-04: added armed one-take text capture.
+- CAP-05: added restart-safe sequential three-block capture.
+- CAP-06: added transcript confirmation, draft continuation, and episode
+  backlink while retaining transcript source artifacts and temporary-only raw
+  audio.
+- CAP-07: updated UX copy, tests, architecture docs, and release smoke
+  requirements.
+
 Intent: refactor capture so text, voice, uploaded audio, three-block narrative,
 and the classic question flow all enter the same draft and gap-hydration
 pipeline without changing the canonical episode schema.
@@ -160,6 +175,9 @@ Acceptance:
 
 ### BL-07 Add Telegram voice funnel
 
+Historical foundation; transcript-only stopping behavior was superseded by
+CAP-06 and ADR 0013.
+
 Accept Telegram voice notes as input artifacts.
 
 Implementation split:
@@ -282,7 +300,8 @@ Acceptance:
 
 ## MVP2 Audio Input
 
-Status: transcript-intake foundation completed; future extraction remains
+Status: transcript-intake foundation completed; extraction continuation is now
+implemented by CAP-06 and ADR 0013.
 separate.
 
 Branch:
@@ -460,15 +479,14 @@ Acceptance:
 - Revisit map payload terms only after domain entities are stable.
 
 
-## Future Audio Extraction Track
+## Future Multi-field Extraction Track
 
-Audio transcript persistence is not the same as episode creation. Future work may
-add:
+Audio transcript persistence is not the same as episode creation. CAP-06 now
+supports explicit situation-only draft continuation. Future work may add:
 
-- transcript -> structured observed-field extraction.
-- user validation / correction.
-- confirmed episode persistence.
-- annotation re-runs from transcript source artifacts.
+- conservative transcript-to-multiple-field extraction;
+- field-level user validation and correction;
+- extraction confidence and source-quote provenance.
 
-Until that track exists, audio intake stores transcript source artifacts and does
-not contribute to graph/report analytics as episodes.
+Until that later track exists, transcript continuation seeds only
+`observed.situation`; other fields come from Gap Hydration.

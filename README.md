@@ -54,6 +54,10 @@ is explicitly passed.
 The local Telegram MVP runs a deterministic one-question loop from
 `roles/loop-extractor.md`.
 
+Visible capture commands are `/10q`, `/3b`, `/1t`, and `/1a`; `/start` aliases
+`/10q`. Every method enters the same draft hydration and Save/Cancel review
+boundary. Audio requires transcript confirmation before draft creation.
+
 ```bash
 cp .env.example .env
 # fill TELEGRAM_BOT_TOKEN, M3_TELEGRAM_ADMIN_CHAT_IDS, and M3_TELEGRAM_OWNER_CHAT_ID

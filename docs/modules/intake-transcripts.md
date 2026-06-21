@@ -2,17 +2,17 @@
 
 ## Purpose
 
-Store the first durable source artifact for explicit `audio_one_take` intake
+Store the first durable source artifact for explicit `one_take_audio` intake
 after temporary media has been transcribed.
 
 ```text
-audio_one_take
+one_take_audio
   -> audio_intake_started
   -> raw audio as temporary runtime material
   -> IntakeTranscript source artifact
-  -> transcript preview
-  -> audio_intake_completed
-  -> idle
+  -> full transcript confirmation
+  -> optional situation-only EpisodeDraft
+  -> confirmed Episode backlink
 ```
 
 ## Guarantees
@@ -21,9 +21,9 @@ audio_one_take
 - Telegram `file_id` is not persisted by default.
 - Transcript text is persisted as private source material for future reannotation or extraction.
 - Transcript artifacts are not canonical episodes and do not enter graph/report analytics directly.
-- This module does not create an `EpisodeDraft`, `LoopSession`, or episode.
-- Future transcript extraction requires a separate validation flow and explicit
-  architecture decision.
+- Telegram Capture may read a confirmed transcript to seed an EpisodeDraft.
+- Rejecting transcript use retains this artifact and creates no draft.
+- A saved episode may populate the existing optional `episode_id` backlink.
 
 ## Storage
 

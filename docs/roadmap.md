@@ -4,18 +4,21 @@
 
 ### Input Funnels And Episode Draft Hydration
 
-Status: completed alpha foundation for explicit text developer routes.
+Status: promoted to first-class draft capture modes.
 
 The epic produced reusable input and draft boundaries:
 
 ```text
-hidden text surface -> InputArtifact -> EpisodeDraft -> Gap Hydration -> Draft Review -> confirmed episode
+explicit capture command -> InputArtifact -> EpisodeDraft -> Gap Hydration -> Draft Review -> confirmed episode
 ```
 
 Accepted alpha result:
 
-- hidden `/capture <text>` can start draft capture explicitly.
-- hidden `/capture3 a | b | c` can start a three-block draft.
+- `/start` and `/10q` start classic question capture.
+- `/1t` arms one-take text capture.
+- `/3b` collects three sequential blocks.
+- `/1a` arms voice/audio capture; hidden `/1v` is an alias.
+- hidden `/capture`, `/capture3`, and `/voice` remain compatibility routes.
 - voice/audio/document inputs can be normalized as input artifacts.
 - draft review is explicit before persistence.
 - funnel, gap-question, confirmation, save, discard, and rejection metrics are
@@ -23,10 +26,10 @@ Accepted alpha result:
 
 Containment decisions supersede earlier automatic-capture experiments:
 
-- `/start` is the only normal entrypoint for classic 10Q.
+- `/start` remains an alias for classic 10Q.
 - idle text and media return `/start` guidance.
-- hidden command routes remain developer affordances.
-- audio input does not enter the Episode Draft path.
+- commands do not replace active work without `/cancel`.
+- audio enters the Episode Draft path only after full transcript confirmation.
 - episode schema, annotation runs, graph reports, and map payload behavior are
   intentionally unchanged.
 
@@ -38,23 +41,24 @@ Branch base:
 epic/input-funnel-alpha -> mvp2/audio-input
 ```
 
-Goal: provide explicit transcript-backed `audio_one_take` intake without
+Goal: provide explicit transcript-backed `one_take_audio` intake without
 weakening the episode schema or retaining raw audio by default.
 
 ```text
-/voice
-  -> audio_one_take
+/1a
+  -> one_take_audio
   -> audio_intake_started
   -> temporary media
   -> transcription
   -> IntakeTranscript source artifact
-  -> transcript preview
-  -> audio_intake_completed
-  -> idle
+  -> complete transcript confirmation
+  -> EpisodeDraft
+  -> Gap Hydration
+  -> final Save confirmation
 ```
 
-Audio does not create an `EpisodeDraft` or episode. Extraction and validation
-remain later work.
+Audio creates an `EpisodeDraft` only after the user accepts the complete
+transcript. Final episode persistence still requires the shared Save review.
 
 ### PR-A0 Audio transcription ADR
 
@@ -67,7 +71,8 @@ Acceptance:
 - raw Telegram audio is temporary-only by default.
 - no transcript means no source artifact; no silent fallback.
 - soft duration target is 3 minutes; hard cap is 5 minutes for MVP2.
-- transcript text is persisted as a private source artifact for future extraction.
+- transcript text is persisted as a private source artifact before explicit
+  draft continuation.
 - failure/retry behavior is explicit.
 - UX events do not store raw audio or full transcripts.
 - default retention is temporary raw audio only, with no raw archive.
@@ -104,8 +109,8 @@ Acceptance:
 
 - voice note -> download -> transcribe -> persist `IntakeTranscript`.
 - raw audio is not saved.
-- the bot shows a transcript preview and stops the audio branch.
-- no episode is created until a later extraction/validation flow exists.
+- the bot shows the complete transcript and requires Continue or Reject.
+- Continue creates a situation-only draft; no episode exists before final Save.
 
 ### PR-A4 Audio/document fallback to transcript artifact
 

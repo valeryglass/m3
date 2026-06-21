@@ -13,7 +13,8 @@ without weakening the saved episode schema.
 - normalized input artifacts from Input Funnels.
 - field updates from classic question flow replies.
 - gap answers selected by Gap Hydration.
-- user confirmation, edit, or discard actions.
+- user confirmation or discard actions.
+- explicitly accepted transcript text from Intake Transcripts.
 
 ## Outputs
 
@@ -78,5 +79,5 @@ Rules:
 
 `draft`
 
-The module is a planned boundary for refactoring capture flows. It should remain
-small until runtime needs prove which draft fields are necessary.
+The module is the shared provisional boundary for all four Telegram capture
+modes. `LoopSession` remains the private runtime holder for hydrated drafts.
