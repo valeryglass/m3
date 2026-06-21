@@ -84,6 +84,31 @@ def test_save_episode_persists_full_observed_fields(tmp_path):
     assert '"quote"' in text
 
 
+def test_save_observed_episode_does_not_require_loop_session(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    observed = {
+        "situation": {"value": "s", "source_quote": "s"},
+        "behavior": {"value": "b", "source_quote": "b"},
+        "short_term_consequence": {"value": "st", "source_quote": "st"},
+        "long_term_consequence": {"value": "lt", "source_quote": "lt"},
+        "automatic_thought": {"value": "at", "source_quote": "at"},
+        "emotion": {"value": "e", "source_quote": "e"},
+        "physical": {"value": "p", "source_quote": "p"},
+    }
+    path = storage.save_observed_episode(
+        chat_id=123,
+        episode_date="2026-04-30",
+        observed=observed,
+    )
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["source"] == "telegram-chat:123"
+    assert {
+        key: value
+        for key, value in data["observed"].items()
+        if value is not None
+    } == observed
+
+
 def test_save_episode_keeps_plain_emotion_without_items(tmp_path):
     storage = JsonStorage(episode_dir=tmp_path / "episodes")
     session = LoopSession(

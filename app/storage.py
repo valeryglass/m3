@@ -21,20 +21,34 @@ class JsonStorage:
         if session.episode_date is None:
             raise ValueError("Cannot save episode without episode date")
 
-        episode_date = session.episode_date
+        path = self.save_observed_episode(
+            chat_id=session.chat_id,
+            episode_date=session.episode_date,
+            observed=session.observed,
+        )
+        session.saved_episode_path = str(path)
+        return path
+
+    def save_observed_episode(
+        self,
+        *,
+        chat_id: int,
+        episode_date: str,
+        observed: dict,
+    ) -> Path:
         episode_id = self.next_episode_id(episode_date)
         data, _ = normalize_episode(
             {
                 "id": episode_id,
                 "date": episode_date,
-                "source": f"telegram-chat:{session.chat_id}",
-                "observed": session.observed,
+                "source": f"telegram-chat:{chat_id}",
+                "observed": observed,
             }
         )
         episode = Episode(
             id=episode_id,
             date=episode_date,
-            source=f"telegram-chat:{session.chat_id}",
+            source=f"telegram-chat:{chat_id}",
             observed=Observed.model_validate(data["observed"]),
         )
         persisted = episode.model_dump(mode="json", exclude={"derived"})
@@ -43,7 +57,6 @@ class JsonStorage:
             json.dumps(persisted, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
-        session.saved_episode_path = str(path)
         return path
 
     def episode_count_for_chat(self, chat_id: int) -> int:
