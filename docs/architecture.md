@@ -34,14 +34,14 @@ Telegram Capture -> explicit userflow router
   -> /3b -> three_block
   -> /1t -> one_take_text
   -> /1a -> one_take_audio
-  -> Input Funnels -> Episode Drafts -> Gap Hydration
-  -> confirmation -> Episode Model + Storage
+  -> Capture Artifacts -> Capture Extraction -> Episode Drafts
+  -> Draft Review -> Episode Model + Storage
 ```
 
 Telegram Capture emits UX/access events and chooses one explicit flow before
 input handlers mutate runtime state. The four visible methods use typed
-pre-draft state where needed and one draft-backed `LoopSession` after initial
-input. They require `/cancel` before switching.
+pre-draft state where needed. Classic 10Q uses `LoopSession`; completed
+extractions use `DraftReviewSession`. They require `/cancel` before switching.
 
 ```text
 one_take_audio
@@ -50,8 +50,8 @@ one_take_audio
   -> transcription
   -> IntakeTranscript source artifact
   -> explicit transcript confirmation
-  -> situation-only EpisodeDraft
-  -> Gap Hydration
+  -> Capture Extraction
+  -> schema-complete EpisodeDraft
   -> Save/Cancel review
   -> observed Episode
 ```
@@ -83,7 +83,10 @@ graph/report analytics directly.
 - Intake Transcripts owns durable transcript source artifacts created by the
   explicitly armed audio one-take flow and their optional confirmed-episode
   backlink.
-- Episode Drafts stage partial observed fields before confirmation and
+- Capture Artifacts own completed mode-specific evidence before extraction.
+- Capture Extraction owns source-grounded projection into schema-complete
+  Episode Drafts.
+- Episode Drafts stage provisional observed fields before confirmation and
   persistence.
 - Gap Hydration selects the smallest useful next question for incomplete or
   weak episode drafts.

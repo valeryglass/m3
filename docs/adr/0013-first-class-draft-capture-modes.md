@@ -4,6 +4,10 @@
 
 Accepted for the first-class Telegram capture epic.
 
+Superseded by ADR 0014 for non-10Q extraction, Gap Hydration usage, and review
+session ownership. Command names, explicit containment, transcript
+confirmation, and raw-audio retention policy remain accepted.
+
 ## Decision
 
 Telegram exposes four explicit capture modes:
