@@ -409,6 +409,35 @@ Acceptance:
 
 ## Now
 
+### Beta-1 Fresh Analytics Loop
+
+Status: active release-milestone backlog.
+
+Canonical backlog:
+
+```text
+docs/backlog/beta-production-rm.md
+```
+
+Intent: prepare beta production around the existing capture tools and the
+repeatable analytics loop:
+
+```text
+stable capture -> schema transport -> fresh annotation-run -> payload -> interpreted report
+```
+
+Scope:
+
+- sturdy existing input flows;
+- input-to-schema transport;
+- episode-to-graph refresh role/workflow;
+- payload entity cleanup;
+- report interpreter role/tool;
+- beta release-management workflow.
+
+No new input modes, episode schema changes, or model promotions are implied by
+this backlog.
+
 ### Add Set Signature / Co-signature
 
 Intent: distinguish ordered signatures from unordered co-presence patterns.

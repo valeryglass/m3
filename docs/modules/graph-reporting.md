@@ -47,6 +47,10 @@ candidates. `app.user_report` renders short and detailed `/profile` text from
 those cards; it does not generate new annotations, choose independent map
 semantics, or produce diagnostic interpretations.
 
+For Beta-1 report work, use `roles/report-interpreter.md`: report interpretation
+must consume `InsightPayload`/report-card facts and must not reselect conflicting
+motifs, forks, domains, outcomes, or gaps independently from payload consumers.
+
 The detailed user report is composed from cards for repeated scenarios, choice
 points, counterexamples, contrasts, horizon-specific outcomes, and next
 observation questions. These remain facts about the current sample, not stable

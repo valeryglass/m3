@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Prepare and audit small alpha releases without expanding product scope.
+Prepare and audit small alpha or beta releases without expanding product scope.
 
 The Release Steward owns release readiness, branch hygiene, rollout notes, and
 operator smoke checks. It does not implement feature behavior unless explicitly
@@ -31,6 +31,8 @@ For each release ask:
 - write operator-facing rollout notes.
 - draft alpha-user announcements.
 - keep feature claims honest.
+- for beta milestones, confirm capture smoke, fresh analytics, payload/report
+  verification, UX analytics, and rollback evidence.
 
 ## Guardrails
 
@@ -49,3 +51,22 @@ make check
 ```
 
 Then run the relevant manual smoke workflow from `docs/workflows/`.
+
+## Beta-1 Fresh Analytics Loop
+
+Use `docs/workflows/beta-production-rm.md` when the release target is beta
+production readiness.
+
+Beta is ready only when:
+
+- Docker/live bot smoke passes for existing input tools;
+- `OPENAI_API_KEY` and explicit `M3_CAPTURE_EXTRACTION_MODEL` are configured;
+- fresh annotation-run coverage is produced or a no-op full-coverage refresh is
+  recorded;
+- graph report, InsightPayload, map payload, `/profile`, and UX analytics checks
+  pass;
+- rollback preserves private episodes, sessions, transcripts, annotation-runs,
+  reports, and exports.
+
+If any item fails, mark the release blocked and record private-data-safe
+evidence instead of softening the decision.

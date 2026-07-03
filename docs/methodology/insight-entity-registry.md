@@ -51,6 +51,10 @@ Atom -> Pair -> Signature / Set Signature -> Motif / Set Motif -> Attractor -> I
 - `Insight`: interpretation of motifs, attractors, contrasts, or exceptions.
   Example: "in this sample, social/shame/avoid repeats."
 
+Report and payload code must keep ordered and unordered entities separate.
+`set_signature` and `set_motif` mean co-presence only; they must not imply
+sequence, cause, or outcome path.
+
 Keep future math words such as `hyperedge` and `simplex` as
 external-methodology ideas until they are promoted into accepted model docs.
 
@@ -149,3 +153,5 @@ If a payload exposes a single `weight`, keep the components nearby.
 - Mention partial coverage and skipped episodes when they affect interpretation.
 - Keep map/render hints separate from domain entities.
 - Promote this registry into `model/` only through an explicit model change.
+- Keep beta payload/report additions report-layer first unless an ADR explicitly
+  promotes them into accepted model or schema contracts.

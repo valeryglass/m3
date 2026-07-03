@@ -35,6 +35,17 @@ report-ready graph material. It carries raw analytics entities such as motifs,
 forks, counterexamples, contrasts, outcome patterns, coverage, gaps, and
 provenance.
 
+For Beta-1, keep the analytical entity ladder explicit at the report/payload
+layer:
+
+```text
+atom -> pair -> signature / set_signature -> path_motif / set_motif -> attractor -> insight
+```
+
+Ordered signatures and path motifs may describe sequence only when the source
+graph relation supports it. `set_signature` and `set_motif` describe unordered
+co-presence and must not be rendered as causality.
+
 Version `0.2` adds primary/secondary domain distribution and compact summaries
 per primary domain: support, dominant motif, main fork, and top outcomes.
 Primary-domain summaries partition episodes; secondary domains remain
