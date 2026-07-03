@@ -4,6 +4,7 @@ VENV_PYTHON := $(VENV)/bin/python
 VENV_PIP := $(VENV)/bin/pip
 WHISPER_COMMAND ?= $(if $(M3_WHISPER_COMMAND),$(M3_WHISPER_COMMAND),$(VENV)/bin/whisper)
 BOT_MODULE := app.telegram_bot
+BOT_PROCESS_PATTERN := [p]ython[0-9.]* -m app[.]telegram_bot
 EPISODE_DIR ?= data/episodes
 GRAPH_REPORT_EXPORT_DIR ?= data/reports/graph
 INSIGHT_PAYLOAD_EXPORT_DIR ?= data/exports/insight-payload
@@ -14,7 +15,7 @@ MAP_SOURCE ?= telegram-chat:327002663
 MAP_SOURCE_SAFE ?= $(subst :,-,$(subst /,-,$(MAP_SOURCE)))
 ANNOTATION_RUN_DIR ?=
 
-.PHONY: venv compile test test-docs check check-whisper release-audio-check bot docker-bot bot-pid bot-stop bot-kill bot-restart legacy-normalize-episodes-write audit export-graph-report export-insight-payload export-map-payload export-map-html export-ux-report export-debug-reports analytics-ux analytics
+.PHONY: venv compile test test-docs check check-whisper release-audio-check bot docker-bot bot-pid bot-ps bot-stop bot-kill bot-sudo-stop bot-sudo-kill bot-restart legacy-normalize-episodes-write audit export-graph-report export-insight-payload export-map-payload export-map-html export-ux-report export-debug-reports analytics-ux analytics
 
 venv:
 	$(PYTHON) -m venv $(VENV)
@@ -55,24 +56,67 @@ docker-bot:
 	docker compose up bot
 
 bot-pid:
-	@pgrep -af '$(BOT_MODULE)' || true
+	@pgrep -af '$(BOT_PROCESS_PATTERN)' || true
 
-bot-stop:
-	@pids="$$(pgrep -f '$(BOT_MODULE)' || true)"; \
+bot-ps:
+	@pids="$$(pgrep -f '$(BOT_PROCESS_PATTERN)' || true)"; \
 	if [ -z "$$pids" ]; then \
 		echo "bot not running"; \
 	else \
-		kill $$pids; \
-		echo "stopped: $$pids"; \
+		pid_list="$$(printf '%s\n' $$pids | paste -sd, -)"; \
+		ps -o pid,ppid,user,uid,euid,stat,etime,cmd -p "$$pid_list"; \
+	fi
+
+bot-stop:
+	@pids="$$(pgrep -f '$(BOT_PROCESS_PATTERN)' || true)"; \
+	if [ -z "$$pids" ]; then \
+		echo "bot not running"; \
+	else \
+		if kill $$pids; then \
+			echo "stopped: $$pids"; \
+		else \
+			echo "failed to stop: $$pids"; \
+			exit 1; \
+		fi; \
 	fi
 
 bot-kill:
-	@pids="$$(pgrep -f '$(BOT_MODULE)' || true)"; \
+	@pids="$$(pgrep -f '$(BOT_PROCESS_PATTERN)' || true)"; \
 	if [ -z "$$pids" ]; then \
 		echo "bot not running"; \
 	else \
-		kill -9 $$pids; \
-		echo "killed: $$pids"; \
+		if kill -9 $$pids; then \
+			echo "killed: $$pids"; \
+		else \
+			echo "failed to kill: $$pids"; \
+			exit 1; \
+		fi; \
+	fi
+
+bot-sudo-stop:
+	@pids="$$(pgrep -f '$(BOT_PROCESS_PATTERN)' || true)"; \
+	if [ -z "$$pids" ]; then \
+		echo "bot not running"; \
+	else \
+		if sudo kill $$pids; then \
+			echo "stopped with sudo: $$pids"; \
+		else \
+			echo "failed to stop with sudo: $$pids"; \
+			exit 1; \
+		fi; \
+	fi
+
+bot-sudo-kill:
+	@pids="$$(pgrep -f '$(BOT_PROCESS_PATTERN)' || true)"; \
+	if [ -z "$$pids" ]; then \
+		echo "bot not running"; \
+	else \
+		if sudo kill -9 $$pids; then \
+			echo "killed with sudo: $$pids"; \
+		else \
+			echo "failed to kill with sudo: $$pids"; \
+			exit 1; \
+		fi; \
 	fi
 
 bot-restart: bot-stop
