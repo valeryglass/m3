@@ -6,6 +6,7 @@ WHISPER_COMMAND ?= $(if $(M3_WHISPER_COMMAND),$(M3_WHISPER_COMMAND),$(VENV)/bin/
 BOT_MODULE := app.telegram_bot
 BOT_PROCESS_PATTERN := [p]ython[0-9.]* -m app[.]telegram_bot
 EPISODE_DIR ?= data/episodes
+ANNOTATION_RUN_ROOT ?= data/annotation-runs
 GRAPH_REPORT_EXPORT_DIR ?= data/reports/graph
 INSIGHT_PAYLOAD_EXPORT_DIR ?= data/exports/insight-payload
 MAP_PAYLOAD_EXPORT_DIR ?= data/exports/map-payload
@@ -14,8 +15,9 @@ REPORT_MIN_COUNT ?= 2
 MAP_SOURCE ?= telegram-chat:327002663
 MAP_SOURCE_SAFE ?= $(subst :,-,$(subst /,-,$(MAP_SOURCE)))
 ANNOTATION_RUN_DIR ?=
+ANNOTATION_SOURCE ?=
 
-.PHONY: venv compile test test-docs check check-whisper release-audio-check bot docker-bot bot-pid bot-ps bot-stop bot-kill bot-sudo-stop bot-sudo-kill bot-restart legacy-normalize-episodes-write audit export-graph-report export-insight-payload export-map-payload export-map-html export-ux-report export-debug-reports analytics-ux analytics
+.PHONY: venv compile test test-docs check check-whisper release-audio-check bot docker-bot bot-pid bot-ps bot-stop bot-kill bot-sudo-stop bot-sudo-kill bot-restart legacy-normalize-episodes-write fresh-analytics-status audit annotation-dry-run annotation-missing annotation-full export-graph-report export-insight-payload export-map-payload export-map-html export-ux-report export-debug-reports beta-report-qa beta-analytics analytics-ux analytics
 
 venv:
 	$(PYTHON) -m venv $(VENV)
@@ -125,11 +127,24 @@ bot-restart: bot-stop
 legacy-normalize-episodes-write:
 	$(PYTHON) -m app.derived_normalizer $(EPISODE_DIR) --write
 
+fresh-analytics-status:
+	$(PYTHON) -m app.fresh_analytics_status --episode-dir $(EPISODE_DIR) --annotation-run-root $(ANNOTATION_RUN_ROOT) $(if $(ANNOTATION_RUN_DIR),--annotation-run-dir $(ANNOTATION_RUN_DIR),) $(if $(ANNOTATION_SOURCE),--source $(ANNOTATION_SOURCE),)
+
 audit:
-	$(PYTHON) -m app.annotation_audit --episode-dir $(EPISODE_DIR)
+	$(PYTHON) -m app.annotation_audit --episode-dir $(EPISODE_DIR) --annotation-run-root $(ANNOTATION_RUN_ROOT) $(if $(ANNOTATION_RUN_DIR),--annotation-run-dir $(ANNOTATION_RUN_DIR),)
+
+annotation-dry-run:
+	$(PYTHON) -m app.annotation_producer run --episode-dir $(EPISODE_DIR) --output-root $(ANNOTATION_RUN_ROOT) $(if $(ANNOTATION_SOURCE),--source $(ANNOTATION_SOURCE),) --dry-run
+
+annotation-missing:
+	@test -n "$(ANNOTATION_RUN_DIR)" || { echo "set ANNOTATION_RUN_DIR to an explicit base run"; exit 1; }
+	$(PYTHON) -m app.annotation_producer run --episode-dir $(EPISODE_DIR) --output-root $(ANNOTATION_RUN_ROOT) --only-missing --annotation-run-dir $(ANNOTATION_RUN_DIR) $(if $(ANNOTATION_SOURCE),--source $(ANNOTATION_SOURCE),) --write
+
+annotation-full:
+	$(PYTHON) -m app.annotation_producer run --episode-dir $(EPISODE_DIR) --output-root $(ANNOTATION_RUN_ROOT) $(if $(ANNOTATION_SOURCE),--source $(ANNOTATION_SOURCE),) --write
 
 export-graph-report:
-	$(PYTHON) -m app.graph_report --episode-dir $(EPISODE_DIR) --output-dir $(GRAPH_REPORT_EXPORT_DIR) --by-source --min-count $(REPORT_MIN_COUNT)
+	$(PYTHON) -m app.graph_report --episode-dir $(EPISODE_DIR) --output-dir $(GRAPH_REPORT_EXPORT_DIR) --by-source --min-count $(REPORT_MIN_COUNT) $(if $(ANNOTATION_RUN_DIR),--annotation-run-dir $(ANNOTATION_RUN_DIR),)
 
 export-insight-payload:
 	@test -n "$(ANNOTATION_RUN_DIR)" || { echo "set ANNOTATION_RUN_DIR to an explicit run"; exit 1; }
@@ -146,6 +161,20 @@ export-ux-report:
 	$(PYTHON) -m app.ux_analytics --output-dir $(UX_REPORT_EXPORT_DIR)
 
 export-debug-reports: audit export-graph-report export-ux-report
+
+beta-report-qa:
+	@test -n "$(ANNOTATION_RUN_DIR)" || { echo "set ANNOTATION_RUN_DIR to an explicit run"; exit 1; }
+	$(PYTHON) -m app.report_payload_qa --episode-dir $(EPISODE_DIR) --annotation-run-dir $(ANNOTATION_RUN_DIR) --source $(MAP_SOURCE) --insight-payload-path $(INSIGHT_PAYLOAD_EXPORT_DIR)/$(MAP_SOURCE_SAFE).json --map-payload-path $(MAP_PAYLOAD_EXPORT_DIR)/$(MAP_SOURCE_SAFE).json
+
+beta-analytics:
+	@test -n "$(ANNOTATION_RUN_DIR)" || { echo "set ANNOTATION_RUN_DIR to an explicit run"; exit 1; }
+	$(MAKE) audit ANNOTATION_RUN_DIR=$(ANNOTATION_RUN_DIR)
+	$(MAKE) export-graph-report ANNOTATION_RUN_DIR=$(ANNOTATION_RUN_DIR)
+	$(MAKE) export-insight-payload ANNOTATION_RUN_DIR=$(ANNOTATION_RUN_DIR)
+	$(MAKE) export-map-payload ANNOTATION_RUN_DIR=$(ANNOTATION_RUN_DIR)
+	$(MAKE) export-map-html ANNOTATION_RUN_DIR=$(ANNOTATION_RUN_DIR)
+	$(MAKE) export-ux-report ANNOTATION_RUN_DIR=$(ANNOTATION_RUN_DIR)
+	$(MAKE) beta-report-qa ANNOTATION_RUN_DIR=$(ANNOTATION_RUN_DIR)
 
 analytics-ux:
 	$(PYTHON) -m app.ux_analytics
