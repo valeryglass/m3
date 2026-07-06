@@ -127,6 +127,29 @@ def test_beta_capture_smoke_doc_uses_current_provider_policy():
     assert "Audio alpha is releasable" not in text
 
 
+def test_env_example_matches_current_runtime_config_keys():
+    config_text = (ROOT / "app" / "config.py").read_text(encoding="utf-8")
+    example_text = (ROOT / ".env.example").read_text(encoding="utf-8")
+    example_keys = {
+        line.split("=", 1)[0]
+        for line in example_text.splitlines()
+        if line and not line.startswith("#") and "=" in line
+    }
+
+    config_m3_keys = set(re.findall(r'"(M3_[A-Z0-9_]+)"', config_text))
+    for key in sorted(config_m3_keys):
+        assert key in example_keys
+
+    for key in ("DEEPSEEK_API_KEY", "M3_DEEPSEEK_BASE_URL"):
+        assert key in example_keys
+
+    assert "M3_STATE_DIR" not in example_text
+    assert "local alpha smoke" not in example_text
+    assert "Required for /1t, /3b, and transcript-to-draft extraction" not in example_text
+    assert "M3_CAPTURE_EXTRACTION_PROVIDER=deepseek" in example_text
+    assert "Use only with M3_CAPTURE_EXTRACTION_PROVIDER=openai" in example_text
+
+
 def test_external_methodology_first_drafts_are_listed():
     readme = (ROOT / "docs" / "external-methodology" / "README.md").read_text(
         encoding="utf-8"
