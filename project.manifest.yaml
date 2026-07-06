@@ -256,6 +256,7 @@ modules:
     owned_paths:
       - app/annotation_audit.py
       - app/annotation_runs.py
+      - app/fresh_analytics_status.py
       - app/readiness.py
       - app/schemas/annotation_run.py
       - roles/annotator.md
@@ -281,6 +282,7 @@ modules:
       - readiness_audit
       - annotation_run_loading
       - selected_derived_validation
+      - fresh_analytics_status_recommendation
 
   annotation_producer:
     stage: experimental

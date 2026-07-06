@@ -37,33 +37,35 @@ Start with read-only checks:
 
 ```bash
 git status --short --branch
-python -m app.annotation_producer run \
-  --episode-dir data/episodes \
-  --output-root data/annotation-runs \
-  --dry-run
-python -m app.annotation_audit --episode-dir data/episodes
+make fresh-analytics-status
 ```
 
-If rows are missing and a base run exists, use a missing-only snapshot:
+Follow the JSON `recommendation` and `recommended_command`:
+
+- `no_op_empty`: stop; there are no observed episodes to annotate.
+- `no_op_full_coverage`: record the selected annotation-run path and continue
+  to downstream analytics checks with that explicit run.
+- `missing_only`: run the recommended missing-only command, then rerun
+  `make fresh-analytics-status ANNOTATION_RUN_DIR=<new-run>`.
+- `full_snapshot`: run the recommended full-snapshot command, then rerun
+  `make fresh-analytics-status ANNOTATION_RUN_DIR=<new-run>`.
+- `blocked`: stop and record the blocker without editing observed episodes.
+
+If rows are missing and a valid base run exists, the status command recommends a
+missing-only snapshot:
 
 ```bash
-python -m app.annotation_producer run \
-  --episode-dir data/episodes \
-  --output-root data/annotation-runs \
-  --only-missing \
-  --annotation-run-dir data/annotation-runs/<base-run> \
-  --write
+make annotation-missing ANNOTATION_RUN_DIR=data/annotation-runs/<base-run>
 ```
 
-If no valid base run exists, create a new full snapshot only after confirming the
-producer strategy and scope:
+If no valid base run exists, the status command recommends a full snapshot:
 
 ```bash
-python -m app.annotation_producer run \
-  --episode-dir data/episodes \
-  --output-root data/annotation-runs \
-  --write
+make annotation-full
 ```
+
+After a write, set `ANNOTATION_RUN_DIR` to the newly created run for audit and
+exports.
 
 ## Stop Conditions
 
