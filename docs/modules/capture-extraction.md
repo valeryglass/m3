@@ -9,11 +9,20 @@ without inventing unsupported observed evidence.
 
 - `classic_10q` uses deterministic direct projection.
 - `three_block`, `one_take_text`, and `one_take_audio` require the configured
-  OpenAI Responses provider.
+  capture extraction provider.
 
-Production non-10Q extraction requires both `OPENAI_API_KEY` and an explicit
-`M3_CAPTURE_EXTRACTION_MODEL`. There is no default model and no fallback to
-10Q or Gap Hydration.
+Runtime mode is explicit:
+
+- `M3_APP_MODE=ml` defaults to `M3_CAPTURE_EXTRACTION_PROVIDER=unavailable`;
+- `M3_APP_MODE=production` defaults to
+  `M3_CAPTURE_EXTRACTION_PROVIDER=deepseek`.
+
+Production DeepSeek extraction requires `DEEPSEEK_API_KEY` and an explicit
+`M3_CAPTURE_EXTRACTION_MODEL`. OpenAI remains supported only when the owner
+explicitly sets `M3_CAPTURE_EXTRACTION_PROVIDER=openai` and configures
+`OPENAI_API_KEY`.
+
+There is no default model and no fallback to 10Q or Gap Hydration.
 
 ## Grounding
 

@@ -16,6 +16,7 @@ class Settings:
     telegram_bot_token: str
     telegram_admin_chat_ids: frozenset[int]
     telegram_owner_chat_id: int | None
+    app_mode: str
     episode_dir: Path
     runtime_session_dir: Path
     runtime_flow_dir: Path
@@ -31,7 +32,10 @@ class Settings:
     intake_transcript_dir: Path
     capture_artifact_dir: Path
     capture_extraction_dir: Path
+    capture_extraction_provider: str
     openai_api_key: str
+    deepseek_api_key: str
+    deepseek_base_url: str
     capture_extraction_model: str
     audio_max_duration_sec: int
     audio_max_file_size_bytes: int
@@ -71,6 +75,18 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
 
     source = env if env is not None else os.environ
     token = source.get("TELEGRAM_BOT_TOKEN", "").strip()
+    app_mode = source.get("M3_APP_MODE", "ml").strip().lower() or "ml"
+    if app_mode not in {"ml", "production"}:
+        raise ValueError("M3_APP_MODE must be one of: ml, production")
+    capture_extraction_provider = source.get(
+        "M3_CAPTURE_EXTRACTION_PROVIDER",
+        "deepseek" if app_mode == "production" else "unavailable",
+    ).strip().lower()
+    if capture_extraction_provider not in {"unavailable", "deepseek", "openai"}:
+        raise ValueError(
+            "M3_CAPTURE_EXTRACTION_PROVIDER must be one of: "
+            "unavailable, deepseek, openai"
+        )
 
     if not token:
         raise ValueError("TELEGRAM_BOT_TOKEN is required")
@@ -82,6 +98,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         telegram_owner_chat_id=parse_optional_chat_id(
             source.get("M3_TELEGRAM_OWNER_CHAT_ID")
         ),
+        app_mode=app_mode,
         episode_dir=Path(source.get("M3_EPISODE_DIR", "data/episodes")),
         runtime_session_dir=Path(
             source.get("M3_RUNTIME_SESSION_DIR", "data/runtime-sessions")
@@ -111,7 +128,12 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         capture_extraction_dir=Path(
             source.get("M3_CAPTURE_EXTRACTION_DIR", "data/capture-extractions")
         ),
+        capture_extraction_provider=capture_extraction_provider,
         openai_api_key=source.get("OPENAI_API_KEY", "").strip(),
+        deepseek_api_key=source.get("DEEPSEEK_API_KEY", "").strip(),
+        deepseek_base_url=source.get(
+            "M3_DEEPSEEK_BASE_URL", "https://api.deepseek.com"
+        ).strip() or "https://api.deepseek.com",
         capture_extraction_model=source.get(
             "M3_CAPTURE_EXTRACTION_MODEL", ""
         ).strip(),

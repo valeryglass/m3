@@ -133,6 +133,8 @@ modules:
     purpose: Project source-grounded capture evidence into schema-complete EpisodeDrafts.
     owned_paths:
       - app/capture_extraction.py
+      - app/capture_provider.py
+      - app/deepseek_capture_extractor.py
       - app/openai_capture_extractor.py
       - docs/modules/capture-extraction.md
       - data/capture-extractions/
@@ -147,6 +149,8 @@ modules:
       - capture_to_draft
     capabilities:
       - deterministic_classic_projection
+      - explicit_runtime_mode_selection
+      - deepseek_capture_extraction
       - strict_structured_output_extraction
       - source_quote_grounding
       - typed_extraction_failures

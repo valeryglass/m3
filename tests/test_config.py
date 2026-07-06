@@ -1,3 +1,5 @@
+import pytest
+
 from app.config import (
     admin_chat_ids_for_settings,
     load_settings,
@@ -16,6 +18,7 @@ def test_load_settings_uses_default_data_paths():
     assert settings.telegram_bot_token == "token"
     assert settings.telegram_admin_chat_ids == frozenset()
     assert settings.telegram_owner_chat_id is None
+    assert settings.app_mode == "ml"
     assert str(settings.episode_dir) == "data/episodes"
     assert str(settings.runtime_session_dir) == "data/runtime-sessions"
     assert str(settings.runtime_flow_dir) == "data/runtime-flows"
@@ -31,7 +34,10 @@ def test_load_settings_uses_default_data_paths():
     assert str(settings.intake_transcript_dir) == "data/intake-transcripts"
     assert str(settings.capture_artifact_dir) == "data/capture-artifacts"
     assert str(settings.capture_extraction_dir) == "data/capture-extractions"
+    assert settings.capture_extraction_provider == "unavailable"
     assert settings.openai_api_key == ""
+    assert settings.deepseek_api_key == ""
+    assert settings.deepseek_base_url == "https://api.deepseek.com"
     assert settings.capture_extraction_model == ""
     assert settings.audio_max_duration_sec == 300
     assert settings.audio_max_file_size_bytes == 20 * 1024 * 1024
@@ -69,11 +75,15 @@ def test_load_settings_allows_overrides():
             "M3_REPORT_MIN_COUNT": "3",
             "M3_TELEGRAM_ADMIN_CHAT_IDS": "225672,327002663",
             "M3_TELEGRAM_OWNER_CHAT_ID": "225672",
+            "M3_APP_MODE": "production",
             "M3_AUDIO_TEMP_DIR": "/tmp/audio",
             "M3_INTAKE_TRANSCRIPT_DIR": "/tmp/transcripts",
             "M3_CAPTURE_ARTIFACT_DIR": "/tmp/captures",
             "M3_CAPTURE_EXTRACTION_DIR": "/tmp/extractions",
+            "M3_CAPTURE_EXTRACTION_PROVIDER": "deepseek",
             "OPENAI_API_KEY": "test-key",
+            "DEEPSEEK_API_KEY": "deepseek-key",
+            "M3_DEEPSEEK_BASE_URL": "https://deepseek.test",
             "M3_CAPTURE_EXTRACTION_MODEL": "test-model",
             "M3_AUDIO_MAX_DURATION_SEC": "180",
             "M3_AUDIO_MAX_FILE_SIZE_BYTES": "1048576",
@@ -96,11 +106,15 @@ def test_load_settings_allows_overrides():
     assert settings.report_min_count == 3
     assert settings.telegram_admin_chat_ids == frozenset({225672, 327002663})
     assert settings.telegram_owner_chat_id == 225672
+    assert settings.app_mode == "production"
     assert str(settings.audio_temp_dir) == "/tmp/audio"
     assert str(settings.intake_transcript_dir) == "/tmp/transcripts"
     assert str(settings.capture_artifact_dir) == "/tmp/captures"
     assert str(settings.capture_extraction_dir) == "/tmp/extractions"
+    assert settings.capture_extraction_provider == "deepseek"
     assert settings.openai_api_key == "test-key"
+    assert settings.deepseek_api_key == "deepseek-key"
+    assert settings.deepseek_base_url == "https://deepseek.test"
     assert settings.capture_extraction_model == "test-model"
     assert settings.audio_max_duration_sec == 180
     assert settings.audio_max_file_size_bytes == 1048576
@@ -129,3 +143,39 @@ def test_admin_and_owner_accessors_return_configured_ids():
 
     assert admin_chat_ids_for_settings(settings) == frozenset({225672, 327002663})
     assert owner_chat_id_for_settings(settings) == 225672
+
+
+def test_production_mode_defaults_capture_extraction_provider_to_deepseek():
+    settings = load_settings(
+        {
+            "TELEGRAM_BOT_TOKEN": "token",
+            "M3_APP_MODE": "production",
+        }
+    )
+
+    assert settings.app_mode == "production"
+    assert settings.capture_extraction_provider == "deepseek"
+
+
+def test_explicit_capture_extraction_provider_override_is_allowed():
+    settings = load_settings(
+        {
+            "TELEGRAM_BOT_TOKEN": "token",
+            "M3_APP_MODE": "production",
+            "M3_CAPTURE_EXTRACTION_PROVIDER": "openai",
+        }
+    )
+
+    assert settings.capture_extraction_provider == "openai"
+
+
+def test_invalid_runtime_mode_and_provider_are_rejected():
+    with pytest.raises(ValueError, match="M3_APP_MODE"):
+        load_settings({"TELEGRAM_BOT_TOKEN": "token", "M3_APP_MODE": "prod"})
+    with pytest.raises(ValueError, match="M3_CAPTURE_EXTRACTION_PROVIDER"):
+        load_settings(
+            {
+                "TELEGRAM_BOT_TOKEN": "token",
+                "M3_CAPTURE_EXTRACTION_PROVIDER": "unknown",
+            }
+        )

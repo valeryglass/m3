@@ -21,9 +21,12 @@ capture evidence
 
 `classic_10q` remains deterministic direct field collection. `three_block`,
 `one_take_text`, and `one_take_audio` use the configured extraction provider.
-The initial provider is OpenAI Responses structured output behind a local
+The initial provider was OpenAI Responses structured output behind a local
 protocol. Provider configuration requires both an API key and an explicit
 model; there is no implicit model or fallback provider.
+
+ADR 0015 adds beta runtime modes, makes DeepSeek the default production capture
+extraction provider, and keeps OpenAI as explicit compatibility.
 
 This decision supersedes ADR 0013 where it routes non-10Q capture through Gap
 Hydration or stores review state in `LoopSession`. ADR 0013 remains accepted for

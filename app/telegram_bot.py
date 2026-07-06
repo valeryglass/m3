@@ -6,7 +6,6 @@ from threading import Thread
 from time import monotonic
 from app.capture_artifacts import build_capture_artifact, save_capture_artifact
 from app.capture_extraction import (
-    UnavailableCaptureExtractionProvider,
     link_capture_extraction_to_episode,
     project_classic_10q,
     run_capture_extraction,
@@ -15,7 +14,7 @@ from app.draft_review_sessions import (
     DraftReviewSessionStore,
     review_session_from_extraction,
 )
-from app.openai_capture_extractor import OpenAICaptureExtractionProvider
+from app.capture_provider import capture_extraction_provider_for_settings
 from app.config import (
     Settings,
     admin_chat_ids_for_settings,
@@ -488,11 +487,7 @@ def _transcription_provider_for_settings(settings):
 
 
 def _capture_extraction_provider_for_settings(settings):
-    api_key = getattr(settings, "openai_api_key", "")
-    model = getattr(settings, "capture_extraction_model", "")
-    if not api_key or not model:
-        return UnavailableCaptureExtractionProvider(model)
-    return OpenAICaptureExtractionProvider(api_key=api_key, model=model)
+    return capture_extraction_provider_for_settings(settings)
 
 
 def target_fields_for_review() -> tuple[str, ...]:
