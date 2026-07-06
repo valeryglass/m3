@@ -2,7 +2,7 @@
 
 Status: active release-milestone backlog.
 
-Milestone: `Beta-1 Fresh Analytics Loop`.
+Milestone: `Beta-1 Stable Micro Build`.
 
 This backlog is a planning surface for beta production readiness. It does not
 change runtime contracts, episode schema, annotation-run schema, or payload
@@ -11,11 +11,14 @@ contracts by itself.
 ## Target Loop
 
 ```text
-stable capture
--> schema transport
--> fresh annotation-run
--> payload
--> interpreted report
+/10q /3b /1t /1a
+-> schema-valid episode
+-> annotation-run refresh
+-> hydrated graph
+-> basic map export
+-> short report
+-> long report
+-> UX/admin stats
 ```
 
 Primary success signal: a beta user can submit episodes through existing input
@@ -23,12 +26,61 @@ tools, the operator can refresh graph analytics from those episodes, and report
 or map payload consumers can produce cautious, provenance-backed insight without
 manual archaeology.
 
-## EPIC-01 Sturdy Existing Input Flow
+## RM-00 Roadmap Source Of Truth Alignment
+
+Goal: make the beta release-management surface name one target and one ordered
+backlog without implying runtime behavior that has not landed.
+
+Acceptance:
+
+- active RM docs use `Beta-1 Stable Micro Build`;
+- DeepSeek provider work is separated into RM-01;
+- current runtime truth is updated by the RM item that implements it;
+- no application code, schema, or Telegram behavior changes.
+
+## RM-01 Runtime Mode And DeepSeek Provider
+
+Status: implemented.
+
+Goal: introduce owner-switchable beta runtime modes.
+
+Modes:
+
+- `ml`: free/non-LLM local mode; `/10q` remains deterministic and non-10Q
+  provider absence fails safely;
+- `production`: DeepSeek API LLM mode for non-10Q capture extraction.
+
+Acceptance:
+
+- config can switch mode/provider by owner-controlled environment values;
+- DeepSeek sits behind the existing capture extraction provider protocol;
+- OpenAI remains compatibility through explicit provider selection;
+- missing provider credentials/model fail through the existing typed sidecar
+  path instead of crashing Telegram capture;
+- no silent fallback to 10Q or Gap Hydration.
+
+## RM-02 Operator Analytics Commands
+
+Status: implemented.
+
+Goal: reduce beta operator command friction for fresh analytics.
+
+Acceptance:
+
+- Makefile/operator commands cover annotation dry-run, missing-only refresh,
+  full refresh, graph report, InsightPayload, map payload/HTML, and UX report;
+- commands require explicit selected annotation-run where exports need one.
+
+## RM-03 Capture Smoke To Beta Standard
+
+Status: implemented.
 
 Goal: harden the existing `/10q`, `/1t`, `/3b`, and `/1a` flows for beta use.
 
 Acceptance:
 
+- `docs/workflows/audio-input-smoke.md` is updated from alpha/OpenAI framing to
+  beta production mode and DeepSeek provider policy;
 - live smoke passes for classic text, one-take text, three-block, and audio
   transcript confirmation;
 - active-session conflicts, `/cancel`, `/status`, unsupported media, extraction
@@ -42,7 +94,68 @@ Out of scope:
 - long-form audio;
 - field-editing review UI.
 
-## EPIC-02 Input-To-Schema Transport Tool
+Implementation note: RM-03 defines the beta smoke contract and evidence record.
+It does not itself certify that a live Docker bot smoke has passed for a
+particular release candidate; that remains a Beta Gate action.
+
+## RM-04 Fresh Annotation Run
+
+Status: implemented.
+
+Goal: produce or verify current annotation-run coverage without modifying
+observed episodes.
+
+Acceptance:
+
+- `make fresh-analytics-status` gives a read-only recommendation before
+  writing;
+- dry-run, selected annotation-run, coverage, readiness, and blocker state are
+  visible as JSON;
+- missing-only snapshot is recommended when a valid base run exists;
+- full snapshot is recommended only when no valid base run exists;
+- selected annotation-run and readiness summary are recordable without raw
+  episode content.
+
+## RM-05 Payload / Map / Short+Long Report QA
+
+Status: implemented.
+
+Goal: make beta analytics useful without growing the Telegram command surface.
+
+Acceptance:
+
+- InsightPayload, graph report, map payload, and map HTML export from the same
+  selected annotation-run;
+- `/profile` short summary and inline details act as short and long report;
+- reports interpret payload/card facts rather than reselecting conflicting
+  analytics;
+- map/report/profile wording remains cautious and sample-bound;
+- `make beta-report-qa` verifies selected-run consistency, export agreement,
+  payload readiness, and report wording guards.
+
+## RM-06 Brand Text Rewrite
+
+Goal: separate product language rewrite from pipeline stabilization.
+
+Acceptance:
+
+- inventory covers Telegram messages, `/help`, short/long report copy,
+  admin/operator copy, user announcements, and tutorial script;
+- tone engine remains wording-only and does not alter CBT data;
+- brand copy preserves observed-vs-derived boundaries, no-diagnosis language,
+  sample-bound insight, and capture-to-report pipeline terms.
+
+## RM-07 Tutorial Script
+
+Goal: prepare beta onboarding after stable copy lands.
+
+Acceptance:
+
+- script covers `/10q`, `/3b`, `/1t`, `/1a`, Save/Cancel, short/long report,
+  and report/map limits;
+- tutorial remains release artifact, not runtime dependency.
+
+## Supporting Epic: Input-To-Schema Transport Tool
 
 Goal: make user input reliably become schema-valid episode drafts.
 
@@ -57,7 +170,7 @@ Acceptance:
 - `model/episode.schema.json` remains unchanged unless an explicit ADR promotes
   a schema change.
 
-## EPIC-03 Episode-To-Graph Refresh Role
+## Supporting Epic: Episode-To-Graph Refresh Role
 
 Goal: give Codex an operator role and workflow for fresh analytics.
 
@@ -76,7 +189,7 @@ Primary artifacts:
 - `roles/fresh-analytics.md`;
 - `docs/workflows/beta-production-rm.md`.
 
-## EPIC-04 Payload Entity Brush
+## Supporting Epic: Payload Entity Brush
 
 Goal: clean the analytical entity ladder before report and map interpretation
 grow.
@@ -95,7 +208,7 @@ Primary artifact:
 
 - `docs/methodology/insight-entity-registry.md`.
 
-## EPIC-05 Report Interpreter Role Or Tool
+## Supporting Epic: Report Interpreter Role Or Tool
 
 Goal: refactor report generation around interpreting payloads, not reselecting
 analytics.
@@ -116,7 +229,7 @@ Primary artifacts:
 - `docs/modules/graph-reporting.md`;
 - `docs/modules/insight-payloads.md`.
 
-## EPIC-06 Beta Release Management
+## Supporting Epic: Beta Release Management
 
 Goal: make beta operation repeatable.
 
@@ -126,8 +239,8 @@ Acceptance:
   export, report render, UX analytics, and rollback;
 - Release Steward has a checklist for beta readiness and blockers;
 - operator notes explain what changed, what is supported, and what is not;
-- beta is not marked ready until Docker/live bot smoke and configured extraction
-  model pass;
+- beta is not marked ready until Docker/live bot smoke and configured
+  production DeepSeek extraction model pass;
 - rollback preserves private episodes, sessions, transcripts, annotation-runs,
   and exports.
 
@@ -148,9 +261,11 @@ Primary artifacts:
 ### Beta Gate
 
 - live Docker bot smoke passes;
-- `OPENAI_API_KEY` and explicit `M3_CAPTURE_EXTRACTION_MODEL` are configured;
+- production mode uses configured DeepSeek provider/model for non-10Q
+  extraction;
 - fresh annotation-run is produced or a no-op full-coverage refresh is recorded;
-- report and payload outputs are verified;
+- graph report, InsightPayload, basic map export, short report, and long report
+  outputs are verified;
 - user-level UX stats can be shown without raw content.
 
 ### Production-Ready Beta Gate
@@ -173,8 +288,8 @@ Then run:
 - `docs/workflows/audio-input-smoke.md`;
 - `docs/workflows/beta-production-rm.md`;
 - annotation producer dry-run and missing-only workflow;
-- graph report, insight payload, map payload, `/profile`, and UX analytics
-  checks.
+- graph report, InsightPayload, map payload, map HTML, `/profile` summary and
+  details, and UX analytics checks.
 
 Verify:
 

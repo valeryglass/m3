@@ -46,6 +46,12 @@ Report cards may explain:
 
 ## QA Checklist
 
+Default operator QA command:
+
+```bash
+make beta-report-qa ANNOTATION_RUN_DIR=data/annotation-runs/<selected-run>
+```
+
 Before accepting report output, check:
 
 - the report consumes payload/card facts rather than recomputing separate facts;

@@ -319,11 +319,13 @@ modules:
       - app/pattern_metrics.py
       - app/user_report.py
       - app/report_cards.py
+      - app/report_payload_qa.py
       - model/graph.md
     inputs:
       - hydrated graph-ready episodes
     outputs:
       - computed GraphReport views
+      - private-data-safe report/payload QA summaries
       - optional Markdown debug exports
     interfaces:
       - annotation_to_report
@@ -336,6 +338,7 @@ modules:
       - user_profile_report_rendering
       - card_composed_profile_reports
       - accepted_domain_graph_signatures
+      - report_payload_consistency_qa
 
   insight_payloads:
     stage: experimental

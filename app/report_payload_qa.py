@@ -1,0 +1,315 @@
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from app.analytics_loader import annotation_coverage_for_episode_ids, selected_annotation_run
+from app.graph_report import build_report, load_episodes
+from app.insight_payload import build_insight_payload, require_payload_export_ready
+from app.map_payload import build_map_payload
+from app.report_cards import build_report_cards
+from app.user_report import render_details_from_payload, render_summary_from_payload
+
+STATUS_PASSED = "passed"
+STATUS_BLOCKED = "blocked"
+
+INTERNAL_TERMS = (
+    "payload",
+    "graph_ready",
+    "profile_eligible",
+    "annotation",
+    "signature",
+)
+
+FORBIDDEN_WORDING = (
+    "диагноз",
+    "нарушение",
+    "вы страдаете",
+    "у вас проблема",
+    "это значит",
+    "устойчив",
+    "stable trait",
+    "caused by",
+    "because of",
+)
+
+
+@dataclass(frozen=True)
+class CheckResult:
+    name: str
+    passed: bool
+    message: str
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"name": self.name, "passed": self.passed, "message": self.message}
+
+
+def build_qa_status(
+    episode_dir: Path,
+    annotation_run_dir: Path | None,
+    source: str,
+    *,
+    insight_payload_path: Path | None = None,
+    map_payload_path: Path | None = None,
+) -> dict[str, Any]:
+    checks: list[CheckResult] = []
+
+    if annotation_run_dir is None:
+        checks.append(_fail("explicit_annotation_run", "annotation-run is required"))
+        return _blocked(source, annotation_run_dir, checks)
+
+    try:
+        return _build_qa_status(
+            episode_dir,
+            annotation_run_dir,
+            source,
+            insight_payload_path=insight_payload_path,
+            map_payload_path=map_payload_path,
+        )
+    except Exception as exc:
+        checks.append(_fail("qa_exception", str(exc)))
+        return _blocked(source, annotation_run_dir, checks)
+
+
+def _build_qa_status(
+    episode_dir: Path,
+    annotation_run_dir: Path,
+    source: str,
+    *,
+    insight_payload_path: Path | None,
+    map_payload_path: Path | None,
+) -> dict[str, Any]:
+    checks: list[CheckResult] = []
+    all_episodes = load_episodes(episode_dir, annotation_run_dir=annotation_run_dir)
+    all_episode_ids = {episode.id for episode in all_episodes}
+    selected_run = selected_annotation_run(
+        episode_dir,
+        annotation_run_dir=annotation_run_dir,
+        episode_ids=all_episode_ids,
+    )
+    checks.append(_pass("explicit_annotation_run", "annotation-run loaded"))
+
+    source_episodes = [episode for episode in all_episodes if episode.source == source]
+    source_episode_ids = {episode.id for episode in source_episodes}
+    if not source_episodes:
+        checks.append(_fail("source_has_episodes", "source has no episodes"))
+        return _blocked(source, annotation_run_dir, checks, selected_run=selected_run)
+    checks.append(_pass("source_has_episodes", "source has episodes"))
+
+    coverage = annotation_coverage_for_episode_ids(
+        source_episode_ids,
+        annotation_run_dir=annotation_run_dir,
+        known_episode_ids=all_episode_ids,
+    )
+    report = build_report(source_episodes, coverage=coverage)
+    insight_payload = build_insight_payload(report)
+    report_cards = build_report_cards(insight_payload)
+    short_report = render_summary_from_payload(insight_payload)
+    long_report = render_details_from_payload(insight_payload)
+    map_payload = build_map_payload(
+        all_episodes,
+        source=source,
+        coverage=coverage,
+        provenance={
+            "episode_dir": episode_dir.as_posix(),
+            "source_scope": source,
+            "annotation_run_id": selected_run.manifest.annotation_run_id,
+            "annotation_run_path": selected_run.path.as_posix(),
+        },
+    )
+
+    checks.extend(_readiness_checks(report, insight_payload, map_payload, selected_run))
+    checks.extend(
+        _export_checks(
+            insight_payload.to_dict(),
+            map_payload,
+            insight_payload_path=insight_payload_path,
+            map_payload_path=map_payload_path,
+        )
+    )
+    checks.extend(_report_text_checks(short_report, long_report, report_cards))
+
+    status = STATUS_PASSED if all(check.passed for check in checks) else STATUS_BLOCKED
+    return {
+        "status": status,
+        "source": source,
+        "selected_annotation_run_id": selected_run.manifest.annotation_run_id,
+        "selected_annotation_run_path": selected_run.path.as_posix(),
+        "coverage": insight_payload.to_dict()["coverage"],
+        "readiness": {
+            "total_episodes": report.total_episodes,
+            "graph_ready_count": len(report.graph_ready),
+            "report_ready_count": sum(
+                1 for item in report.readiness if item.report_ready
+            ),
+            "payload_eligible_count": sum(
+                1 for item in report.readiness if item.payload_eligible
+            ),
+        },
+        "report_card_kinds": [card.kind for card in report_cards],
+        "short_report_chars": len(short_report),
+        "long_report_chars": len(long_report),
+        "checks": [check.as_dict() for check in checks],
+        "blockers": [check.message for check in checks if not check.passed],
+    }
+
+
+def _readiness_checks(report, insight_payload, map_payload, selected_run) -> list[CheckResult]:
+    checks: list[CheckResult] = []
+    try:
+        require_payload_export_ready(report)
+        checks.append(_pass("payload_export_ready", "source is payload export ready"))
+    except ValueError as exc:
+        checks.append(_fail("payload_export_ready", str(exc)))
+
+    insight_dict = insight_payload.to_dict()
+    if insight_dict["coverage"]["state"] == "full":
+        checks.append(_pass("full_coverage", "source coverage is full"))
+    else:
+        checks.append(_fail("full_coverage", "source coverage is partial"))
+
+    if map_payload["analytics"]["insight_payload"] == insight_dict:
+        checks.append(_pass("map_embeds_insight_payload", "map embeds matching insight"))
+    else:
+        checks.append(_fail("map_embeds_insight_payload", "map insight payload differs"))
+
+    provenance = map_payload.get("provenance", {})
+    if (
+        provenance.get("annotation_run_id") == selected_run.manifest.annotation_run_id
+        and provenance.get("annotation_run_path") == selected_run.path.as_posix()
+    ):
+        checks.append(_pass("map_provenance_selected_run", "map names selected run"))
+    else:
+        checks.append(_fail("map_provenance_selected_run", "map provenance run mismatch"))
+    return checks
+
+
+def _export_checks(
+    insight_payload: dict[str, Any],
+    map_payload: dict[str, Any],
+    *,
+    insight_payload_path: Path | None,
+    map_payload_path: Path | None,
+) -> list[CheckResult]:
+    checks: list[CheckResult] = []
+    if insight_payload_path is not None:
+        exported = _read_json(insight_payload_path)
+        if _normalize_json_payload(exported) == _normalize_json_payload(insight_payload):
+            checks.append(_pass("insight_export_matches", "insight export matches"))
+        else:
+            checks.append(_fail("insight_export_matches", "insight export differs"))
+    if map_payload_path is not None:
+        exported = _read_json(map_payload_path)
+        if _normalize_map_payload(exported) == _normalize_map_payload(map_payload):
+            checks.append(_pass("map_export_matches", "map export matches"))
+        else:
+            checks.append(_fail("map_export_matches", "map export differs"))
+    return checks
+
+
+def _report_text_checks(
+    short_report: str,
+    long_report: str,
+    report_cards,
+) -> list[CheckResult]:
+    checks: list[CheckResult] = []
+    text = f"{short_report}\n{long_report}".lower()
+    forbidden = tuple(term for term in (*INTERNAL_TERMS, *FORBIDDEN_WORDING) if term in text)
+    if forbidden:
+        checks.append(
+            _fail("report_text_guard", f"forbidden report wording: {', '.join(forbidden)}")
+        )
+    else:
+        checks.append(_pass("report_text_guard", "report wording guard passed"))
+
+    if report_cards and short_report and long_report:
+        checks.append(_pass("report_renders_from_cards", "short and long reports render"))
+    else:
+        checks.append(_fail("report_renders_from_cards", "report cards or report text missing"))
+    return checks
+
+
+def _blocked(
+    source: str,
+    annotation_run_dir: Path | None,
+    checks: list[CheckResult],
+    *,
+    selected_run=None,
+) -> dict[str, Any]:
+    return {
+        "status": STATUS_BLOCKED,
+        "source": source,
+        "selected_annotation_run_id": (
+            selected_run.manifest.annotation_run_id if selected_run is not None else None
+        ),
+        "selected_annotation_run_path": (
+            selected_run.path.as_posix()
+            if selected_run is not None
+            else annotation_run_dir.as_posix()
+            if annotation_run_dir is not None
+            else None
+        ),
+        "coverage": {},
+        "readiness": {},
+        "report_card_kinds": [],
+        "short_report_chars": 0,
+        "long_report_chars": 0,
+        "checks": [check.as_dict() for check in checks],
+        "blockers": [check.message for check in checks if not check.passed],
+    }
+
+
+def _normalize_map_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    normalized = _normalize_json_payload(payload)
+    normalized.get("provenance", {}).pop("generated_at", None)
+    return normalized
+
+
+def _normalize_json_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    return json.loads(json.dumps(payload, ensure_ascii=False))
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"JSON must be an object: {path}")
+    return data
+
+
+def _pass(name: str, message: str) -> CheckResult:
+    return CheckResult(name=name, passed=True, message=message)
+
+
+def _fail(name: str, message: str) -> CheckResult:
+    return CheckResult(name=name, passed=False, message=message)
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        description="QA graph, payload, map, and profile report consistency."
+    )
+    parser.add_argument("--episode-dir", type=Path, default=Path("data/episodes"))
+    parser.add_argument("--annotation-run-dir", type=Path, required=True)
+    parser.add_argument("--source", required=True)
+    parser.add_argument("--insight-payload-path", type=Path)
+    parser.add_argument("--map-payload-path", type=Path)
+    args = parser.parse_args(argv)
+
+    status = build_qa_status(
+        args.episode_dir,
+        args.annotation_run_dir,
+        args.source,
+        insight_payload_path=args.insight_payload_path,
+        map_payload_path=args.map_payload_path,
+    )
+    print(json.dumps(status, ensure_ascii=False, indent=2))
+    if status["status"] == STATUS_BLOCKED:
+        sys.exit(1)
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()

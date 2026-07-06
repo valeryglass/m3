@@ -38,6 +38,39 @@ Containment decisions supersede earlier automatic-capture experiments:
 - episode schema, annotation runs, graph reports, and map payload behavior are
   intentionally unchanged.
 
+## Beta-1 Stable Micro Build
+
+Status: active release-management roadmap.
+
+Goal: make the beta product stable and usable around the existing capture
+surface:
+
+```text
+/10q /3b /1t /1a
+  -> schema-valid episode
+  -> annotation-run refresh
+  -> hydrated graph
+  -> basic map export
+  -> short report
+  -> long report
+  -> UX/admin stats
+```
+
+RM order:
+
+- RM-00: align roadmap source of truth.
+- RM-01: add runtime mode and DeepSeek provider support. Status: implemented.
+- RM-02: add operator analytics commands. Status: implemented.
+- RM-03: define capture smoke to beta standard. Status: implemented.
+- RM-04: produce or verify a fresh annotation-run. Status: implemented.
+- RM-05: QA payload, map, short report, and long report. Status: implemented.
+- RM-06: inventory and rewrite brand text.
+- RM-07: prepare tutorial script.
+
+Current runtime truth: non-10Q production capture extraction defaults to
+DeepSeek through owner-controlled runtime mode/provider settings. OpenAI
+Responses remains explicit compatibility.
+
 ## MVP2 Audio Input Track
 
 Branch base:

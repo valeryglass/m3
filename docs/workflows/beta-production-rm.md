@@ -1,6 +1,6 @@
 # Beta Production RM Workflow
 
-Purpose: make `Beta-1 Fresh Analytics Loop` repeatable from capture smoke through
+Purpose: make `Beta-1 Stable Micro Build` repeatable from capture smoke through
 fresh analytics and report/payload verification.
 
 This is an operator workflow, not a runtime module. It must not modify observed
@@ -13,8 +13,11 @@ flows being smoked.
 - Docker daemon is available to the operator.
 - `TELEGRAM_BOT_TOKEN`, `M3_TELEGRAM_ADMIN_CHAT_IDS`, and
   `M3_TELEGRAM_OWNER_CHAT_ID` are configured.
-- `OPENAI_API_KEY` and explicit `M3_CAPTURE_EXTRACTION_MODEL` are configured for
-  non-10Q capture extraction.
+- Beta production smoke uses `M3_APP_MODE=production`,
+  `M3_CAPTURE_EXTRACTION_PROVIDER=deepseek`, `DEEPSEEK_API_KEY`, and explicit
+  `M3_CAPTURE_EXTRACTION_MODEL` for non-10Q capture extraction.
+- `M3_CAPTURE_EXTRACTION_PROVIDER=openai` remains an explicit compatibility
+  option, not the beta production default.
 - Whisper/ffmpeg prerequisites are available for audio smoke.
 - Test user is approved in `data/userlist/users.json`.
 - Existing private runtime data is backed up or intentionally preserved in place.
@@ -51,9 +54,10 @@ Run `docs/workflows/audio-input-smoke.md` completely:
 - `/3b` restart-safe collection and extraction;
 - `/1a` audio transcript Continue/Reject;
 - unsupported media rejection;
-- `/cancel`, `/status`, `/help`, and `/profile` during active work.
+- `/cancel`, `/status`, `/help`, and `/profile` during active work;
+- `/profile` summary and inline details after analytics are ready.
 
-Record count-only before/after checks for:
+Complete the smoke evidence record with count-only before/after checks for:
 
 - episodes;
 - runtime sessions;
@@ -61,7 +65,11 @@ Record count-only before/after checks for:
 - intake transcripts;
 - capture artifacts;
 - capture extractions;
-- retained raw audio files.
+- retained raw audio files;
+- UX events.
+
+Record provider and model names, but never record API keys, raw user text,
+transcripts, or episode content in the release evidence.
 
 Failure rule: do not mark beta ready if live capture smoke fails.
 
@@ -69,39 +77,27 @@ Failure rule: do not mark beta ready if live capture smoke fails.
 
 Use `roles/fresh-analytics.md`.
 
-Run a dry-run first:
+Start with the read-only status command:
 
 ```bash
-python -m app.annotation_producer run \
-  --episode-dir data/episodes \
-  --output-root data/annotation-runs \
-  --dry-run
+make fresh-analytics-status
 ```
 
-If missing rows are reported and a valid base run exists:
+Follow the JSON recommendation:
 
-```bash
-python -m app.annotation_producer run \
-  --episode-dir data/episodes \
-  --output-root data/annotation-runs \
-  --only-missing \
-  --annotation-run-dir data/annotation-runs/<base-run> \
-  --write
-```
-
-If no valid base run exists, create a full run only after recording that choice:
-
-```bash
-python -m app.annotation_producer run \
-  --episode-dir data/episodes \
-  --output-root data/annotation-runs \
-  --write
-```
+- `no_op_empty`: record that there are no observed episodes and stop analytics
+  refresh.
+- `no_op_full_coverage`: record the selected annotation-run and continue.
+- `missing_only`: run the `recommended_command`, then rerun status with the new
+  run as `ANNOTATION_RUN_DIR`.
+- `full_snapshot`: run the `recommended_command`, then rerun status with the new
+  run as `ANNOTATION_RUN_DIR`.
+- `blocked`: stop and record the blocker as beta evidence.
 
 Then audit:
 
 ```bash
-python -m app.annotation_audit --episode-dir data/episodes
+make audit ANNOTATION_RUN_DIR=<selected-run>
 ```
 
 Record:
@@ -119,21 +115,28 @@ Use `roles/report-interpreter.md` for report interpretation and QA.
 For explicit exports, set `ANNOTATION_RUN_DIR` to the selected run.
 
 ```bash
-make export-graph-report
+make export-graph-report ANNOTATION_RUN_DIR=<selected-run>
 make export-insight-payload ANNOTATION_RUN_DIR=<selected-run>
 make export-map-payload ANNOTATION_RUN_DIR=<selected-run>
 make export-map-html
-python -m app.ux_analytics
+make export-ux-report
+make beta-report-qa ANNOTATION_RUN_DIR=<selected-run>
 ```
 
 Verify:
 
 - graph report reads hydrated annotation-run data;
 - `InsightPayload` is the shared analytics source for report/map consumers;
+- map payload JSON and HTML preview are operator exports, not Telegram user
+  features;
 - map payload does not reselect conflicting motifs, forks, domains, outcomes, or
   gaps;
-- `/profile` wording remains cautious and sample-bound;
+- `/profile` short summary and inline long details remain cautious and
+  sample-bound;
 - UX analytics can show funnel-level and user-level dropoff without raw content.
+
+`make beta-report-qa` is the acceptance check for report/payload consistency. It
+must pass with `status=passed` before beta can be marked ready.
 
 Failure rule: report/payload contradiction is a beta blocker unless explicitly
 documented as a known limitation.
@@ -146,9 +149,9 @@ Ready only when:
 
 - static gates pass;
 - Docker/live bot smoke passes;
-- extraction model/API are configured and verified;
+- production DeepSeek model/API are configured and verified;
 - fresh annotation-run is produced or no-op full coverage is recorded;
-- report and payload checks pass;
+- map, report, payload, and UX checks pass;
 - rollback path is recorded.
 
 If blocked, write:
