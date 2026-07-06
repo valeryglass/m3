@@ -109,7 +109,7 @@ project.manifest.yaml -- structural source of truth
 - Use `roles/report-interpreter.md` for InsightPayload-based report
   interpretation and report QA.
 - Use `roles/release-steward.md` for release readiness, rollout notes, smoke
-  checks, and alpha-user announcements.
+  checks, and operator-facing release notes.
 
 ## Editing Rules
 

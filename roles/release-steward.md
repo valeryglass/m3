@@ -29,7 +29,7 @@ For each release ask:
 - keep patch inputs untracked and disposable.
 - confirm tests and smoke checklist.
 - write operator-facing rollout notes.
-- draft alpha-user announcements.
+- draft operator-facing release notes.
 - keep feature claims honest.
 - for beta milestones, confirm capture smoke, fresh analytics, payload/report
   verification, UX analytics, and rollback evidence.

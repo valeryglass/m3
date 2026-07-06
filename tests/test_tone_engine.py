@@ -49,100 +49,19 @@ def test_message_catalog_covers_every_observed_target():
     assert TARGETS == OBSERVED_FIELDS
 
 
-def test_field_guide_card_renders_source_copy():
+def test_field_guides_keep_only_runtime_copy():
     tone = ToneEngine.default()
 
-    assert tone.field_guide("situation")["source_field"] == (
-        "situation.event_description"
-    )
     assert (
         tone.target_prompt("situation")
         == "Опиши ситуацию несколькими предложениями"
     )
-    assert tone.field_card("situation") == (
-        "Соберем эпизод\n\n"
-        "<blockquote>"
-        "• коллега раскритиковал мой текст в чате\n"
-        "• партнёр не ответил на сообщение вечером\n"
-        "• я увидел дедлайн в календаре утром"
-        "</blockquote>\n\n"
-        "Опиши ситуацию несколькими предложениями"
-    )
-
-
-def test_expanded_field_cards_render_source_copy():
-    tone = ToneEngine.default()
-
-    assert tone.field_card("trigger") == (
-        "Выявление триггера\n\n"
-        "<blockquote>"
-        "• резкий комментарий в чате\n"
-        "• уведомление от банка\n"
-        "• воспоминание о конфликте"
-        "</blockquote>\n\n"
-        "Что именно спровоцировало, зацепило или запустило реакцию?"
-    )
-    assert tone.field_card("actor") == (
-        "Определение участников\n\n"
-        "<blockquote>"
-        "• я и коллега\n"
-        "• партнёр\n"
-        "• начальник и команда"
-        "</blockquote>\n\n"
-        "Кто был рядом, влиял или участвовал в ситуации?"
-    )
-    assert tone.field_card("quote") == (
-        "Зафиксировать цитату\n\n"
-        "<blockquote>"
-        "• коллега: «это не подходит»\n"
-        "• я написал: «ок»\n"
-        "• сообщений не было"
-        "</blockquote>\n\n"
-        "Какая фраза или сообщение зафиксировались во внимании?"
-    )
-
-
-def test_every_field_card_has_required_sections():
-    tone = ToneEngine.default()
 
     for target in OBSERVED_FIELDS:
-        card = tone.field_card(target)
         guide = tone.field_guide(target)
-        assert "🧠 CBT / ACT loop" not in card
-        assert "🧩 Поле" not in card
-        assert f"\n{target}\n" not in card
-        assert "🎯 Пример" not in card
-        assert "<blockquote>" in card
-        assert "</blockquote>" in card
-        assert "📝 Описание" not in card
-        assert "🧬 Формула" not in card
-        assert "💡 Подсказки" not in card
-        if target != "emotion":
-            assert len(guide["examples"]) == 3
-        assert len(guide["tips"]) == 3
+        assert set(guide) == {"label", "question"}
         assert guide["label"]
-        assert guide["name"] in card
-        assert guide["description"] not in card
-        assert guide["formula"] not in card
-        assert guide["question"] in card
-        for example in guide["examples"]:
-            assert f"• {example}" in card
-        for tip in guide["tips"]:
-            assert tip not in card
-
-
-def test_emotion_card_uses_plain_text_frame():
-    tone = ToneEngine.default()
-
-    assert tone.field_card("emotion") == (
-        "Определение эмоций\n\n"
-        "<blockquote>"
-        "• растерянность, оцепенение, беспомощность\n"
-        "• тревога с раздражением\n"
-        "• стыд и растерянность"
-        "</blockquote>\n\n"
-        "Какие эмоции были самыми яркими в эпизоде?"
-    )
+        assert guide["question"] == TARGET_PROMPTS[target]
 
 
 def test_session_messages_render_concise_prompts():
@@ -273,7 +192,6 @@ def test_session_messages_render_concise_prompts():
         "Готово. Эпизод собран\n\nВсего эпизодов: 3"
     )
     assert set(SESSION_MESSAGES) == {
-        "field_card",
         "empty_answer",
         "start_session",
         "next_prompt_bridge",

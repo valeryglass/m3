@@ -140,7 +140,7 @@ Goal: separate product language rewrite from pipeline stabilization.
 Acceptance:
 
 - inventory covers Telegram messages, `/help`, short/long report copy,
-  admin/operator copy, user announcements, and tutorial script;
+  admin/operator copy, operator release notes, and tutorial script;
 - tone engine remains wording-only and does not alter CBT data;
 - brand copy preserves observed-vs-derived boundaries, no-diagnosis language,
   sample-bound insight, and capture-to-report pipeline terms.
@@ -248,7 +248,6 @@ Primary artifacts:
 
 - `roles/release-steward.md`;
 - `docs/workflows/beta-production-rm.md`;
-- `docs/workflows/user-announcements.md`.
 
 ## Milestone Gates
 

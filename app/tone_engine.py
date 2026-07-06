@@ -87,15 +87,6 @@ class ToneEngine:
     def field_guide(self, target: str) -> dict[str, Any]:
         return FIELD_GUIDES[target]
 
-    def field_card(self, target: str) -> str:
-        guide = self.field_guide(target)
-        examples = "\n".join(f"• {escape(example)}" for example in guide["examples"])
-        return SESSION_MESSAGES["field_card"].format(
-            name=escape(guide.get("name", guide["label"].capitalize())),
-            example=examples,
-            question=guide["question"],
-        )
-
     def bot_short_description(self) -> str:
         return BOT_PROFILE["short_description"]
 
