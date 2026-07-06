@@ -1,17 +1,25 @@
-# Audio Input Smoke Checklist
+# Beta Capture Smoke Checklist
 
-Use this checklist before marking explicit Telegram userflow containment and
-audio transcript intake deployable.
+Use this checklist before marking the existing Telegram capture tools beta
+ready. It covers `/10q`, `/1t`, `/3b`, and `/1a`; it does not add a new input
+mode or change episode/schema behavior.
 
 ## Preconditions
 
-- Branch is based on `epic/input-funnel-alpha`.
-- Default transcription provider is `whisper`; local alpha smoke uses
-  `.venv/bin/whisper`.
+- Branch is based on the active `Beta-1 Stable Micro Build` release line.
+- Working tree is clean or unrelated changes are understood and recorded.
+- Beta production capture smoke uses `M3_APP_MODE=production`,
+  `M3_CAPTURE_EXTRACTION_PROVIDER=deepseek`, `DEEPSEEK_API_KEY`, and explicit
+  `M3_CAPTURE_EXTRACTION_MODEL` for non-10Q extraction.
+- `M3_CAPTURE_EXTRACTION_PROVIDER=openai` remains an explicit compatibility
+  option, not the beta production default.
+- Local `ml` mode may be used for deterministic `/10q` and safe unavailable
+  provider failure checks; it does not prove non-10Q production extraction.
+- Default transcription provider is `whisper`; local smoke uses
+  `.venv/bin/whisper` unless `M3_WHISPER_COMMAND` overrides it.
 - Whisper command, model, and language values are known to the operator.
-- `OPENAI_API_KEY` and explicit `M3_CAPTURE_EXTRACTION_MODEL` are configured.
 - Raw audio retention remains disabled; media is temporary-only.
-- Test user is approved in the userlist.
+- Test user is approved in `data/userlist/users.json`.
 
 ## Commands
 
@@ -22,7 +30,11 @@ make release-audio-check
 ```
 
 If `make check-whisper` fails, run `make venv` or set `M3_WHISPER_COMMAND` to a
-valid command before inviting alpha users.
+valid command before live beta smoke.
+
+For live beta smoke, run the bot through the beta workflow in
+`docs/workflows/beta-production-rm.md` so Docker config, provider config, and
+operator evidence are checked together.
 
 ## Containment Regression Matrix
 
@@ -31,6 +43,7 @@ valid command before inviting alpha users.
 | idle text | stays idle; returns `/start` guidance | none | no `LoopSession`, download, transcription, or transcript |
 | idle voice/audio/document | stays idle; same `/start` guidance | none | no download, transcription, `LoopSession`, or transcript |
 | idle `/start` or `/10q` | idle -> `classic_10q` | classic runtime session only | no pre-draft state |
+| active flow then another capture command | active flow remains active; asks for `/cancel` before switching | unchanged current session or flow | no discarded work, mode switch, or episode |
 | idle `/1t` then text | `one_take_text` -> extraction -> review | CaptureArtifact, CaptureExtraction, review session | no gap questions or episode before Save |
 | idle `/3b` then three answers | `three_block` -> extraction -> review | restart-safe pre-draft state, CaptureArtifact, CaptureExtraction, review | no gap questions or invented evidence |
 | classic 10Q text answer | remains `classic_10q`; advances current question | updated classic runtime session | no audio state or transcript |
@@ -42,12 +55,42 @@ valid command before inviting alpha users.
 | continue transcript | confirmation -> extraction -> review | CaptureArtifact, CaptureExtraction, review linked to transcript | no episode before final Save |
 | extraction failure | flow -> idle with safe restart message | CaptureArtifact plus failed CaptureExtraction | no draft, review, fallback, or episode |
 | final Save | review -> idle | observed Episode plus extraction and transcript backlinks | no raw-audio archive |
+| review Cancel | review -> idle | extraction sidecar remains inspectable | no observed Episode |
 | `/cancel` from classic | `classic_10q` -> idle | classic runtime state removed | no audio state created |
 | `/cancel` from audio | `one_take_audio` -> idle | capture flow state removed | existing transcript, if any, remains; no episode |
+| `/status` during active flow | flow state unchanged; current progress is reported | none | no session/flow mutation |
 | `/help` during either flow | flow state unchanged; current help copy | none | no session/flow mutation |
 | `/profile` during either flow | flow state unchanged; current report behavior | none | no session/flow mutation |
 
 Hidden `/capture`, `/capture3`, `/voice`, and `/1v` remain compatibility routes.
+
+## Evidence Record
+
+Record count-only before and after values. Do not copy raw content into release
+notes.
+
+| Artifact | Before | After | Expected check |
+|---|---:|---:|---|
+| observed episodes |  |  | Save increments only after schema-valid final confirmation |
+| runtime sessions |  |  | active classic sessions clear after Save, Cancel, or completion |
+| runtime flows |  |  | active capture flows clear after failure, Save, Cancel, or rejection |
+| intake transcripts |  |  | `/1a` accepted media creates transcript source artifacts |
+| capture artifacts |  |  | non-10Q Continue or text/block capture creates source artifacts |
+| capture extractions |  |  | success and failure sidecars are inspectable |
+| retained raw audio files |  |  | remains zero unless an explicit retention policy is enabled |
+| UX events |  |  | funnel and user dropoff are visible without raw content |
+
+For production smoke, record the provider and model names as configuration
+evidence:
+
+```text
+M3_APP_MODE=production
+M3_CAPTURE_EXTRACTION_PROVIDER=deepseek
+M3_CAPTURE_EXTRACTION_MODEL=<operator-selected-model>
+```
+
+Do not record API keys, raw user text, transcripts, or episode content in the
+evidence record.
 
 ## Event And Lifecycle Expectations
 
@@ -81,15 +124,22 @@ transcription_pending
 Validation, download, transcription, or transcript-storage failure leaves
 `one_take_audio` armed for an explicit retry or `/cancel`.
 
+Non-10Q schema extraction success or failure must be visible through
+CaptureExtraction sidecars. Provider absence, missing credentials, timeout,
+empty output, invalid JSON, and schema failure are safe failures: no draft,
+review, fallback, or episode is created.
+
 ## Release Notes
 
 Use honest wording:
 
 ```text
-Audio input is enabled for short voice/audio notes. Audio is transcribed first
-and stored as a private IntakeTranscript. The complete transcript must be
-accepted before grounded schema extraction, and the extracted draft must be
-saved before an episode exists. Raw audio is temporary-only by default.
+The beta capture tools are `/10q`, `/1t`, `/3b`, and `/1a`. Text and audio
+captures create private source artifacts before extraction. Audio is
+transcribed first and stored as a private IntakeTranscript. The complete
+transcript must be accepted before grounded schema extraction, and the extracted
+draft must be saved before an episode exists. Raw audio is temporary-only by
+default.
 ```
 
 Do not claim:
@@ -99,10 +149,13 @@ long-form transcription
 voice emotion detection
 raw audio archive
 clinical interpretation
+automatic capture from idle text
+new input modes
 ```
 
 ## Readiness Note
 
-Audio alpha is releasable only after this manual smoke passes. Rollback does not
-require an episode schema migration or raw-audio deletion because this flow does
-not change the episode schema and raw audio is temporary-only by default.
+Beta capture is releasable only after this manual smoke passes in Docker/live
+bot conditions with configured production extraction. Rollback does not require
+an episode schema migration or raw-audio deletion because these flows do not
+change the episode schema and raw audio is temporary-only by default.

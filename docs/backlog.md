@@ -409,7 +409,7 @@ Acceptance:
 
 ## Now
 
-### Beta-1 Fresh Analytics Loop
+### Beta-1 Stable Micro Build
 
 Status: active release-milestone backlog.
 
@@ -420,14 +420,22 @@ docs/backlog/beta-production-rm.md
 ```
 
 Intent: prepare beta production around the existing capture tools and the
-repeatable analytics loop:
+repeatable stable micro-build loop:
 
 ```text
-stable capture -> schema transport -> fresh annotation-run -> payload -> interpreted report
+/10q /3b /1t /1a -> schema-valid episode -> annotation-run refresh -> hydrated graph -> basic map export -> short report -> long report -> UX/admin stats
 ```
 
 Scope:
 
+- RM-00 roadmap source-of-truth alignment;
+- RM-01 runtime mode and DeepSeek provider implementation;
+- RM-02 operator analytics commands;
+- RM-03 capture smoke to beta standard;
+- RM-04 fresh annotation-run;
+- RM-05 payload, map, short-report, and long-report QA;
+- RM-06 brand text rewrite inventory;
+- RM-07 tutorial script;
 - sturdy existing input flows;
 - input-to-schema transport;
 - episode-to-graph refresh role/workflow;
@@ -436,7 +444,8 @@ Scope:
 - beta release-management workflow.
 
 No new input modes, episode schema changes, or model promotions are implied by
-this backlog.
+this backlog. DeepSeek runtime support is implemented for non-10Q production
+capture extraction; OpenAI remains explicit compatibility.
 
 ### Add Set Signature / Co-signature
 

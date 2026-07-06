@@ -104,6 +104,29 @@ def test_map_payload_exports_do_not_use_report_directory():
         assert "data/reports/" + "map-payload" not in text, path.relative_to(ROOT).as_posix()
 
 
+def test_beta_capture_smoke_doc_uses_current_provider_policy():
+    text = (ROOT / "docs" / "workflows" / "audio-input-smoke.md").read_text(
+        encoding="utf-8"
+    )
+
+    for required in (
+        "M3_APP_MODE=production",
+        "M3_CAPTURE_EXTRACTION_PROVIDER=deepseek",
+        "DEEPSEEK_API_KEY",
+        "M3_CAPTURE_EXTRACTION_MODEL",
+        "M3_CAPTURE_EXTRACTION_PROVIDER=openai",
+        "count-only",
+        "UX events",
+        "/status",
+    ):
+        assert required in text
+
+    assert "epic/input-funnel-alpha" not in text
+    assert "OPENAI_API_KEY" not in text
+    assert "alpha users" not in text
+    assert "Audio alpha is releasable" not in text
+
+
 def test_external_methodology_first_drafts_are_listed():
     readme = (ROOT / "docs" / "external-methodology" / "README.md").read_text(
         encoding="utf-8"
