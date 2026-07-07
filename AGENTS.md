@@ -24,6 +24,10 @@ The active engine is JSON:
 - `data/intake-transcripts/` stores private durable `IntakeTranscript` source
   artifacts created by explicit audio intake.
 - `data/ux-events/*.jsonl` stores private runtime UX event records.
+- `data/journal/*.jsonl` stores private process journal events for operator
+  observability.
+- `data/capture-debug/` stores private provider/debug sidecars for capture
+  extraction attempts.
 - `data/exports/map-payload/` stores explicit tracked map payload JSON/HTML exports.
 - `data/reports/` stores optional private debug/export snapshots only.
 - `config/tone.yaml` configures user-facing loop tone.
@@ -86,6 +90,8 @@ project.manifest.yaml -- structural source of truth
   exports and may contain derived private data.
 - Episode JSON artifacts belong under `data/episodes/` and are not committed.
 - UX event logs belong under `data/ux-events/` and are not committed.
+- Process journal logs belong under `data/journal/` and are not committed.
+- Capture debug sidecars belong under `data/capture-debug/` and are not committed.
 - Runtime flow state belongs under `data/runtime-flows/` and is not committed.
 - Audio intake must remain explicit: `/1a` arms `one_take_audio`, successful
   media creates an `IntakeTranscript`, and the complete transcript requires

@@ -22,6 +22,7 @@ class Settings:
     runtime_flow_dir: Path
     userlist_path: Path
     ux_event_log: Path
+    journal_log: Path
     annotation_run_dir: Path | None
     annotation_run_root: Path
     report_min_count: int
@@ -32,6 +33,8 @@ class Settings:
     intake_transcript_dir: Path
     capture_artifact_dir: Path
     capture_extraction_dir: Path
+    capture_debug_dir: Path
+    capture_debug_raw_provider_output: bool
     capture_extraction_provider: str
     openai_api_key: str
     deepseek_api_key: str
@@ -59,6 +62,17 @@ def parse_optional_chat_id(value: str | None) -> int | None:
     if value is None or not value.strip():
         return None
     return int(value.strip())
+
+
+def parse_bool(value: str | None, *, default: bool = False) -> bool:
+    if value is None or not value.strip():
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError("boolean values must be one of: 1, 0, true, false, yes, no, on, off")
 
 
 def admin_chat_ids_for_settings(settings: Settings) -> frozenset[int]:
@@ -108,6 +122,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         ),
         userlist_path=Path(source.get("M3_USERLIST_PATH", "data/userlist/users.json")),
         ux_event_log=Path(source.get("M3_UX_EVENT_LOG", "data/ux-events/events.jsonl")),
+        journal_log=Path(source.get("M3_JOURNAL_LOG", "data/journal/events.jsonl")),
         annotation_run_dir=(
             Path(source["M3_ANNOTATION_RUN_DIR"])
             if source.get("M3_ANNOTATION_RUN_DIR", "").strip()
@@ -127,6 +142,11 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         ),
         capture_extraction_dir=Path(
             source.get("M3_CAPTURE_EXTRACTION_DIR", "data/capture-extractions")
+        ),
+        capture_debug_dir=Path(source.get("M3_CAPTURE_DEBUG_DIR", "data/capture-debug")),
+        capture_debug_raw_provider_output=parse_bool(
+            source.get("M3_CAPTURE_DEBUG_RAW_PROVIDER_OUTPUT"),
+            default=False,
         ),
         capture_extraction_provider=capture_extraction_provider,
         openai_api_key=source.get("OPENAI_API_KEY", "").strip(),

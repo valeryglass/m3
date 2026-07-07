@@ -133,16 +133,19 @@ modules:
     purpose: Project source-grounded capture evidence into schema-complete EpisodeDrafts.
     owned_paths:
       - app/capture_extraction.py
+      - app/capture_debug.py
       - app/capture_provider.py
       - app/deepseek_capture_extractor.py
       - app/openai_capture_extractor.py
       - docs/modules/capture-extraction.md
       - data/capture-extractions/
+      - data/capture-debug/
     inputs:
       - private CaptureArtifact JSON
       - explicit extraction provider configuration
     outputs:
       - private CaptureExtraction sidecars
+      - private capture debug sidecars
       - schema-complete EpisodeDrafts
       - typed safe failure codes
     interfaces:
@@ -154,6 +157,7 @@ modules:
       - strict_structured_output_extraction
       - source_quote_grounding
       - typed_extraction_failures
+      - private_provider_debug_sidecars
 
 
   intake_transcripts:
@@ -420,6 +424,25 @@ modules:
       - append_only_event_log
       - funnel_summary
       - saved_ux_reports
+
+  process_journal:
+    stage: prototype
+    enabled: true
+    purpose: Record private repo-level process events for operator observability.
+    owned_paths:
+      - app/journal.py
+      - docs/modules/process-journal.md
+      - data/journal/
+    inputs:
+      - safe process metadata
+      - artifact ids and paths
+      - aggregate counts and failure codes
+    outputs:
+      - private append-only process journal JSONL
+    capabilities:
+      - append_only_process_journal
+      - private_safe_event_metadata
+      - best_effort_journal_writes
 
   userlist_access:
     stage: prototype

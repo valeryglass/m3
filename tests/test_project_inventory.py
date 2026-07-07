@@ -150,6 +150,18 @@ def test_env_example_matches_current_runtime_config_keys():
     assert "Use only with M3_CAPTURE_EXTRACTION_PROVIDER=openai" in example_text
 
 
+def test_capture_debug_directory_is_private_with_gitkeep():
+    gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+    manifest = load_manifest()
+    owned = set(manifest["modules"]["capture_extraction"]["owned_paths"])
+
+    assert "data/capture-debug/**" in gitignore
+    assert "!data/capture-debug/.gitkeep" in gitignore
+    assert (ROOT / "data" / "capture-debug" / ".gitkeep").is_file()
+    assert "data/capture-debug/" in owned
+    assert "app/capture_debug.py" in owned
+
+
 def test_external_methodology_first_drafts_are_listed():
     readme = (ROOT / "docs" / "external-methodology" / "README.md").read_text(
         encoding="utf-8"

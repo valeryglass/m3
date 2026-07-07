@@ -5,6 +5,7 @@ from app.config import (
     load_settings,
     owner_chat_id_for_settings,
     parse_chat_ids,
+    parse_bool,
 )
 
 
@@ -24,6 +25,7 @@ def test_load_settings_uses_default_data_paths():
     assert str(settings.runtime_flow_dir) == "data/runtime-flows"
     assert str(settings.userlist_path) == "data/userlist/users.json"
     assert str(settings.ux_event_log) == "data/ux-events/events.jsonl"
+    assert str(settings.journal_log) == "data/journal/events.jsonl"
     assert settings.annotation_run_dir is None
     assert str(settings.annotation_run_root) == "data/annotation-runs"
     assert settings.report_min_count == 2
@@ -34,6 +36,8 @@ def test_load_settings_uses_default_data_paths():
     assert str(settings.intake_transcript_dir) == "data/intake-transcripts"
     assert str(settings.capture_artifact_dir) == "data/capture-artifacts"
     assert str(settings.capture_extraction_dir) == "data/capture-extractions"
+    assert str(settings.capture_debug_dir) == "data/capture-debug"
+    assert settings.capture_debug_raw_provider_output is False
     assert settings.capture_extraction_provider == "unavailable"
     assert settings.openai_api_key == ""
     assert settings.deepseek_api_key == ""
@@ -64,6 +68,7 @@ def test_load_settings_allows_overrides():
         {
             "TELEGRAM_BOT_TOKEN": "token",
             "M3_UX_EVENT_LOG": "/tmp/events.jsonl",
+            "M3_JOURNAL_LOG": "/tmp/journal.jsonl",
             "M3_RUNTIME_SESSION_DIR": "/tmp/runtime-sessions",
             "M3_RUNTIME_FLOW_DIR": "/tmp/runtime-flows",
             "M3_UX_IDLE_AFTER_SEC": "60",
@@ -80,6 +85,8 @@ def test_load_settings_allows_overrides():
             "M3_INTAKE_TRANSCRIPT_DIR": "/tmp/transcripts",
             "M3_CAPTURE_ARTIFACT_DIR": "/tmp/captures",
             "M3_CAPTURE_EXTRACTION_DIR": "/tmp/extractions",
+            "M3_CAPTURE_DEBUG_DIR": "/tmp/capture-debug",
+            "M3_CAPTURE_DEBUG_RAW_PROVIDER_OUTPUT": "1",
             "M3_CAPTURE_EXTRACTION_PROVIDER": "deepseek",
             "OPENAI_API_KEY": "test-key",
             "DEEPSEEK_API_KEY": "deepseek-key",
@@ -95,6 +102,7 @@ def test_load_settings_allows_overrides():
     )
 
     assert str(settings.ux_event_log) == "/tmp/events.jsonl"
+    assert str(settings.journal_log) == "/tmp/journal.jsonl"
     assert str(settings.runtime_session_dir) == "/tmp/runtime-sessions"
     assert str(settings.runtime_flow_dir) == "/tmp/runtime-flows"
     assert settings.ux_idle_after_sec == 60
@@ -111,6 +119,8 @@ def test_load_settings_allows_overrides():
     assert str(settings.intake_transcript_dir) == "/tmp/transcripts"
     assert str(settings.capture_artifact_dir) == "/tmp/captures"
     assert str(settings.capture_extraction_dir) == "/tmp/extractions"
+    assert str(settings.capture_debug_dir) == "/tmp/capture-debug"
+    assert settings.capture_debug_raw_provider_output is True
     assert settings.capture_extraction_provider == "deepseek"
     assert settings.openai_api_key == "test-key"
     assert settings.deepseek_api_key == "deepseek-key"
@@ -179,3 +189,14 @@ def test_invalid_runtime_mode_and_provider_are_rejected():
                 "M3_CAPTURE_EXTRACTION_PROVIDER": "unknown",
             }
         )
+
+
+def test_parse_bool_accepts_runtime_env_forms():
+    assert parse_bool("1") is True
+    assert parse_bool("true") is True
+    assert parse_bool("on") is True
+    assert parse_bool("0") is False
+    assert parse_bool("false") is False
+    assert parse_bool("", default=True) is True
+    with pytest.raises(ValueError, match="boolean values"):
+        parse_bool("maybe")
