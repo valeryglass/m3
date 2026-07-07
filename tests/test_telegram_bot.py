@@ -875,7 +875,7 @@ def test_one_take_text_extracts_directly_to_review(tmp_path):
     }
 
 
-def test_one_take_extraction_failure_creates_no_review_or_episode(tmp_path):
+def test_one_take_extraction_failure_starts_partial_gap_session(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     review_store = DraftReviewSessionStore(
         tmp_path / "runtime-sessions", loop_session_store=session_store
@@ -907,12 +907,29 @@ def test_one_take_extraction_failure_creates_no_review_or_episode(tmp_path):
         )
     )
 
-    assert session_store.load_session(123) is None
+    session = session_store.load_session(123)
+    assert session is not None
+    assert session.flow_mode == "one_take_text"
+    assert session.capture_funnel == "one_take_text"
+    assert session.capture_id is not None
+    assert session.extraction_id is not None
+    assert session.observed == {
+        "situation": {
+            "value": private_text,
+            "source_quote": private_text,
+        }
+    }
     assert review_store.load_session(123) is None
     assert capture_flow_store.load_flow(123) is None
     assert len(list(settings.capture_artifact_dir.rglob("*.json"))) == 1
     assert len(list(settings.capture_extraction_dir.rglob("*.json"))) == 1
-    assert message.replies == [telegram_bot._capture_extraction_failed_text()]
+    assert message.replies == [
+        ToneEngine.default().next_prompt_bridge(
+            1,
+            len(TARGETS),
+            ToneEngine.default().target_prompt("trigger"),
+        )
+    ]
     assert private_text not in json.dumps(ux_events.read(), ensure_ascii=False)
 
 
@@ -1539,6 +1556,7 @@ def test_transcribed_voice_artifact_extracts_directly_to_review(tmp_path):
     _run(
         telegram_bot._extract_capture_to_review(
             _fake_update(123, message),
+            session_store,
             review_store,
             ux_events,
             ToneEngine.default(),

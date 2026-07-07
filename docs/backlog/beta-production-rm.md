@@ -155,6 +155,45 @@ Acceptance:
   and report/map limits;
 - tutorial remains release artifact, not runtime dependency.
 
+## RM-08 Capture Extraction Debug Visibility
+
+Status: implemented.
+
+Goal: make failed `/1t`, `/3b`, and `/1a` extraction attempts diagnosable
+without creating drafts or episodes from invalid output.
+
+Acceptance:
+
+- private debug sidecars under `data/capture-debug/` show provider response
+  presence, response length, JSON parse state, top-level keys, validation error
+  paths, parsed field names, missing required fields, and grounding failure
+  codes;
+- raw provider output is owner-toggle only and remains private ignored debug
+  material;
+- process journal events include only safe debug summaries;
+- existing `CaptureExtraction` success/failure sidecars and no-episode failure
+  behavior remain unchanged.
+
+## RM-09 Partial Draft Fallback For Non-10Q Capture
+
+Status: implemented.
+
+Goal: remove the beta product mismatch where `/1t` and `/3b` save source
+material but extraction failure blocks draft review before missing-field
+questions.
+
+Acceptance:
+
+- grounded parseable fields from `/1t`, `/3b`, and `/1a` can start a partial
+  draft/gap session;
+- provider failure or partial output can continue into missing-field questions
+  using the original capture artifact as safe fallback context;
+- final Save remains blocked until the observed episode is schema-valid;
+- failed extraction sidecars remain failed and preserve provider/model/prompt
+  provenance for diagnosis;
+- no raw provider output, raw transcript text, or unsupported inference enters
+  episode JSON.
+
 ## Supporting Epic: Input-To-Schema Transport Tool
 
 Goal: make user input reliably become schema-valid episode drafts.

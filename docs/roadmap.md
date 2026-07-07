@@ -33,8 +33,8 @@ Containment decisions supersede earlier automatic-capture experiments:
 - idle text and media return `/start` guidance.
 - commands do not replace active work without `/cancel`.
 - audio enters the Episode Draft path only after full transcript confirmation.
-- non-10Q extraction failure creates no draft or review and never falls back to
-  10Q or Gap Hydration.
+- non-10Q extraction failure creates no episode, but may continue into a partial
+  draft/gap session from grounded fields or original capture context.
 - episode schema, annotation runs, graph reports, and map payload behavior are
   intentionally unchanged.
 
@@ -66,6 +66,18 @@ RM order:
 - RM-05: QA payload, map, short report, and long report. Status: implemented.
 - RM-06: inventory and rewrite brand text.
 - RM-07: prepare tutorial script.
+- RM-08: add capture extraction debug visibility. Status: implemented.
+- RM-09: allow partial non-10Q drafts to continue into missing-field questions.
+  Status: implemented.
+
+Current beta capture finding:
+
+- `/1t`, `/3b`, and `/1a` save `CaptureArtifact` source material before
+  extraction;
+- extraction failure still blocks immediate final review, but usable partial
+  fields or original capture context now continue into gap questions;
+- final review and Save remain blocked until the observed episode is
+  schema-valid.
 
 Current runtime truth: non-10Q production capture extraction defaults to
 DeepSeek through owner-controlled runtime mode/provider settings. OpenAI

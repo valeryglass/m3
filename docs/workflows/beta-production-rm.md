@@ -57,6 +57,13 @@ Run `docs/workflows/audio-input-smoke.md` completely:
 - `/cancel`, `/status`, `/help`, and `/profile` during active work;
 - `/profile` summary and inline details after analytics are ready.
 
+Current RM-08/RM-09 note: capture artifacts are expected to exist even when
+non-10Q extraction fails. Failed extraction should keep its failed
+`CaptureExtraction` sidecar, write private `data/capture-debug/` evidence when
+available, and continue into a missing-field gap session when safe partial
+context exists. Record a blocker only when the bot dead-ends without review,
+gap session, or explicit failure evidence.
+
 Complete the smoke evidence record with count-only before/after checks for:
 
 - episodes;
@@ -65,6 +72,7 @@ Complete the smoke evidence record with count-only before/after checks for:
 - intake transcripts;
 - capture artifacts;
 - capture extractions;
+- capture debug sidecars;
 - retained raw audio files;
 - UX events.
 

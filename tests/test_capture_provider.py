@@ -1,8 +1,10 @@
+import json
 from types import SimpleNamespace
 
 from app.capture_extraction import UnavailableCaptureExtractionProvider
 from app.capture_provider import capture_extraction_provider_for_settings
 from app.deepseek_capture_extractor import DeepSeekCaptureExtractionProvider
+from app.journal import JournalLog
 from app.openai_capture_extractor import OpenAICaptureExtractionProvider
 
 
@@ -12,6 +14,8 @@ def _settings(**overrides):
         "capture_extraction_model": "",
         "deepseek_api_key": "",
         "deepseek_base_url": "https://api.deepseek.com",
+        "capture_debug_dir": None,
+        "capture_debug_raw_provider_output": False,
         "openai_api_key": "",
     }
     values.update(overrides)
@@ -48,6 +52,8 @@ def test_deepseek_provider_is_selected_when_configured(monkeypatch):
         "api_key": "key",
         "model": "deepseek-v4-flash",
         "base_url": "https://deepseek.test",
+        "capture_debug_dir": None,
+        "capture_debug_raw_provider_output": False,
     }
 
 
@@ -73,6 +79,24 @@ def test_missing_deepseek_model_returns_unavailable_provider():
 
     assert isinstance(provider, UnavailableCaptureExtractionProvider)
     assert provider.model == "deepseek-unconfigured"
+
+
+def test_missing_deepseek_config_writes_provider_journal(tmp_path):
+    journal_path = tmp_path / "journal.jsonl"
+
+    provider = capture_extraction_provider_for_settings(
+        _settings(
+            capture_extraction_provider="deepseek",
+            capture_extraction_model="deepseek-v4-flash",
+        ),
+        journal_log=JournalLog(journal_path),
+    )
+
+    assert isinstance(provider, UnavailableCaptureExtractionProvider)
+    event = json.loads(journal_path.read_text(encoding="utf-8"))
+    assert event["event_type"] == "capture_provider.unavailable"
+    assert event["reason"] == "missing_key_or_model"
+    assert event["details"]["provider"] == "deepseek"
 
 
 def test_openai_provider_remains_available_when_configured(monkeypatch):

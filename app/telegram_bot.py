@@ -56,12 +56,15 @@ from app.intake_transcripts import (
     load_intake_transcript,
     save_intake_transcript,
 )
+from app.journal import DEFAULT_JOURNAL_LOG, JournalLog
 from app.loop_extractor import (
     active_target,
     apply_user_reply,
     completed_draft_field_count,
     completed_observed_count,
+    is_draft_complete,
     new_session,
+    new_session_from_draft,
     prompt_for_current_target,
     status_text,
     target_fields,
@@ -487,7 +490,10 @@ def _transcription_provider_for_settings(settings):
 
 
 def _capture_extraction_provider_for_settings(settings):
-    return capture_extraction_provider_for_settings(settings)
+    return capture_extraction_provider_for_settings(
+        settings,
+        journal_log=JournalLog(getattr(settings, "journal_log", DEFAULT_JOURNAL_LOG)),
+    )
 
 
 def target_fields_for_review() -> tuple[str, ...]:
@@ -897,6 +903,7 @@ async def _handle_capture_mode_command_after_authorized(
 
 async def _extract_capture_to_review(
     update,
+    session_store: LoopSessionStore,
     review_store: DraftReviewSessionStore,
     ux_events: UxEventLog,
     tone,
@@ -952,6 +959,8 @@ async def _extract_capture_to_review(
             "capture_extraction_dir",
             review_store.review_dir.parent / "capture-extractions",
         ),
+        journal_log=JournalLog(getattr(settings, "journal_log", DEFAULT_JOURNAL_LOG)),
+        allow_partial_draft=True,
     )
     if outcome.draft is None:
         ux_events.append(
@@ -966,6 +975,47 @@ async def _extract_capture_to_review(
             )
         )
         await _reply_text(update, _capture_extraction_failed_text(), parse_mode=None)
+        return
+    if outcome.partial and not is_draft_complete(
+        new_session_from_draft(chat_id, outcome.draft, flow_mode=mode)
+    ):
+        session = new_session_from_draft(
+            chat_id,
+            outcome.draft,
+            session_id=new_session_id(str(chat_id), now),
+            episode_date=_episode_date_for_now(now),
+            flow_mode=mode,
+            capture_funnel=mode,
+            media_kind=media_kind,
+            intake_transcript_path=intake_transcript_path,
+            capture_id=artifact.capture_id,
+            capture_artifact_path=str(artifact_path),
+            extraction_id=outcome.extraction.extraction_id,
+            extraction_path=str(outcome.path),
+        )
+        session_store.save_session(session)
+        ux_events.append(
+            base_event(
+                "draft_created",
+                session.session_id,
+                str(chat_id),
+                created_at=utc_now(),
+                funnel=mode,
+                media_kind=media_kind,
+                draft_fields=len(session.observed),
+                failure_code=outcome.extraction.failure_code,
+            )
+        )
+        _log_step_prompted(ux_events, session, str(chat_id), now=now)
+        await _reply_text(
+            update,
+            tone.next_prompt_bridge(
+                completed_observed_count(session),
+                len(target_fields(session)),
+                prompt_for_current_target(session, tone),
+            ),
+            parse_mode=None,
+        )
         return
     review = review_session_from_extraction(
         chat_id=chat_id,
@@ -999,15 +1049,34 @@ async def _extract_capture_to_review(
     )
 
 
-async def _run_capture_extraction_in_worker(artifact, provider, output_root):
+async def _run_capture_extraction_in_worker(
+    artifact,
+    provider,
+    output_root,
+    *,
+    journal_log=None,
+    allow_partial_draft=False,
+):
     if getattr(provider, "_m3_run_inline_for_tests", False):
-        return run_capture_extraction(artifact, provider, output_root)
+        return run_capture_extraction(
+            artifact,
+            provider,
+            output_root,
+            journal_log=journal_log,
+            allow_partial_draft=allow_partial_draft,
+        )
     loop = asyncio.get_running_loop()
     future = loop.create_future()
 
     def worker() -> None:
         try:
-            result = run_capture_extraction(artifact, provider, output_root)
+            result = run_capture_extraction(
+                artifact,
+                provider,
+                output_root,
+                journal_log=journal_log,
+                allow_partial_draft=allow_partial_draft,
+            )
         except BaseException as exc:  # pragma: no cover - surfaced by handler
             loop.call_soon_threadsafe(future.set_exception, exc)
         else:
@@ -1081,6 +1150,7 @@ async def _handle_capture_after_authorized(
     )
     await _extract_capture_to_review(
         update,
+        session_store,
         review_store,
         ux_events,
         tone,
@@ -1155,6 +1225,7 @@ async def _handle_capture3_after_authorized(
     )
     await _extract_capture_to_review(
         update,
+        session_store,
         review_store,
         ux_events,
         tone,
@@ -1432,6 +1503,7 @@ async def _handle_message_after_authorized(
         audio_flow_store.delete_flow(chat_id)
         await _extract_capture_to_review(
             update,
+            session_store,
             review_store,
             ux_events,
             tone,
@@ -1463,6 +1535,7 @@ async def _handle_message_after_authorized(
         audio_flow_store.delete_flow(chat_id)
         await _extract_capture_to_review(
             update,
+            session_store,
             review_store,
             ux_events,
             tone,
@@ -1571,48 +1644,71 @@ async def _handle_message_after_authorized(
         )
     )
     if result.should_save:
-        artifact = build_capture_artifact(
-            chat_id=chat_id,
-            mode="classic_10q",
-            media_kind="text",
-            pieces=tuple(
-                (field, session.observed[field]["value"])
-                for field in target_fields(session)
-                if session.observed.get(field) is not None
-            ),
-            created_at=now,
-            message_id=getattr(update.message, "message_id", None),
-            source_metadata={"message_kind": "text"},
-        )
-        artifact_path = save_capture_artifact(
-            getattr(
-                settings,
-                "capture_artifact_dir",
-                review_store.review_dir.parent / "capture-artifacts",
-            ),
-            artifact,
-        )
-        outcome = project_classic_10q(
-            artifact,
-            getattr(
-                settings,
-                "capture_extraction_dir",
-                review_store.review_dir.parent / "capture-extractions",
-            ),
-            created_at=now,
-        )
-        review = review_session_from_extraction(
-            chat_id=chat_id,
-            mode="classic_10q",
-            observed=outcome.draft.observed,
-            episode_date=session.episode_date,
-            now=now,
-            capture_id=artifact.capture_id,
-            capture_artifact_path=artifact_path,
-            extraction_id=outcome.extraction.extraction_id,
-            extraction_path=outcome.path,
-            media_kind="text",
-        )
+        if (
+            session.capture_id
+            and session.capture_artifact_path
+            and session.extraction_id
+            and session.extraction_path
+        ):
+            review = review_session_from_extraction(
+                chat_id=chat_id,
+                mode=session.flow_mode,
+                observed=session.observed,
+                episode_date=session.episode_date,
+                now=now,
+                capture_id=session.capture_id,
+                capture_artifact_path=Path(session.capture_artifact_path),
+                extraction_id=session.extraction_id,
+                extraction_path=Path(session.extraction_path),
+                intake_transcript_path=session.intake_transcript_path,
+                media_kind=session.media_kind or "text",
+            )
+        else:
+            artifact = build_capture_artifact(
+                chat_id=chat_id,
+                mode="classic_10q",
+                media_kind="text",
+                pieces=tuple(
+                    (field, session.observed[field]["value"])
+                    for field in target_fields(session)
+                    if session.observed.get(field) is not None
+                ),
+                created_at=now,
+                message_id=getattr(update.message, "message_id", None),
+                source_metadata={"message_kind": "text"},
+            )
+            artifact_path = save_capture_artifact(
+                getattr(
+                    settings,
+                    "capture_artifact_dir",
+                    review_store.review_dir.parent / "capture-artifacts",
+                ),
+                artifact,
+            )
+            outcome = project_classic_10q(
+                artifact,
+                getattr(
+                    settings,
+                    "capture_extraction_dir",
+                    review_store.review_dir.parent / "capture-extractions",
+                ),
+                created_at=now,
+                journal_log=JournalLog(
+                    getattr(settings, "journal_log", DEFAULT_JOURNAL_LOG)
+                ),
+            )
+            review = review_session_from_extraction(
+                chat_id=chat_id,
+                mode="classic_10q",
+                observed=outcome.draft.observed,
+                episode_date=session.episode_date,
+                now=now,
+                capture_id=artifact.capture_id,
+                capture_artifact_path=artifact_path,
+                extraction_id=outcome.extraction.extraction_id,
+                extraction_path=outcome.path,
+                media_kind="text",
+            )
         review_store.save_session(review)
         session_store.delete_session(chat_id)
         await _reply_text(
@@ -1810,6 +1906,7 @@ async def _handle_transcript_callback_after_authorized(
     )
     await _extract_capture_to_review(
         update,
+        session_store,
         review_store,
         ux_events,
         tone,

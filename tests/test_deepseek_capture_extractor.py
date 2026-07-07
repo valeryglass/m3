@@ -53,7 +53,7 @@ class _ChatCompletions:
         return self.response
 
 
-def _provider(response=None, error=None):
+def _provider(response=None, error=None, *, capture_debug_dir=None, raw_debug=False):
     completions = _ChatCompletions(response, error)
     client = SimpleNamespace(
         chat=SimpleNamespace(completions=completions),
@@ -64,6 +64,8 @@ def _provider(response=None, error=None):
             model="deepseek-v4-flash",
             base_url="https://deepseek.test",
             client=client,
+            capture_debug_dir=capture_debug_dir,
+            capture_debug_raw_provider_output=raw_debug,
         ),
         completions,
     )
@@ -92,6 +94,21 @@ def test_deepseek_adapter_uses_chat_json_mode_and_disables_thinking():
     assert completions.kwargs["max_tokens"] >= 1000
 
 
+def test_deepseek_adapter_writes_success_debug_sidecar(tmp_path):
+    provider, _ = _provider(
+        _response(json.dumps(_payload())),
+        capture_debug_dir=tmp_path,
+    )
+
+    provider.extract(_artifact())
+
+    debug = _read_debug(tmp_path)
+    assert debug["parser_stage"] == "parsed"
+    assert debug["json_parse_ok"] is True
+    assert debug["response_chars"] > 0
+    assert "raw_provider_output" not in debug
+
+
 @pytest.mark.parametrize(
     ("response", "code"),
     [
@@ -105,6 +122,79 @@ def test_deepseek_adapter_maps_response_failures(response, code):
     with pytest.raises(CaptureExtractionError) as exc:
         provider.extract(_artifact())
     assert exc.value.code == code
+
+
+def test_deepseek_adapter_debug_records_malformed_json(tmp_path):
+    provider, _ = _provider(_response("{"), capture_debug_dir=tmp_path)
+
+    with pytest.raises(CaptureExtractionError) as exc:
+        provider.extract(_artifact())
+
+    debug = _read_debug(tmp_path)
+    assert exc.value.code == "invalid_schema"
+    assert debug["failure_code"] == "invalid_schema"
+    assert debug["parser_stage"] == "json_parse"
+    assert debug["response_chars"] == 1
+
+
+def test_deepseek_adapter_debug_records_schema_mismatch(tmp_path):
+    provider, _ = _provider(
+        _response(json.dumps({"situation": {"value": "x"}})),
+        capture_debug_dir=tmp_path,
+    )
+
+    with pytest.raises(CaptureExtractionError) as exc:
+        provider.extract(_artifact())
+
+    debug = _read_debug(tmp_path)
+    assert exc.value.code == "invalid_schema"
+    assert debug["parser_stage"] == "schema_validation"
+    assert debug["validation_error_count"] > 0
+
+
+def test_deepseek_adapter_schema_mismatch_carries_partial_fields(tmp_path):
+    payload = _payload()
+    payload["physical"] = {"value": "tense"}
+    provider, _ = _provider(
+        _response(json.dumps(payload)),
+        capture_debug_dir=tmp_path,
+    )
+
+    with pytest.raises(CaptureExtractionError) as exc:
+        provider.extract(_artifact())
+
+    assert exc.value.code == "invalid_schema"
+    assert exc.value.partial_result is not None
+    assert "situation" in exc.value.partial_result.observed
+    assert "physical" not in exc.value.partial_result.observed
+    assert exc.value.partial_result.rejected_fields == {"physical": "invalid_schema"}
+
+
+def test_deepseek_adapter_debug_records_missing_output(tmp_path):
+    provider, _ = _provider(_response(""), capture_debug_dir=tmp_path)
+
+    with pytest.raises(CaptureExtractionError) as exc:
+        provider.extract(_artifact())
+
+    debug = _read_debug(tmp_path)
+    assert exc.value.code == "missing_output"
+    assert debug["failure_code"] == "missing_output"
+    assert debug["response_present"] is False
+
+
+def test_deepseek_adapter_raw_debug_output_requires_toggle(tmp_path):
+    content = json.dumps({"wrong": "shape"})
+    provider, _ = _provider(
+        _response(content),
+        capture_debug_dir=tmp_path,
+        raw_debug=True,
+    )
+
+    with pytest.raises(CaptureExtractionError):
+        provider.extract(_artifact())
+
+    debug = _read_debug(tmp_path)
+    assert debug["raw_provider_output"] == content
 
 
 @pytest.mark.parametrize(
@@ -123,3 +213,9 @@ def test_deepseek_adapter_requires_explicit_credentials_and_model():
         DeepSeekCaptureExtractionProvider(api_key="", model="x", client=object())
     with pytest.raises(ValueError, match="M3_CAPTURE_EXTRACTION_MODEL"):
         DeepSeekCaptureExtractionProvider(api_key="x", model="", client=object())
+
+
+def _read_debug(root):
+    paths = list(root.rglob("debug-*.json"))
+    assert len(paths) == 1
+    return json.loads(paths[0].read_text(encoding="utf-8"))

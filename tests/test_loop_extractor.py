@@ -224,6 +224,28 @@ def test_session_round_trip_preserves_optional_transcript_link():
     assert loaded.capture_funnel == "one_take_audio"
 
 
+def test_session_round_trip_preserves_capture_extraction_links():
+    session = new_session_from_draft(
+        chat_id=123,
+        draft=draft_from_text("one take"),
+        flow_mode="one_take_text",
+        capture_funnel="one_take_text",
+        media_kind="text",
+        capture_id="capture-one-take-text-123",
+        capture_artifact_path="data/capture-artifacts/chat/capture.json",
+        extraction_id="extraction-capture-one-take-text-123",
+        extraction_path="data/capture-extractions/chat/extraction.json",
+    )
+
+    loaded = LoopSession.from_dict(session.to_dict())
+
+    assert loaded.capture_id == "capture-one-take-text-123"
+    assert loaded.capture_artifact_path == "data/capture-artifacts/chat/capture.json"
+    assert loaded.extraction_id == "extraction-capture-one-take-text-123"
+    assert loaded.extraction_path == "data/capture-extractions/chat/extraction.json"
+    assert loaded.flow_mode == "one_take_text"
+
+
 def test_session_from_dict_drops_legacy_derived_keys():
     session = LoopSession.from_dict(
         {

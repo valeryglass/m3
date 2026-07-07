@@ -35,6 +35,10 @@ class LoopSession:
     capture_funnel: str | None = None
     media_kind: str | None = None
     intake_transcript_path: str | None = None
+    capture_id: str | None = None
+    capture_artifact_path: str | None = None
+    extraction_id: str | None = None
+    extraction_path: str | None = None
     session_id: str | None = None
     target_index: int = 0
     last_prompted_at: str | None = None
@@ -56,6 +60,10 @@ class LoopSession:
             capture_funnel=data.get("capture_funnel"),
             media_kind=data.get("media_kind"),
             intake_transcript_path=data.get("intake_transcript_path"),
+            capture_id=data.get("capture_id"),
+            capture_artifact_path=data.get("capture_artifact_path"),
+            extraction_id=data.get("extraction_id"),
+            extraction_path=data.get("extraction_path"),
             session_id=data.get("session_id"),
             target_index=_target_index_for_observed(observed, flow_mode),
             last_prompted_at=data.get("last_prompted_at"),
@@ -75,6 +83,10 @@ class LoopSession:
             "capture_funnel": self.capture_funnel,
             "media_kind": self.media_kind,
             "intake_transcript_path": self.intake_transcript_path,
+            "capture_id": self.capture_id,
+            "capture_artifact_path": self.capture_artifact_path,
+            "extraction_id": self.extraction_id,
+            "extraction_path": self.extraction_path,
             "session_id": self.session_id,
             "target_index": self.target_index,
             "last_prompted_at": self.last_prompted_at,
@@ -99,12 +111,22 @@ def new_session(
     flow_mode: str = FLOW_UNIFIED,
     capture_funnel: str | None = None,
     media_kind: str | None = None,
+    intake_transcript_path: str | None = None,
+    capture_id: str | None = None,
+    capture_artifact_path: str | None = None,
+    extraction_id: str | None = None,
+    extraction_path: str | None = None,
 ) -> LoopSession:
     return LoopSession(
         chat_id=chat_id,
         flow_mode=_normalize_flow_mode(flow_mode),
         capture_funnel=capture_funnel,
         media_kind=media_kind,
+        intake_transcript_path=intake_transcript_path,
+        capture_id=capture_id,
+        capture_artifact_path=capture_artifact_path,
+        extraction_id=extraction_id,
+        extraction_path=extraction_path,
         session_id=session_id,
         episode_date=episode_date or date.today().isoformat(),
     )
@@ -118,6 +140,11 @@ def new_session_from_draft(
     flow_mode: str = FLOW_UNIFIED,
     capture_funnel: str | None = None,
     media_kind: str | None = None,
+    intake_transcript_path: str | None = None,
+    capture_id: str | None = None,
+    capture_artifact_path: str | None = None,
+    extraction_id: str | None = None,
+    extraction_path: str | None = None,
 ) -> LoopSession:
     normalized_flow_mode = _normalize_flow_mode(flow_mode)
     observed = _normalize_observed_keys(dict(draft.observed))
@@ -126,6 +153,11 @@ def new_session_from_draft(
         flow_mode=normalized_flow_mode,
         capture_funnel=capture_funnel,
         media_kind=media_kind,
+        intake_transcript_path=intake_transcript_path,
+        capture_id=capture_id,
+        capture_artifact_path=capture_artifact_path,
+        extraction_id=extraction_id,
+        extraction_path=extraction_path,
         session_id=session_id,
         target_index=_target_index_for_observed(observed, normalized_flow_mode),
         episode_date=episode_date or date.today().isoformat(),
