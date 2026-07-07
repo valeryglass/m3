@@ -11,13 +11,14 @@ GRAPH_REPORT_EXPORT_DIR ?= data/reports/graph
 INSIGHT_PAYLOAD_EXPORT_DIR ?= data/exports/insight-payload
 MAP_PAYLOAD_EXPORT_DIR ?= data/exports/map-payload
 UX_REPORT_EXPORT_DIR ?= data/reports/ux
+JOURNAL_LOG ?= data/journal/events.jsonl
 REPORT_MIN_COUNT ?= 2
 MAP_SOURCE ?= telegram-chat:327002663
 MAP_SOURCE_SAFE ?= $(subst :,-,$(subst /,-,$(MAP_SOURCE)))
 ANNOTATION_RUN_DIR ?=
 ANNOTATION_SOURCE ?=
 
-.PHONY: venv compile test test-docs check check-whisper release-audio-check bot docker-bot bot-pid bot-ps bot-stop bot-kill bot-sudo-stop bot-sudo-kill bot-restart legacy-normalize-episodes-write fresh-analytics-status audit annotation-dry-run annotation-missing annotation-full export-graph-report export-insight-payload export-map-payload export-map-html export-ux-report export-debug-reports beta-report-qa beta-analytics analytics-ux analytics
+.PHONY: venv compile test test-docs check check-whisper release-audio-check bot docker-bot bot-pid bot-ps bot-stop bot-kill bot-sudo-stop bot-sudo-kill bot-restart legacy-normalize-episodes-write journal-path journal-last journal-tail fresh-analytics-status audit annotation-dry-run annotation-missing annotation-full export-graph-report export-insight-payload export-map-payload export-map-html export-ux-report export-debug-reports beta-report-qa beta-analytics analytics-ux analytics
 
 venv:
 	$(PYTHON) -m venv $(VENV)
@@ -127,21 +128,32 @@ bot-restart: bot-stop
 legacy-normalize-episodes-write:
 	$(PYTHON) -m app.derived_normalizer $(EPISODE_DIR) --write
 
+journal-path:
+	@echo "$(JOURNAL_LOG)"
+
+journal-last:
+	@test -f "$(JOURNAL_LOG)" || { echo "journal log not found: $(JOURNAL_LOG)"; exit 1; }
+	@tail -n 1 "$(JOURNAL_LOG)"
+
+journal-tail:
+	@test -f "$(JOURNAL_LOG)" || { echo "journal log not found: $(JOURNAL_LOG)"; exit 1; }
+	@tail -n 50 "$(JOURNAL_LOG)"
+
 fresh-analytics-status:
-	$(PYTHON) -m app.fresh_analytics_status --episode-dir $(EPISODE_DIR) --annotation-run-root $(ANNOTATION_RUN_ROOT) $(if $(ANNOTATION_RUN_DIR),--annotation-run-dir $(ANNOTATION_RUN_DIR),) $(if $(ANNOTATION_SOURCE),--source $(ANNOTATION_SOURCE),)
+	$(PYTHON) -m app.fresh_analytics_status --episode-dir $(EPISODE_DIR) --annotation-run-root $(ANNOTATION_RUN_ROOT) $(if $(ANNOTATION_RUN_DIR),--annotation-run-dir $(ANNOTATION_RUN_DIR),) $(if $(ANNOTATION_SOURCE),--source $(ANNOTATION_SOURCE),) --journal-log $(JOURNAL_LOG)
 
 audit:
 	$(PYTHON) -m app.annotation_audit --episode-dir $(EPISODE_DIR) --annotation-run-root $(ANNOTATION_RUN_ROOT) $(if $(ANNOTATION_RUN_DIR),--annotation-run-dir $(ANNOTATION_RUN_DIR),)
 
 annotation-dry-run:
-	$(PYTHON) -m app.annotation_producer run --episode-dir $(EPISODE_DIR) --output-root $(ANNOTATION_RUN_ROOT) $(if $(ANNOTATION_SOURCE),--source $(ANNOTATION_SOURCE),) --dry-run
+	$(PYTHON) -m app.annotation_producer run --episode-dir $(EPISODE_DIR) --output-root $(ANNOTATION_RUN_ROOT) $(if $(ANNOTATION_SOURCE),--source $(ANNOTATION_SOURCE),) --dry-run --journal-log $(JOURNAL_LOG)
 
 annotation-missing:
 	@test -n "$(ANNOTATION_RUN_DIR)" || { echo "set ANNOTATION_RUN_DIR to an explicit base run"; exit 1; }
-	$(PYTHON) -m app.annotation_producer run --episode-dir $(EPISODE_DIR) --output-root $(ANNOTATION_RUN_ROOT) --only-missing --annotation-run-dir $(ANNOTATION_RUN_DIR) $(if $(ANNOTATION_SOURCE),--source $(ANNOTATION_SOURCE),) --write
+	$(PYTHON) -m app.annotation_producer run --episode-dir $(EPISODE_DIR) --output-root $(ANNOTATION_RUN_ROOT) --only-missing --annotation-run-dir $(ANNOTATION_RUN_DIR) $(if $(ANNOTATION_SOURCE),--source $(ANNOTATION_SOURCE),) --write --journal-log $(JOURNAL_LOG)
 
 annotation-full:
-	$(PYTHON) -m app.annotation_producer run --episode-dir $(EPISODE_DIR) --output-root $(ANNOTATION_RUN_ROOT) $(if $(ANNOTATION_SOURCE),--source $(ANNOTATION_SOURCE),) --write
+	$(PYTHON) -m app.annotation_producer run --episode-dir $(EPISODE_DIR) --output-root $(ANNOTATION_RUN_ROOT) $(if $(ANNOTATION_SOURCE),--source $(ANNOTATION_SOURCE),) --write --journal-log $(JOURNAL_LOG)
 
 export-graph-report:
 	$(PYTHON) -m app.graph_report --episode-dir $(EPISODE_DIR) --output-dir $(GRAPH_REPORT_EXPORT_DIR) --by-source --min-count $(REPORT_MIN_COUNT) $(if $(ANNOTATION_RUN_DIR),--annotation-run-dir $(ANNOTATION_RUN_DIR),)
@@ -164,7 +176,7 @@ export-debug-reports: audit export-graph-report export-ux-report
 
 beta-report-qa:
 	@test -n "$(ANNOTATION_RUN_DIR)" || { echo "set ANNOTATION_RUN_DIR to an explicit run"; exit 1; }
-	$(PYTHON) -m app.report_payload_qa --episode-dir $(EPISODE_DIR) --annotation-run-dir $(ANNOTATION_RUN_DIR) --source $(MAP_SOURCE) --insight-payload-path $(INSIGHT_PAYLOAD_EXPORT_DIR)/$(MAP_SOURCE_SAFE).json --map-payload-path $(MAP_PAYLOAD_EXPORT_DIR)/$(MAP_SOURCE_SAFE).json
+	$(PYTHON) -m app.report_payload_qa --episode-dir $(EPISODE_DIR) --annotation-run-dir $(ANNOTATION_RUN_DIR) --source $(MAP_SOURCE) --insight-payload-path $(INSIGHT_PAYLOAD_EXPORT_DIR)/$(MAP_SOURCE_SAFE).json --map-payload-path $(MAP_PAYLOAD_EXPORT_DIR)/$(MAP_SOURCE_SAFE).json --journal-log $(JOURNAL_LOG)
 
 beta-analytics:
 	@test -n "$(ANNOTATION_RUN_DIR)" || { echo "set ANNOTATION_RUN_DIR to an explicit run"; exit 1; }

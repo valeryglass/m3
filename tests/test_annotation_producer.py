@@ -13,6 +13,7 @@ from app.annotation_producer import produce_annotation_run
 def test_annotation_producer_dry_run_does_not_write(tmp_path):
     episode_dir = tmp_path / "episodes"
     output_root = tmp_path / "annotation-runs"
+    journal_path = tmp_path / "journal.jsonl"
     episode_dir.mkdir()
     _write_json(episode_dir / "episode-20260503-1.json", _episode())
 
@@ -20,6 +21,7 @@ def test_annotation_producer_dry_run_does_not_write(tmp_path):
         episode_dir,
         output_root,
         timestamp="20260618-120000",
+        journal_log=journal_path,
     )
 
     assert summary.dry_run is True
@@ -29,11 +31,15 @@ def test_annotation_producer_dry_run_does_not_write(tmp_path):
     assert summary.final_snapshot_count == 1
     assert summary.snapshot_written is False
     assert not output_root.exists()
+    events = _read_jsonl(journal_path)
+    assert events[0]["event_type"] == "annotation_run.dry_run_completed"
+    assert events[0]["counts"]["generated_count"] == 1
 
 
 def test_annotation_producer_write_creates_run(tmp_path):
     episode_dir = tmp_path / "episodes"
     output_root = tmp_path / "annotation-runs"
+    journal_path = tmp_path / "journal.jsonl"
     episode_dir.mkdir()
     _write_json(episode_dir / "episode-20260503-1.json", _episode())
 
@@ -42,6 +48,7 @@ def test_annotation_producer_write_creates_run(tmp_path):
         output_root,
         write=True,
         timestamp="20260618-120000",
+        journal_log=journal_path,
     )
 
     run_dir = output_root / "run-20260618-120000-deterministic"
@@ -55,6 +62,9 @@ def test_annotation_producer_write_creates_run(tmp_path):
     assert manifest["producer_provenance"]["mode"] == "full_snapshot"
     assert rows[0]["episode_id"] == "episode-20260503-1"
     assert rows[0]["derived"]["nodes"]
+    events = _read_jsonl(journal_path)
+    assert events[0]["event_type"] == "annotation_run.snapshot_written"
+    assert events[0]["run_id"] == "run-20260618-120000-deterministic"
 
 
 def test_annotation_producer_only_missing_writes_full_snapshot(tmp_path):
@@ -273,6 +283,7 @@ def test_annotation_producer_rejects_incomplete_missing_only_snapshot(tmp_path):
     )
     _write_json(episode_dir / "episode-20260503-2.json", second)
 
+    journal_path = tmp_path / "journal.jsonl"
     with pytest.raises(ValueError, match="snapshot is incomplete"):
         produce_annotation_run(
             episode_dir,
@@ -282,9 +293,13 @@ def test_annotation_producer_rejects_incomplete_missing_only_snapshot(tmp_path):
             annotation_run_dir=existing_run,
             write=True,
             timestamp="20260618-120000",
+            journal_log=journal_path,
         )
 
     assert not (output_root / "run-20260618-120000-deterministic").exists()
+    events = _read_jsonl(journal_path)
+    assert events[0]["event_type"] == "annotation_run.failed"
+    assert events[0]["stage"] == "failed"
 
 
 def _episode(episode_id="episode-20260503-1"):

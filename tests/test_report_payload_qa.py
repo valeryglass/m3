@@ -13,11 +13,13 @@ from tests.test_insight_payload import _empty_derived, _episode, _write_annotati
 
 def test_report_payload_qa_full_source_run_passes(tmp_path):
     episode_dir, run_dir = _episode_dir_with_run(tmp_path)
+    journal_path = tmp_path / "journal.jsonl"
 
     status = build_qa_status(
         episode_dir,
         run_dir,
         "telegram-chat:123",
+        journal_log=journal_path,
     )
 
     assert status["status"] == STATUS_PASSED
@@ -29,17 +31,32 @@ def test_report_payload_qa_full_source_run_passes(tmp_path):
     assert status["short_report_chars"] > 0
     assert status["long_report_chars"] > status["short_report_chars"]
     assert all(check["passed"] for check in status["checks"])
+    events = _read_jsonl(journal_path)
+    assert [event["event_type"] for event in events] == [
+        "report_payload_qa.started",
+        "report_payload_qa.passed",
+    ]
+    assert "Короткий отчет" not in journal_path.read_text(encoding="utf-8")
 
 
 def test_report_payload_qa_missing_explicit_run_is_blocked(tmp_path):
     episode_dir = tmp_path / "episodes"
+    journal_path = tmp_path / "journal.jsonl"
     episode_dir.mkdir()
 
-    status = build_qa_status(episode_dir, None, "telegram-chat:123")
+    status = build_qa_status(
+        episode_dir,
+        None,
+        "telegram-chat:123",
+        journal_log=journal_path,
+    )
 
     assert status["status"] == STATUS_BLOCKED
     assert status["blockers"] == ["annotation-run is required"]
     assert status["selected_annotation_run_path"] is None
+    events = _read_jsonl(journal_path)
+    assert events[-1]["event_type"] == "report_payload_qa.blocked"
+    assert events[-1]["counts"]["blocker_count"] == 1
 
 
 def test_report_payload_qa_partial_coverage_blocks_readiness(tmp_path):
@@ -212,3 +229,11 @@ def _write_episode(episode_dir, episode):
         json.dumps(episode, ensure_ascii=False),
         encoding="utf-8",
     )
+
+
+def _read_jsonl(path):
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]

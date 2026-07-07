@@ -10,6 +10,7 @@ from typing import Any
 from app.analytics_loader import annotation_coverage_for_episode_ids, selected_annotation_run
 from app.graph_report import build_report, load_episodes
 from app.insight_payload import build_insight_payload, require_payload_export_ready
+from app.journal import DEFAULT_JOURNAL_LOG, JournalLog, journal_event, record_journal_event
 from app.map_payload import build_map_payload
 from app.report_cards import build_report_cards
 from app.user_report import render_details_from_payload, render_summary_from_payload
@@ -55,15 +56,19 @@ def build_qa_status(
     *,
     insight_payload_path: Path | None = None,
     map_payload_path: Path | None = None,
+    journal_log: JournalLog | Path | None = None,
 ) -> dict[str, Any]:
+    _record_qa_started(journal_log, episode_dir, annotation_run_dir, source)
     checks: list[CheckResult] = []
 
     if annotation_run_dir is None:
         checks.append(_fail("explicit_annotation_run", "annotation-run is required"))
-        return _blocked(source, annotation_run_dir, checks)
+        status = _blocked(source, annotation_run_dir, checks)
+        _record_qa_journal(journal_log, status, episode_dir, annotation_run_dir)
+        return status
 
     try:
-        return _build_qa_status(
+        status = _build_qa_status(
             episode_dir,
             annotation_run_dir,
             source,
@@ -72,7 +77,11 @@ def build_qa_status(
         )
     except Exception as exc:
         checks.append(_fail("qa_exception", str(exc)))
-        return _blocked(source, annotation_run_dir, checks)
+        status = _blocked(source, annotation_run_dir, checks)
+        _record_qa_journal(journal_log, status, episode_dir, annotation_run_dir)
+        return status
+    _record_qa_journal(journal_log, status, episode_dir, annotation_run_dir)
+    return status
 
 
 def _build_qa_status(
@@ -280,6 +289,83 @@ def _read_json(path: Path) -> dict[str, Any]:
     return data
 
 
+def _record_qa_journal(
+    journal_log: JournalLog | Path | None,
+    status: dict[str, Any],
+    episode_dir: Path,
+    annotation_run_dir: Path | None,
+) -> None:
+    blocked = status["status"] == STATUS_BLOCKED
+    readiness = status.get("readiness") or {}
+    checks = status.get("checks") or []
+    record_journal_event(
+        journal_log,
+        journal_event(
+            component="report_payload_qa",
+            event_type=(
+                "report_payload_qa.blocked"
+                if blocked
+                else "report_payload_qa.passed"
+            ),
+            stage="blocked" if blocked else "succeeded",
+            level="error" if blocked else "info",
+            reason="; ".join(status.get("blockers", [])) or None,
+            refs={
+                "episode_dir": episode_dir.as_posix(),
+                "annotation_run_dir": (
+                    annotation_run_dir.as_posix()
+                    if annotation_run_dir is not None
+                    else None
+                ),
+                "selected_annotation_run_path": status.get(
+                    "selected_annotation_run_path"
+                ),
+            },
+            counts={
+                "check_count": len(checks),
+                "blocker_count": len(status.get("blockers", [])),
+                "graph_ready_count": readiness.get("graph_ready_count", 0),
+                "report_ready_count": readiness.get("report_ready_count", 0),
+                "payload_eligible_count": readiness.get(
+                    "payload_eligible_count", 0
+                ),
+            },
+            details={
+                "source": status.get("source"),
+                "selected_annotation_run_id": status.get(
+                    "selected_annotation_run_id"
+                ),
+                "coverage_state": (status.get("coverage") or {}).get("state"),
+            },
+        ),
+    )
+
+
+def _record_qa_started(
+    journal_log: JournalLog | Path | None,
+    episode_dir: Path,
+    annotation_run_dir: Path | None,
+    source: str,
+) -> None:
+    record_journal_event(
+        journal_log,
+        journal_event(
+            component="report_payload_qa",
+            event_type="report_payload_qa.started",
+            stage="started",
+            refs={
+                "episode_dir": episode_dir.as_posix(),
+                "annotation_run_dir": (
+                    annotation_run_dir.as_posix()
+                    if annotation_run_dir is not None
+                    else None
+                ),
+            },
+            details={"source": source},
+        ),
+    )
+
+
 def _pass(name: str, message: str) -> CheckResult:
     return CheckResult(name=name, passed=True, message=message)
 
@@ -297,6 +383,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--source", required=True)
     parser.add_argument("--insight-payload-path", type=Path)
     parser.add_argument("--map-payload-path", type=Path)
+    parser.add_argument("--journal-log", type=Path, default=DEFAULT_JOURNAL_LOG)
     args = parser.parse_args(argv)
 
     status = build_qa_status(
@@ -305,6 +392,7 @@ def main(argv: list[str] | None = None) -> None:
         args.source,
         insight_payload_path=args.insight_payload_path,
         map_payload_path=args.map_payload_path,
+        journal_log=args.journal_log,
     )
     print(json.dumps(status, ensure_ascii=False, indent=2))
     if status["status"] == STATUS_BLOCKED:

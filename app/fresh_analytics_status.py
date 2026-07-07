@@ -10,6 +10,7 @@ from typing import Any
 from app.analytics_loader import selected_annotation_run
 from app.annotation_audit import audit_episode_dir
 from app.annotation_producer import AnnotationProducerSummary, produce_annotation_run
+from app.journal import DEFAULT_JOURNAL_LOG, JournalLog, journal_event, record_journal_event
 
 RECOMMENDATION_NO_OP_EMPTY = "no_op_empty"
 RECOMMENDATION_NO_OP_FULL_COVERAGE = "no_op_full_coverage"
@@ -24,16 +25,17 @@ def build_status(
     *,
     annotation_run_dir: Path | None = None,
     source: str | None = None,
+    journal_log: JournalLog | Path | None = None,
 ) -> dict[str, Any]:
     try:
-        return _build_status(
+        status = _build_status(
             episode_dir,
             annotation_run_root,
             annotation_run_dir=annotation_run_dir,
             source=source,
         )
     except Exception as exc:
-        return {
+        status = {
             "recommendation": RECOMMENDATION_BLOCKED,
             "recommended_command": "",
             "blocker": str(exc),
@@ -48,6 +50,10 @@ def build_status(
             "gap_reasons": {},
             "dry_run": None,
         }
+        _record_status_journal(journal_log, status, episode_dir, annotation_run_root)
+        return status
+    _record_status_journal(journal_log, status, episode_dir, annotation_run_root)
+    return status
 
 
 def _build_status(
@@ -166,6 +172,47 @@ def _recommended_command(
     return ""
 
 
+def _record_status_journal(
+    journal_log: JournalLog | Path | None,
+    status: dict[str, Any],
+    episode_dir: Path,
+    annotation_run_root: Path,
+) -> None:
+    recommendation = status["recommendation"]
+    blocked = recommendation == RECOMMENDATION_BLOCKED
+    dry_run = status.get("dry_run") or {}
+    record_journal_event(
+        journal_log,
+        journal_event(
+            component="fresh_analytics_status",
+            event_type="fresh_analytics.status_checked",
+            stage="blocked" if blocked else "checked",
+            level="error" if blocked else "info",
+            reason=status.get("blocker"),
+            refs={
+                "episode_dir": episode_dir.as_posix(),
+                "annotation_run_root": annotation_run_root.as_posix(),
+                "selected_annotation_run_path": status.get(
+                    "selected_annotation_run_path"
+                ),
+            },
+            counts={
+                "observed_episode_count": status.get("observed_episode_count", 0),
+                "annotation_row_count": status.get("annotation_row_count", 0),
+                "pending_count": status.get("pending_count", 0),
+                "dry_run_generated_count": dry_run.get("generated_count", 0),
+            },
+            details={
+                "recommendation": recommendation,
+                "coverage": status.get("coverage"),
+                "selected_annotation_run_id": status.get(
+                    "selected_annotation_run_id"
+                ),
+            },
+        ),
+    )
+
+
 def _make_command(
     target: str,
     *,
@@ -198,12 +245,14 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--annotation-run-dir", type=Path)
     parser.add_argument("--source")
+    parser.add_argument("--journal-log", type=Path, default=DEFAULT_JOURNAL_LOG)
     args = parser.parse_args(argv)
     status = build_status(
         args.episode_dir,
         args.annotation_run_root,
         annotation_run_dir=args.annotation_run_dir,
         source=args.source,
+        journal_log=args.journal_log,
     )
     print(json.dumps(status, ensure_ascii=False, indent=2))
     if status["recommendation"] == RECOMMENDATION_BLOCKED:

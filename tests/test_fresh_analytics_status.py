@@ -28,16 +28,20 @@ def test_fresh_analytics_status_no_episodes_is_noop_empty(tmp_path):
 def test_fresh_analytics_status_without_run_recommends_full_snapshot(tmp_path):
     episode_dir = tmp_path / "episodes"
     run_root = tmp_path / "annotation-runs"
+    journal_path = tmp_path / "journal.jsonl"
     episode_dir.mkdir()
     _write_json(episode_dir / "episode-20260503-1.json", _episode())
 
-    status = build_status(episode_dir, run_root)
+    status = build_status(episode_dir, run_root, journal_log=journal_path)
 
     assert status["recommendation"] == RECOMMENDATION_FULL_SNAPSHOT
     assert "make annotation-full" in status["recommended_command"]
     assert status["selected_annotation_run_path"] is None
     assert status["dry_run"]["generated_count"] == 1
     assert not run_root.exists()
+    events = _read_jsonl(journal_path)
+    assert events[0]["event_type"] == "fresh_analytics.status_checked"
+    assert events[0]["details"]["recommendation"] == RECOMMENDATION_FULL_SNAPSHOT
 
 
 def test_fresh_analytics_status_full_run_is_noop_full_coverage(tmp_path):
@@ -94,14 +98,18 @@ def test_fresh_analytics_status_partial_run_recommends_missing_only(tmp_path):
 def test_fresh_analytics_status_invalid_episode_is_blocked(tmp_path):
     episode_dir = tmp_path / "episodes"
     run_root = tmp_path / "annotation-runs"
+    journal_path = tmp_path / "journal.jsonl"
     episode_dir.mkdir()
     (episode_dir / "episode-20260503-1.json").write_text("{broken", encoding="utf-8")
 
-    status = build_status(episode_dir, run_root)
+    status = build_status(episode_dir, run_root, journal_log=journal_path)
 
     assert status["recommendation"] == RECOMMENDATION_BLOCKED
     assert "Expecting property name" in status["blocker"]
     assert status["recommended_command"] == ""
+    events = _read_jsonl(journal_path)
+    assert events[0]["stage"] == "blocked"
+    assert events[0]["level"] == "error"
 
 
 def test_fresh_analytics_status_incomplete_missing_only_is_blocked(tmp_path):
@@ -191,3 +199,11 @@ def _episode(episode_id="episode-20260503-1"):
 
 def _write_json(path, data):
     path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
+def _read_jsonl(path):
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]

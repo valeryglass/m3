@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from app.analytics_loader import selected_annotation_run
 from app.derived_normalizer import normalize_episode
 from app.episode_annotator import annotate_episode
+from app.journal import DEFAULT_JOURNAL_LOG, JournalLog, journal_event, record_journal_event
 from app.schemas.annotation_run import (
     AnnotationProducerProvenance,
     AnnotationRunManifest,
@@ -73,6 +74,47 @@ class AnnotationProducerSummary:
 
 
 def produce_annotation_run(
+    episode_dir: Path,
+    output_root: Path,
+    *,
+    run_id: str | None = None,
+    source: str | None = None,
+    only_missing: bool = False,
+    annotation_run_dir: Path | None = None,
+    annotation_run_root: Path | None = None,
+    write: bool = False,
+    timestamp: str | None = None,
+    journal_log: JournalLog | Path | None = None,
+) -> AnnotationProducerSummary:
+    try:
+        summary = _produce_annotation_run(
+            episode_dir,
+            output_root,
+            run_id=run_id,
+            source=source,
+            only_missing=only_missing,
+            annotation_run_dir=annotation_run_dir,
+            annotation_run_root=annotation_run_root,
+            write=write,
+            timestamp=timestamp,
+        )
+    except Exception as exc:
+        _record_annotation_failure(
+            journal_log,
+            episode_dir=episode_dir,
+            output_root=output_root,
+            annotation_run_dir=annotation_run_dir,
+            source=source,
+            only_missing=only_missing,
+            write=write,
+            reason=str(exc),
+        )
+        raise
+    _record_annotation_summary(journal_log, summary)
+    return summary
+
+
+def _produce_annotation_run(
     episode_dir: Path,
     output_root: Path,
     *,
@@ -187,6 +229,77 @@ def produce_annotation_run(
         generated_count=len(generated_rows),
         final_snapshot_count=len(rows),
         snapshot_written=snapshot_written,
+    )
+
+
+def _record_annotation_summary(
+    journal_log: JournalLog | Path | None,
+    summary: AnnotationProducerSummary,
+) -> None:
+    event_type = (
+        "annotation_run.snapshot_written"
+        if summary.snapshot_written
+        else "annotation_run.dry_run_completed"
+    )
+    record_journal_event(
+        journal_log,
+        journal_event(
+            component="annotation_producer",
+            event_type=event_type,
+            stage="succeeded",
+            run_id=summary.run_id,
+            refs={"run_dir": summary.run_dir},
+            counts={
+                "episode_count": summary.episode_count,
+                "scanned_count": summary.scanned_count,
+                "generated_count": summary.generated_count,
+                "carried_forward_count": summary.carried_forward_count,
+                "final_snapshot_count": summary.final_snapshot_count,
+                "pending_after": summary.pending_after,
+            },
+            details={
+                "dry_run": summary.dry_run,
+                "source": summary.source,
+                "coverage_before": summary.coverage_before,
+                "coverage_after": summary.coverage_after,
+                "snapshot_written": summary.snapshot_written,
+            },
+        ),
+    )
+
+
+def _record_annotation_failure(
+    journal_log: JournalLog | Path | None,
+    *,
+    episode_dir: Path,
+    output_root: Path,
+    annotation_run_dir: Path | None,
+    source: str | None,
+    only_missing: bool,
+    write: bool,
+    reason: str,
+) -> None:
+    refs = {
+        "episode_dir": episode_dir.as_posix(),
+        "output_root": output_root.as_posix(),
+    }
+    if annotation_run_dir is not None:
+        refs["annotation_run_dir"] = annotation_run_dir.as_posix()
+    record_journal_event(
+        journal_log,
+        journal_event(
+            component="annotation_producer",
+            event_type="annotation_run.failed",
+            stage="failed",
+            level="error",
+            reason=reason,
+            refs=refs,
+            details={
+                "source": source,
+                "only_missing": only_missing,
+                "write": write,
+            },
+        ),
     )
 
 
@@ -309,6 +422,7 @@ def main(argv: list[str] | None = None) -> None:
     run.add_argument("--write", action="store_true")
     run.add_argument("--dry-run", action="store_true")
     run.add_argument("--timestamp")
+    run.add_argument("--journal-log", type=Path, default=DEFAULT_JOURNAL_LOG)
     args = parser.parse_args(argv)
     if args.command != "run":  # pragma: no cover - argparse prevents this
         raise ValueError(args.command)
@@ -322,6 +436,7 @@ def main(argv: list[str] | None = None) -> None:
         annotation_run_root=args.annotation_run_root,
         write=args.write and not args.dry_run,
         timestamp=args.timestamp,
+        journal_log=args.journal_log,
     )
     print(json.dumps(summary.as_dict(), ensure_ascii=False, indent=2))
 
