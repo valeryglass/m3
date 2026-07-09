@@ -16,6 +16,10 @@ flows being smoked.
 - Beta production smoke uses `M3_APP_MODE=production`,
   `M3_CAPTURE_EXTRACTION_PROVIDER=deepseek`, `DEEPSEEK_API_KEY`, and explicit
   `M3_CAPTURE_EXTRACTION_MODEL` for non-10Q capture extraction.
+- Beta production `/profile` uses `M3_PROFILE_REPORT_MODE=auto`,
+  `M3_PROFILE_LLM_PROVIDER=deepseek`, and explicit `M3_PROFILE_LLM_MODEL` for
+  LLM-readable profile text. Missing or failed LLM profile rendering must fall
+  back to deterministic profile text and write a process-journal event.
 - `M3_CAPTURE_EXTRACTION_PROVIDER=openai` remains an explicit compatibility
   option, not the beta production default.
 - Whisper/ffmpeg prerequisites are available for audio smoke.

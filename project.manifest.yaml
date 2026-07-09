@@ -324,6 +324,7 @@ modules:
       - app/user_report.py
       - app/report_cards.py
       - app/report_entities.py
+      - app/profile_interpreter.py
       - app/report_payload_qa.py
       - model/graph.md
     inputs:
@@ -342,6 +343,7 @@ modules:
       - deterministic_pattern_metrics
       - user_profile_report_rendering
       - card_composed_profile_reports
+      - production_llm_profile_interpretation
       - accepted_domain_graph_signatures
       - report_payload_consistency_qa
 

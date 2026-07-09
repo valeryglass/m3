@@ -12,30 +12,13 @@ from app.graph_report import build_report, load_episodes
 from app.insight_payload import build_insight_payload, require_payload_export_ready
 from app.journal import DEFAULT_JOURNAL_LOG, JournalLog, journal_event, record_journal_event
 from app.map_payload import build_map_payload
+from app.profile_interpreter import profile_text_violations
 from app.report_cards import build_report_cards
 from app.report_entities import build_report_entities
 from app.user_report import render_details_from_payload, render_summary_from_payload
 
 STATUS_PASSED = "passed"
 STATUS_BLOCKED = "blocked"
-INTERNAL_TERMS = (
-    "payload",
-    "graph_ready",
-    "profile_eligible",
-    "annotation",
-    "signature",
-)
-FORBIDDEN_WORDING = (
-    "диагноз",
-    "нарушение",
-    "вы страдаете",
-    "у вас проблема",
-    "это значит",
-    "устойчив",
-    "stable trait",
-    "caused by",
-    "because of",
-)
 
 @dataclass(frozen=True)
 class CheckResult:
@@ -295,8 +278,7 @@ def _report_text_checks(
     report_cards,
 ) -> list[CheckResult]:
     checks: list[CheckResult] = []
-    text = f"{short_report}\n{long_report}".lower()
-    forbidden = tuple(term for term in (*INTERNAL_TERMS, *FORBIDDEN_WORDING) if term in text)
+    forbidden = profile_text_violations(short_report, long_report)
     if forbidden:
         checks.append(
             _fail("report_text_guard", f"forbidden report wording: {', '.join(forbidden)}")

@@ -43,7 +43,7 @@ from app.report_runner import (
     build_graph_report_summary,
     build_ux_report_text,
 )
-from app.user_report import render_details, render_summary
+from app.profile_interpreter import render_profile_for_settings
 from app.input_funnels import (
     artifact_text,
     audio_document_input_artifact,
@@ -538,9 +538,14 @@ async def _handle_profile_after_authorized(update, settings: Settings, tone) -> 
     if report is None:
         await _reply_text(update, tone.profile_missing())
         return
+    profile = render_profile_for_settings(
+        report,
+        settings,
+        journal_log=JournalLog(getattr(settings, "journal_log", DEFAULT_JOURNAL_LOG)),
+    )
     await _reply_text(
         update,
-        render_summary(report),
+        profile.summary_text,
         reply_markup=_profile_details_reply_markup(),
         parse_mode=None,
     )
@@ -558,9 +563,14 @@ async def _handle_profile_callback_after_authorized(update, settings: Settings, 
     if report is None:
         await _reply_to_callback(query, tone.profile_missing(), parse_mode=None)
         return
+    profile = render_profile_for_settings(
+        report,
+        settings,
+        journal_log=JournalLog(getattr(settings, "journal_log", DEFAULT_JOURNAL_LOG)),
+    )
     await _reply_to_callback(
         query,
-        _trim_report_text(render_details(report)),
+        _trim_report_text(profile.details_text),
         parse_mode=None,
     )
 

@@ -29,6 +29,9 @@ def test_load_settings_uses_default_data_paths():
     assert settings.annotation_run_dir is None
     assert str(settings.annotation_run_root) == "data/annotation-runs"
     assert settings.report_min_count == 2
+    assert settings.profile_report_mode == "auto"
+    assert settings.profile_llm_provider == "unavailable"
+    assert settings.profile_llm_model == ""
     assert settings.ux_idle_after_sec == 7200
     assert settings.initial_session_ttl_sec == 600
     assert str(settings.tone_config) == "config/tone.yaml"
@@ -78,6 +81,9 @@ def test_load_settings_allows_overrides():
             "M3_ANNOTATION_RUN_DIR": "/tmp/run-selected",
             "M3_ANNOTATION_RUN_ROOT": "/tmp/runs",
             "M3_REPORT_MIN_COUNT": "3",
+            "M3_PROFILE_REPORT_MODE": "llm",
+            "M3_PROFILE_LLM_PROVIDER": "deepseek",
+            "M3_PROFILE_LLM_MODEL": "profile-model",
             "M3_TELEGRAM_ADMIN_CHAT_IDS": "225672,327002663",
             "M3_TELEGRAM_OWNER_CHAT_ID": "225672",
             "M3_APP_MODE": "production",
@@ -112,6 +118,9 @@ def test_load_settings_allows_overrides():
     assert str(settings.annotation_run_dir) == "/tmp/run-selected"
     assert str(settings.annotation_run_root) == "/tmp/runs"
     assert settings.report_min_count == 3
+    assert settings.profile_report_mode == "llm"
+    assert settings.profile_llm_provider == "deepseek"
+    assert settings.profile_llm_model == "profile-model"
     assert settings.telegram_admin_chat_ids == frozenset({225672, 327002663})
     assert settings.telegram_owner_chat_id == 225672
     assert settings.app_mode == "production"
@@ -165,6 +174,7 @@ def test_production_mode_defaults_capture_extraction_provider_to_deepseek():
 
     assert settings.app_mode == "production"
     assert settings.capture_extraction_provider == "deepseek"
+    assert settings.profile_llm_provider == "deepseek"
 
 
 def test_explicit_capture_extraction_provider_override_is_allowed():
@@ -187,6 +197,20 @@ def test_invalid_runtime_mode_and_provider_are_rejected():
             {
                 "TELEGRAM_BOT_TOKEN": "token",
                 "M3_CAPTURE_EXTRACTION_PROVIDER": "unknown",
+            }
+        )
+    with pytest.raises(ValueError, match="M3_PROFILE_REPORT_MODE"):
+        load_settings(
+            {
+                "TELEGRAM_BOT_TOKEN": "token",
+                "M3_PROFILE_REPORT_MODE": "ai",
+            }
+        )
+    with pytest.raises(ValueError, match="M3_PROFILE_LLM_PROVIDER"):
+        load_settings(
+            {
+                "TELEGRAM_BOT_TOKEN": "token",
+                "M3_PROFILE_LLM_PROVIDER": "unknown",
             }
         )
 

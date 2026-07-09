@@ -69,6 +69,8 @@ RM order:
 - RM-08: add capture extraction debug visibility. Status: implemented.
 - RM-09: allow partial non-10Q drafts to continue into missing-field questions.
   Status: implemented.
+- RM-A5: add production LLM profile interpretation over safe analytics payloads.
+  Status: implemented.
 
 Current beta capture finding:
 
@@ -82,6 +84,12 @@ Current beta capture finding:
 Current runtime truth: non-10Q production capture extraction defaults to
 DeepSeek through owner-controlled runtime mode/provider settings. OpenAI
 Responses remains explicit compatibility.
+
+Current profile truth: `M3_PROFILE_REPORT_MODE=auto` keeps deterministic
+`/profile` reports in `ml` mode and uses the configured LLM profile provider in
+`production`. LLM profile interpretation consumes safe `InsightPayload`, Report
+Entity, and report-card facts only; if the provider is missing or fails, the bot
+falls back to deterministic profile text and records a process-journal event.
 
 ## MVP2 Audio Input Track
 

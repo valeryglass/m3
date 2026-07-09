@@ -232,6 +232,60 @@ def test_profile_command_replies_with_current_report(tmp_path):
         assert reply_markup.inline_keyboard[0][0].callback_data == "profile:details"
 
 
+def test_profile_command_uses_llm_profile_in_production(tmp_path, monkeypatch):
+    settings = _settings(episode_dir=tmp_path / "episodes", app_mode="production")
+    settings.episode_dir.mkdir(parents=True)
+    _write_json(settings.episode_dir / "episode-20260503-1.json", _graph_ready_episode())
+    message = _FakeMessage("/profile")
+    calls = []
+
+    def fake_render_profile(report, settings, *, journal_log=None):
+        calls.append((report, settings, journal_log))
+        return SimpleNamespace(
+            summary_text="LLM short profile",
+            details_text="LLM long profile",
+        )
+
+    monkeypatch.setattr(telegram_bot, "render_profile_for_settings", fake_render_profile)
+
+    _run(
+        telegram_bot._handle_profile_after_authorized(
+            _fake_update(123, message),
+            settings,
+            ToneEngine.default(),
+        )
+    )
+
+    assert message.replies == ["LLM short profile"]
+    assert len(calls) == 1
+    assert calls[0][1].app_mode == "production"
+
+
+def test_profile_details_callback_uses_same_profile_interpreter(tmp_path, monkeypatch):
+    settings = _settings(episode_dir=tmp_path / "episodes", app_mode="production")
+    settings.episode_dir.mkdir(parents=True)
+    _write_json(settings.episode_dir / "episode-20260503-1.json", _graph_ready_episode())
+    callback = _FakeCallbackQuery("profile:details")
+
+    def fake_render_profile(report, settings, *, journal_log=None):
+        return SimpleNamespace(
+            summary_text="LLM short profile",
+            details_text="LLM long profile",
+        )
+
+    monkeypatch.setattr(telegram_bot, "render_profile_for_settings", fake_render_profile)
+
+    _run(
+        telegram_bot._handle_profile_callback_after_authorized(
+            _fake_callback_update(123, callback),
+            settings,
+            ToneEngine.default(),
+        )
+    )
+
+    assert callback.message.replies == ["LLM long profile"]
+
+
 def test_profile_command_uses_latest_annotation_run(tmp_path):
     annotation_run_root = tmp_path / "annotation-runs"
     run_dir = annotation_run_root / "run-20260605"
@@ -2466,11 +2520,13 @@ def _settings(
     ux_event_log=None,
     annotation_run_dir=None,
     annotation_run_root=None,
+    app_mode="ml",
 ):
     return SimpleNamespace(
         initial_session_ttl_sec=600,
         telegram_admin_chat_ids=admin_chat_ids,
         telegram_owner_chat_id=owner_chat_id,
+        app_mode=app_mode,
         episode_dir=episode_dir,
         userlist_path=userlist_path,
         ux_event_log=ux_event_log,
@@ -2478,6 +2534,9 @@ def _settings(
         annotation_run_root=annotation_run_root,
         ux_idle_after_sec=7200,
         report_min_count=2,
+        profile_report_mode="auto",
+        profile_llm_provider="unavailable",
+        profile_llm_model="",
     )
 
 

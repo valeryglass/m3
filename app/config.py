@@ -26,6 +26,9 @@ class Settings:
     annotation_run_dir: Path | None
     annotation_run_root: Path
     report_min_count: int
+    profile_report_mode: str
+    profile_llm_provider: str
+    profile_llm_model: str
     ux_idle_after_sec: int
     initial_session_ttl_sec: int
     tone_config: Path
@@ -101,6 +104,19 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
             "M3_CAPTURE_EXTRACTION_PROVIDER must be one of: "
             "unavailable, deepseek, openai"
         )
+    profile_report_mode = source.get("M3_PROFILE_REPORT_MODE", "auto").strip().lower()
+    if profile_report_mode not in {"auto", "deterministic", "llm"}:
+        raise ValueError(
+            "M3_PROFILE_REPORT_MODE must be one of: auto, deterministic, llm"
+        )
+    profile_llm_provider = source.get(
+        "M3_PROFILE_LLM_PROVIDER",
+        "deepseek" if app_mode == "production" else "unavailable",
+    ).strip().lower()
+    if profile_llm_provider not in {"unavailable", "deepseek", "openai"}:
+        raise ValueError(
+            "M3_PROFILE_LLM_PROVIDER must be one of: unavailable, deepseek, openai"
+        )
 
     if not token:
         raise ValueError("TELEGRAM_BOT_TOKEN is required")
@@ -132,6 +148,9 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
             source.get("M3_ANNOTATION_RUN_ROOT", "data/annotation-runs")
         ),
         report_min_count=int(source.get("M3_REPORT_MIN_COUNT", "2")),
+        profile_report_mode=profile_report_mode,
+        profile_llm_provider=profile_llm_provider,
+        profile_llm_model=source.get("M3_PROFILE_LLM_MODEL", "").strip(),
         ux_idle_after_sec=int(source.get("M3_UX_IDLE_AFTER_SEC", "7200")),
         initial_session_ttl_sec=int(source.get("M3_INITIAL_SESSION_TTL_SEC", "600")),
         tone_config=Path(source.get("M3_TONE_CONFIG", "config/tone.yaml")),

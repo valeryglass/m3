@@ -20,6 +20,7 @@ plus selected annotations.
 - graph signatures carrying accepted primary/secondary life domains.
 - deterministic Report Entity projections for report views.
 - card-composed plain-language `/profile` summary and details projections.
+- production LLM `/profile` interpretation over safe report facts.
 - optional Markdown debug exports.
 
 ## Dependencies
@@ -46,9 +47,13 @@ sets. `app.insight_payload` packages those facts into the shared downstream
 analytics artifact. `app.report_entities` projects the shared payload into the
 stable report vocabulary: Evidence, Pattern, Exception, Change, Finding,
 Question, and Gap. `app.report_cards` turns report entities into report-view
-card candidates. `app.user_report` renders short and detailed `/profile` text
-from those cards; it does not generate new annotations, choose independent map
-semantics, or produce diagnostic interpretations.
+card candidates. `app.user_report` renders deterministic short and detailed
+`/profile` text from those cards. `app.profile_interpreter` selects the runtime
+profile mode: `ml` uses deterministic rendering, while `production` may ask the
+configured LLM provider to rewrite safe `InsightPayload`/Report Entity/card
+facts into more readable text. It does not generate new annotations, choose
+independent map semantics, send raw episode text, or produce diagnostic
+interpretations.
 
 For Beta-1 report work, use `roles/report-interpreter.md`: report interpretation
 must consume `InsightPayload`/Report Entity/report-card facts and must not
