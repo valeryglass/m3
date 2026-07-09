@@ -18,6 +18,7 @@ plus selected annotations.
 - shared deterministic pattern metrics with episode-level support provenance.
 - computed material for `InsightPayload` construction.
 - graph signatures carrying accepted primary/secondary life domains.
+- deterministic Report Entity projections for report views.
 - card-composed plain-language `/profile` summary and details projections.
 - optional Markdown debug exports.
 
@@ -42,14 +43,17 @@ demand and is not a stored source-of-truth artifact.
 
 `app.pattern_metrics` owns reusable deterministic counts and episode-support
 sets. `app.insight_payload` packages those facts into the shared downstream
-analytics artifact. `app.report_cards` turns that payload into report-view card
-candidates. `app.user_report` renders short and detailed `/profile` text from
-those cards; it does not generate new annotations, choose independent map
+analytics artifact. `app.report_entities` projects the shared payload into the
+stable report vocabulary: Evidence, Pattern, Exception, Change, Finding,
+Question, and Gap. `app.report_cards` turns report entities into report-view
+card candidates. `app.user_report` renders short and detailed `/profile` text
+from those cards; it does not generate new annotations, choose independent map
 semantics, or produce diagnostic interpretations.
 
 For Beta-1 report work, use `roles/report-interpreter.md`: report interpretation
-must consume `InsightPayload`/report-card facts and must not reselect conflicting
-motifs, forks, domains, outcomes, or gaps independently from payload consumers.
+must consume `InsightPayload`/Report Entity/report-card facts and must not
+reselect conflicting motifs, forks, domains, outcomes, or gaps independently
+from payload consumers.
 
 The detailed user report is composed from cards for repeated scenarios, choice
 points, counterexamples, contrasts, horizon-specific outcomes, and next

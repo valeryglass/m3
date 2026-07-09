@@ -28,9 +28,18 @@ def test_report_payload_qa_full_source_run_passes(tmp_path):
     assert status["coverage"]["state"] == "full"
     assert status["readiness"]["payload_eligible_count"] == 4
     assert "main_pattern" in status["report_card_kinds"]
+    assert {"evidence", "pattern", "finding", "question"}.issubset(
+        set(status["report_entity_kinds"])
+    )
+    assert {"Region", "Path", "Boundary", "Field", "Label"}.issubset(
+        set(status["map_primitive_kinds"])
+    )
     assert status["short_report_chars"] > 0
     assert status["long_report_chars"] > status["short_report_chars"]
     assert all(check["passed"] for check in status["checks"])
+    assert any(check["name"] == "report_entities_available" for check in status["checks"])
+    assert any(check["name"] == "map_primitives_available" for check in status["checks"])
+    assert any(check["name"] == "report_map_support_agreement" for check in status["checks"])
     events = _read_jsonl(journal_path)
     assert [event["event_type"] for event in events] == [
         "report_payload_qa.started",

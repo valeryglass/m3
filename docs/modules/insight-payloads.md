@@ -35,6 +35,13 @@ report-ready graph material. It carries raw analytics entities such as motifs,
 forks, counterexamples, contrasts, outcome patterns, coverage, gaps, and
 provenance.
 
+For beta analytics, `InsightPayload` is the shared machine source for both
+Report Entities and Map Primitives:
+
+```text
+Internal Analytics -> InsightPayload -> Report Entities / Map Primitives
+```
+
 For Beta-1, keep the analytical entity ladder explicit at the report/payload
 layer:
 
@@ -51,13 +58,15 @@ per primary domain: support, dominant motif, main fork, and top outcomes.
 Primary-domain summaries partition episodes; secondary domains remain
 distribution metadata.
 
-It must not contain user-facing copy, map layout decisions, hex-grid concepts,
-LLM-generated interpretations, diagnostic claims, or stable-trait claims.
+It must not contain user-facing copy, report-card wording, map layout decisions,
+hex-grid concepts, LLM-generated interpretations, diagnostic claims,
+stable-trait claims, or unsupported causal claims.
 
 Reports and maps are downstream consumers of this payload. Reports first project
-it into report cards; maps first project it into spatial payloads. These views may
-render the same analytics differently, but they must not reselect conflicting
-primary motifs, forks, contrasts, or outcomes.
+it into Report Entities, then report cards. Maps first project it into spatial
+payloads and Map Primitives. These views may render the same analytics
+differently, but they must not reselect conflicting primary motifs, forks,
+contrasts, or outcomes.
 
 File export requires an explicitly selected annotation-run, full row coverage,
 and payload-eligible derived data for every episode in the selected source.

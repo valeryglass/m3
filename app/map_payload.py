@@ -11,6 +11,7 @@ from typing import Any
 from app.analytics_loader import annotation_coverage_for_episode_ids, selected_annotation_run
 from app.graph_report import GraphReport, build_report, load_episodes
 from app.insight_payload import build_insight_payload, require_payload_export_ready
+from app.map_primitives import build_map_primitives
 from app.pattern_metrics import (
     WEEK_QUANT,
     loops_for_signature,
@@ -123,7 +124,7 @@ def build_map_payload(
     if provenance:
         base_provenance.update(provenance)
 
-    return {
+    payload = {
         "kind": "map_payload",
         "version": VERSION,
         "source": source,
@@ -141,6 +142,8 @@ def build_map_payload(
         "neighbors": neighbors,
         "provenance": base_provenance,
     }
+    payload["analytics"]["map_primitives"] = build_map_primitives(payload).to_dict()
+    return payload
 
 
 def write_map_payload(

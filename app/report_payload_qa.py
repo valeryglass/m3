@@ -13,11 +13,11 @@ from app.insight_payload import build_insight_payload, require_payload_export_re
 from app.journal import DEFAULT_JOURNAL_LOG, JournalLog, journal_event, record_journal_event
 from app.map_payload import build_map_payload
 from app.report_cards import build_report_cards
+from app.report_entities import build_report_entities
 from app.user_report import render_details_from_payload, render_summary_from_payload
 
 STATUS_PASSED = "passed"
 STATUS_BLOCKED = "blocked"
-
 INTERNAL_TERMS = (
     "payload",
     "graph_ready",
@@ -25,7 +25,6 @@ INTERNAL_TERMS = (
     "annotation",
     "signature",
 )
-
 FORBIDDEN_WORDING = (
     "диагноз",
     "нарушение",
@@ -37,7 +36,6 @@ FORBIDDEN_WORDING = (
     "caused by",
     "because of",
 )
-
 
 @dataclass(frozen=True)
 class CheckResult:
@@ -116,6 +114,7 @@ def _build_qa_status(
     )
     report = build_report(source_episodes, coverage=coverage)
     insight_payload = build_insight_payload(report)
+    report_entities = build_report_entities(insight_payload)
     report_cards = build_report_cards(insight_payload)
     short_report = render_summary_from_payload(insight_payload)
     long_report = render_details_from_payload(insight_payload)
@@ -131,7 +130,15 @@ def _build_qa_status(
         },
     )
 
-    checks.extend(_readiness_checks(report, insight_payload, map_payload, selected_run))
+    checks.extend(
+        _readiness_checks(
+            report,
+            insight_payload,
+            map_payload,
+            selected_run,
+            report_entities,
+        )
+    )
     checks.extend(
         _export_checks(
             insight_payload.to_dict(),
@@ -160,6 +167,17 @@ def _build_qa_status(
             ),
         },
         "report_card_kinds": [card.kind for card in report_cards],
+        "report_entity_kinds": sorted(
+            {entity.kind for entity in report_entities.entities}
+        ),
+        "map_primitive_kinds": sorted(
+            {
+                primitive["kind"]
+                for primitive in map_payload["analytics"]["map_primitives"][
+                    "primitives"
+                ]
+            }
+        ),
         "short_report_chars": len(short_report),
         "long_report_chars": len(long_report),
         "checks": [check.as_dict() for check in checks],
@@ -167,7 +185,13 @@ def _build_qa_status(
     }
 
 
-def _readiness_checks(report, insight_payload, map_payload, selected_run) -> list[CheckResult]:
+def _readiness_checks(
+    report,
+    insight_payload,
+    map_payload,
+    selected_run,
+    report_entities,
+) -> list[CheckResult]:
     checks: list[CheckResult] = []
     try:
         require_payload_export_ready(report)
@@ -185,6 +209,51 @@ def _readiness_checks(report, insight_payload, map_payload, selected_run) -> lis
         checks.append(_pass("map_embeds_insight_payload", "map embeds matching insight"))
     else:
         checks.append(_fail("map_embeds_insight_payload", "map insight payload differs"))
+
+    report_entity_kinds = {entity.kind for entity in report_entities.entities}
+    if {"evidence", "pattern", "finding", "question"}.issubset(report_entity_kinds):
+        checks.append(_pass("report_entities_available", "report entities are available"))
+    else:
+        checks.append(_fail("report_entities_available", "report entities are incomplete"))
+
+    primitives = map_payload["analytics"].get("map_primitives", {}).get("primitives", ())
+    primitive_kinds = {primitive.get("kind") for primitive in primitives}
+    if {"Region", "Path", "Boundary", "Field", "Label"}.issubset(primitive_kinds):
+        checks.append(_pass("map_primitives_available", "map primitives are available"))
+    else:
+        checks.append(_fail("map_primitives_available", "map primitives are incomplete"))
+
+    dominant = insight_dict.get("dominant_motif")
+    if dominant is None:
+        checks.append(_pass("report_map_support_agreement", "no dominant motif to compare"))
+    else:
+        motif_ids = set(dominant.get("episode_ids", ()))
+        report_ids = {
+            episode_id
+            for entity in report_entities.entities
+            if entity.role == "dominant_motif"
+            for episode_id in entity.episode_ids
+        }
+        region_ids = {
+            episode_id
+            for primitive in primitives
+            if primitive.get("kind") == "Region"
+            for episode_id in primitive.get("episode_ids", ())
+        }
+        if motif_ids and motif_ids.issubset(report_ids) and motif_ids.issubset(region_ids):
+            checks.append(
+                _pass(
+                    "report_map_support_agreement",
+                    "report entities and map primitives share motif support",
+                )
+            )
+        else:
+            checks.append(
+                _fail(
+                    "report_map_support_agreement",
+                    "report/map support differs for dominant motif",
+                )
+            )
 
     provenance = map_payload.get("provenance", {})
     if (

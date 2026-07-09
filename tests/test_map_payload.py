@@ -265,6 +265,37 @@ def test_map_payload_exposes_same_insight_payload_for_downstream_consumers():
     }
 
 
+def test_map_payload_embeds_normalized_map_primitives():
+    payload = build_map_payload(
+        [
+            _load(_episode("episode-20260430-1")),
+            _load(_episode("episode-20260430-2")),
+            _load(_episode("episode-20260508-1", behavior_type="approach")),
+        ],
+        source="telegram-chat:123",
+    )
+
+    primitives = payload["analytics"]["map_primitives"]
+    primitive_kinds = {primitive["kind"] for primitive in primitives["primitives"]}
+    region = next(
+        primitive
+        for primitive in primitives["primitives"]
+        if primitive["kind"] == "Region"
+    )
+
+    assert primitives["kind"] == "map_primitives"
+    assert {"Region", "Path", "Boundary", "Field", "Anchor", "Label"}.issubset(
+        primitive_kinds
+    )
+    assert region["role"] == "district"
+    assert region["source_entity_type"] == "district"
+    assert region["support_count"] == 2
+    assert region["episode_ids"] == (
+        "episode-20260430-1",
+        "episode-20260430-2",
+    )
+
+
 def test_map_payload_writes_requested_path(tmp_path):
     episodes = [_load(_episode("episode-20260430-1"))]
     output = tmp_path / "map-payload" / "telegram-chat-123.json"

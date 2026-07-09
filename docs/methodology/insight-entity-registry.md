@@ -1,8 +1,8 @@
 # Insight Entity Registry
 
-Status: draft methodology. This is a compact orientation registry for insight
-payloads, reports, and maps. It is not a schema, runtime contract, diagnostic
-model, or source of truth.
+Status: draft methodology. This is the internal analytics vocabulary for graph
+signals, payloads, report entities, and map primitives. It is not a schema,
+diagnostic model, user-facing report API, or source of truth.
 
 Source of truth remains:
 
@@ -11,6 +11,8 @@ Source of truth remains:
 - runtime projections: `app/graph_report.py`, `app/pattern_metrics.py`
 
 Map/render terms are downstream hints only. They do not define the domain.
+Reports and maps must project this internal vocabulary into smaller stable
+view vocabularies before user-facing use.
 
 ## Core Chain
 
@@ -57,6 +59,41 @@ sequence, cause, or outcome path.
 
 Keep future math words such as `hyperedge` and `simplex` as
 external-methodology ideas until they are promoted into accepted model docs.
+
+## Architecture Layers
+
+For beta analytics, keep the layers explicit:
+
+```text
+Annotation Run
+-> Internal Analytics
+-> InsightPayload
+-> Report Entities
+-> Map Primitives
+-> Report / Map Views
+```
+
+Internal Analytics is engine vocabulary. `InsightPayload` is the shared machine
+projection. Report Entities and Map Primitives are the stable downstream
+vocabularies for report and map views.
+
+## Operations
+
+Operations are engine verbs. They produce or promote analytical objects:
+
+- `count`: compute support counts.
+- `rank`: order candidates by support, confidence, or salience hint.
+- `group`: collect compatible atoms, pairs, signatures, or episodes.
+- `compare`: inspect two supported objects side by side.
+- `contrast`: promote a meaningful difference into a contrast candidate.
+- `slice_time`: partition support by time bucket.
+- `filter_ready`: keep only readiness-qualified episodes or objects.
+- `trace`: retain provenance from object back to episode/source evidence.
+- `diff`: identify change between samples or time buckets.
+- `promote`: move an internal object into payload/report/map vocabulary.
+
+These terms are allowed in docs, tests, QA, and operator/debug output. They
+should not leak into normal user report copy.
 
 ## Current Atoms
 
@@ -120,6 +157,37 @@ Draft attractor rule: require `support_count >= 3`, `unique_signatures >= 2`,
 
 Gaps are not negative evidence. They are limits on interpretation.
 
+## Report Entities
+
+Reports expose only this stable vocabulary:
+
+- `Evidence`: coverage, sample size, support, confidence, provenance.
+- `Pattern`: repeated motif, outcome pattern, attractor, or supported
+  recurrence.
+- `Exception`: fork, counterexample, contrast, or surprising supported variant.
+- `Change`: drift, novelty, stability, or emergence when implemented.
+- `Finding`: cautious human observation over supported facts.
+- `Question`: next observation question.
+- `Gap`: missing coverage, weak support, low confidence, or skipped episodes.
+
+Report entities are not raw analytics objects. They are report-layer projections
+with support/provenance preserved.
+
+## Map Primitives
+
+Maps expose only this stable vocabulary:
+
+- `Region`: repeated zone of experience.
+- `Path`: repeated route or sequence.
+- `Boundary`: fork, contrast, transition, or choice point.
+- `Anchor`: notable pattern, outcome, or finding.
+- `Field`: repeated background pressure or density.
+- `Label`: renderer-facing human-readable name.
+
+Current map entities such as `district`, `gate`, `climate`, `road`,
+`crossroads`, and `landmark` are temporary compiler entities. They may seed map
+primitives, but they are not stable domain truth.
+
 ## Weight
 
 Default meaning:
@@ -152,6 +220,7 @@ If a payload exposes a single `weight`, keep the components nearby.
 - Do not make diagnostic claims, stable trait claims, or future predictions.
 - Mention partial coverage and skipped episodes when they affect interpretation.
 - Keep map/render hints separate from domain entities.
+- Project reports through Report Entities and maps through Map Primitives.
 - Promote this registry into `model/` only through an explicit model change.
 - Keep beta payload/report additions report-layer first unless an ADR explicitly
   promotes them into accepted model or schema contracts.

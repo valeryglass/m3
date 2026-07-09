@@ -323,6 +323,7 @@ modules:
       - app/pattern_metrics.py
       - app/user_report.py
       - app/report_cards.py
+      - app/report_entities.py
       - app/report_payload_qa.py
       - model/graph.md
     inputs:

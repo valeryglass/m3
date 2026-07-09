@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.insight_payload import InsightPayload, MotifPayload
+from app.report_entities import ReportEntity, build_report_entities
 
 
 FRIENDLY_LABELS = {
@@ -47,29 +48,38 @@ class ReportCard:
 
 
 def build_report_cards(payload: InsightPayload) -> tuple[ReportCard, ...]:
-    cards = [card for card in _candidate_cards(payload) if card is not None]
+    report_entities = build_report_entities(payload)
+    entities_by_role = {entity.role: entity for entity in report_entities.entities}
+    cards = [card for card in _candidate_cards(payload, entities_by_role) if card is not None]
     return tuple(sorted(cards, key=lambda item: (-item.priority, item.kind)))
 
 
-def _candidate_cards(payload: InsightPayload) -> list[ReportCard | None]:
+def _candidate_cards(
+    payload: InsightPayload,
+    entities_by_role: dict[str, ReportEntity],
+) -> list[ReportCard | None]:
     return [
-        _main_pattern_card(payload),
-        _choice_point_card(payload),
-        _counterexample_card(payload),
-        _contrast_card(payload),
-        _outcome_card(payload),
-        _sample_status_card(payload),
-        _next_question_card(payload),
+        _main_pattern_card(payload, entities_by_role),
+        _choice_point_card(payload, entities_by_role),
+        _counterexample_card(payload, entities_by_role),
+        _contrast_card(payload, entities_by_role),
+        _outcome_card(payload, entities_by_role),
+        _sample_status_card(payload, entities_by_role),
+        _next_question_card(payload, entities_by_role),
     ]
 
 
-def _sample_status_card(payload: InsightPayload) -> ReportCard | None:
+def _sample_status_card(
+    payload: InsightPayload,
+    entities_by_role: dict[str, ReportEntity],
+) -> ReportCard | None:
     coverage = payload.coverage
-    if coverage.state != "partial" or coverage.pending_count <= 0:
+    entity = entities_by_role.get("coverage_gap")
+    if entity is None:
         return None
     return ReportCard(
         kind="sample_status",
-        priority=10,
+        priority=entity.priority,
         title="О данных",
         claim=(
             f"Учтено {coverage.annotated_count} из "
@@ -79,13 +89,17 @@ def _sample_status_card(payload: InsightPayload) -> ReportCard | None:
     )
 
 
-def _main_pattern_card(payload: InsightPayload) -> ReportCard | None:
+def _main_pattern_card(
+    payload: InsightPayload,
+    entities_by_role: dict[str, ReportEntity],
+) -> ReportCard | None:
     motif = payload.dominant_motif
-    if not motif:
+    entity = entities_by_role.get("dominant_motif")
+    if not motif or entity is None:
         return None
     return ReportCard(
         kind="main_pattern",
-        priority=100,
+        priority=entity.priority,
         title="Главный повторяющийся сценарий",
         claim=_format_motif(motif),
         evidence=(f"Поддержка: {_episode_count(motif.support_count)}.",),
@@ -93,9 +107,13 @@ def _main_pattern_card(payload: InsightPayload) -> ReportCard | None:
     )
 
 
-def _choice_point_card(payload: InsightPayload) -> ReportCard | None:
+def _choice_point_card(
+    payload: InsightPayload,
+    entities_by_role: dict[str, ReportEntity],
+) -> ReportCard | None:
     fork = payload.main_fork
-    if not fork:
+    entity = entities_by_role.get("fork")
+    if not fork or entity is None:
         return None
     variants = ", ".join(
         f"{_friendly(variant.behavior)} ({variant.support_count})"
@@ -103,7 +121,7 @@ def _choice_point_card(payload: InsightPayload) -> ReportCard | None:
     )
     return ReportCard(
         kind="choice_point",
-        priority=90,
+        priority=entity.priority,
         title="Точка выбора",
         claim=(
             f"{_format_pair((fork.trigger, fork.emotion))} "
@@ -114,14 +132,18 @@ def _choice_point_card(payload: InsightPayload) -> ReportCard | None:
     )
 
 
-def _counterexample_card(payload: InsightPayload) -> ReportCard | None:
+def _counterexample_card(
+    payload: InsightPayload,
+    entities_by_role: dict[str, ReportEntity],
+) -> ReportCard | None:
     candidate = payload.counterexample
-    if not candidate:
+    entity = entities_by_role.get("counterexample")
+    if not candidate or entity is None:
         return None
     base = _format_pair((candidate.trigger, candidate.emotion))
     return ReportCard(
         kind="counterexample",
-        priority=80,
+        priority=entity.priority,
         title="Менее частый вариант",
         claim="В этой выборке есть другой вариант реакции.",
         evidence=(
@@ -134,15 +156,19 @@ def _counterexample_card(payload: InsightPayload) -> ReportCard | None:
     )
 
 
-def _contrast_card(payload: InsightPayload) -> ReportCard | None:
+def _contrast_card(
+    payload: InsightPayload,
+    entities_by_role: dict[str, ReportEntity],
+) -> ReportCard | None:
     contrast = payload.contrast
-    if not contrast:
+    entity = entities_by_role.get("contrast")
+    if not contrast or entity is None:
         return None
     trigger = _friendly(contrast.trigger)
     behavior = _friendly(contrast.behavior)
     return ReportCard(
         kind="contrast",
-        priority=75,
+        priority=entity.priority,
         title="Контраст",
         claim=f"Одна реакция — {behavior} — встречалась при разных эмоциях.",
         evidence=(
@@ -155,12 +181,16 @@ def _contrast_card(payload: InsightPayload) -> ReportCard | None:
     )
 
 
-def _outcome_card(payload: InsightPayload) -> ReportCard | None:
-    if not payload.outcome_patterns:
+def _outcome_card(
+    payload: InsightPayload,
+    entities_by_role: dict[str, ReportEntity],
+) -> ReportCard | None:
+    entity = entities_by_role.get("outcome_pattern")
+    if not payload.outcome_patterns or entity is None:
         return None
     return ReportCard(
         kind="outcome_pattern",
-        priority=70,
+        priority=entity.priority,
         title="Что обычно получается после реакции",
         claim="В этих данных видны повторяющиеся итоги действий.",
         evidence=tuple(
@@ -173,12 +203,16 @@ def _outcome_card(payload: InsightPayload) -> ReportCard | None:
     )
 
 
-def _next_question_card(payload: InsightPayload) -> ReportCard | None:
-    if payload.sample.graph_ready_count <= 0:
+def _next_question_card(
+    payload: InsightPayload,
+    entities_by_role: dict[str, ReportEntity],
+) -> ReportCard | None:
+    entity = entities_by_role.get("next_observation")
+    if entity is None:
         return None
     return ReportCard(
         kind="next_question",
-        priority=5,
+        priority=entity.priority,
         title="Что понаблюдать дальше",
         claim="Сейчас полезнее смотреть на момент выбора реакции.",
         evidence=(
