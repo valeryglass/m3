@@ -71,6 +71,12 @@ RM order:
   Status: implemented.
 - RM-A5: add production LLM profile interpretation over safe analytics payloads.
   Status: implemented.
+- RM-A6: introduce a render-ready Report ViewModel contract. Status:
+  implemented.
+- RM-A7: constrain LLM profile rendering to section-preserving copy editing.
+  Status: implemented.
+- RM-A8: add a report quality gate for schema-like or low-quality LLM output.
+  Status: implemented.
 
 Current beta capture finding:
 
@@ -90,6 +96,12 @@ Current profile truth: `M3_PROFILE_REPORT_MODE=auto` keeps deterministic
 `production`. LLM profile interpretation consumes safe `InsightPayload`, Report
 Entity, and report-card facts only; if the provider is missing or fails, the bot
 falls back to deterministic profile text and records a process-journal event.
+
+Current report-rendering truth: deterministic and production LLM profile
+rendering now share a render-ready Report ViewModel. The LLM provider may polish
+section claims only; titles, evidence, support counts, limits, and questions
+remain deterministic. Schema-like or low-quality LLM wording falls back to the
+deterministic profile.
 
 ## MVP2 Audio Input Track
 

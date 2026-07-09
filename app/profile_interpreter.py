@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -10,12 +11,17 @@ from app.config import Settings
 from app.graph_report import GraphReport
 from app.insight_payload import InsightPayload, build_insight_payload
 from app.journal import JournalLog, journal_event, record_journal_event
-from app.report_cards import ReportCard, build_report_cards
-from app.report_entities import ReportEntityPayload, build_report_entities
-from app.user_report import UserReport, render_details_from_payload, render_summary_from_payload
+from app.report_view_model import (
+    ReportViewModel,
+    apply_claim_rewrites,
+    build_report_view_model,
+    render_details_view,
+    render_summary_view,
+)
+from app.user_report import UserReport
 
 
-PROMPT_VERSION = "profile-interpretation-v1"
+PROMPT_VERSION = "profile-copy-editor-v2"
 DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 PROFILE_MAX_TOKENS = 4096
 INTERNAL_TERMS = (
@@ -35,20 +41,31 @@ FORBIDDEN_WORDING = (
     "stable trait",
     "caused by",
     "because of",
+    "проаннотированы",
+    "триггер",
+    "подход",
+    "компенсация",
+    "исход",
+    "в рамках сценария",
 )
 SYSTEM_PROMPT = """\
-You rewrite structured personal analytics into cautious Russian report text.
+You are a cautious Russian copy editor for a prepared personal analytics report.
 Return only one valid json object.
+Rewrite only section claim text.
+Preserve every section kind exactly.
+Do not rewrite titles, evidence, support counts, limits, or questions.
+Do not add findings, advice, numbers, explanations, labels, or new facts.
 Do not diagnose, advise, infer stable traits, or imply causality.
-Stay sample-bound: describe only what the provided structured facts support.
+Stay sample-bound: keep each claim about what is visible in the current sample.
+Avoid schema-like words such as trigger, approach, compensation, outcome, annotated.
 Do not mention backend/internal terms such as payload, graph, annotation, signature, ids, model, prompt, schema.
 Do not quote or invent private source material.
 """
 JSON_INSTRUCTIONS = """\
 Expected JSON shape:
 {
-  "summary_text": "short readable report in Russian",
-  "details_text": "longer readable report in Russian",
+  "summary_claims": {"section_kind": "rewritten claim"},
+  "details_claims": {"section_kind": "rewritten claim"},
   "safety_notes": ["optional short note about limits"]
 }
 """
@@ -64,8 +81,8 @@ class ProfileInterpretation:
 
 
 class _ProfileResponse(BaseModel):
-    summary_text: str = Field(min_length=1)
-    details_text: str = Field(min_length=1)
+    summary_claims: dict[str, str] = Field(default_factory=dict)
+    details_claims: dict[str, str] = Field(default_factory=dict)
     safety_notes: list[str] = Field(default_factory=list)
 
 
@@ -194,9 +211,8 @@ class DeepSeekProfileInterpreter:
         *,
         journal_log: JournalLog | None = None,
     ) -> ProfileInterpretation:
-        report_entities = build_report_entities(payload)
-        report_cards = build_report_cards(payload)
-        request_payload = _llm_request_payload(payload, report_entities, report_cards)
+        view_model = build_report_view_model(payload)
+        request_payload = _llm_request_payload(view_model)
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -223,14 +239,25 @@ class DeepSeekProfileInterpreter:
             parsed = _ProfileResponse.model_validate_json(content)
         except (ValidationError, json.JSONDecodeError, ValueError) as exc:
             raise ProfileInterpreterError("invalid_schema") from exc
-        violations = profile_text_violations(parsed.summary_text, parsed.details_text)
+        _require_matching_sections(parsed, view_model)
+        rewritten = apply_claim_rewrites(
+            view_model,
+            summary_claims=parsed.summary_claims,
+            details_claims=parsed.details_claims,
+        )
+        summary_text = render_summary_view(rewritten)
+        details_text = render_details_view(rewritten)
+        violations = profile_quality_violations(summary_text, details_text)
         if violations:
-            raise ProfileInterpreterError("unsafe_wording", details={"violations": violations})
+            raise ProfileInterpreterError(
+                "unsafe_or_low_quality",
+                details={"violations": violations},
+            )
         _record_profile_success(journal_log, provider=self.provider_name, model=self.model, payload=payload)
         return ProfileInterpretation(
             report=UserReport(
-                summary_text=parsed.summary_text.strip(),
-                details_text=parsed.details_text.strip(),
+                summary_text=summary_text,
+                details_text=details_text,
             ),
             mode="llm",
             provider=self.provider_name,
@@ -247,14 +274,29 @@ class ProfileInterpreterError(RuntimeError):
 
 def profile_text_violations(*texts: str) -> tuple[str, ...]:
     lowered = "\n".join(texts).lower()
-    return tuple(term for term in (*INTERNAL_TERMS, *FORBIDDEN_WORDING) if term in lowered)
+    return tuple(
+        term
+        for term in (*INTERNAL_TERMS, *FORBIDDEN_WORDING)
+        if _contains_guard_term(lowered, term)
+    )
+
+
+def profile_quality_violations(*texts: str) -> tuple[str, ...]:
+    return profile_text_violations(*texts)
+
+
+def _contains_guard_term(text: str, term: str) -> bool:
+    if " " in term:
+        return term in text
+    return re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text) is not None
 
 
 def _deterministic_interpretation(payload: InsightPayload) -> ProfileInterpretation:
+    view_model = build_report_view_model(payload)
     return ProfileInterpretation(
         report=UserReport(
-            summary_text=render_summary_from_payload(payload),
-            details_text=render_details_from_payload(payload),
+            summary_text=render_summary_view(view_model),
+            details_text=render_details_view(view_model),
         ),
         mode="deterministic",
         provider="deterministic",
@@ -278,41 +320,56 @@ def _fallback_interpretation(
 
 
 def _llm_request_payload(
-    payload: InsightPayload,
-    report_entities: ReportEntityPayload,
-    report_cards: tuple[ReportCard, ...],
+    view_model: ReportViewModel,
 ) -> dict[str, Any]:
     return {
-        "task": "render_profile_report",
+        "task": "copy_edit_profile_report_claims",
         "prompt_version": PROMPT_VERSION,
         "language": "ru",
         "rules": {
+            "copy_editor_only": True,
             "sample_bound": True,
             "no_diagnosis": True,
             "no_advice": True,
             "no_stable_trait_claims": True,
             "no_unsupported_causality": True,
             "no_internal_backend_terms": True,
+            "preserve_section_kinds": True,
+            "rewrite_claims_only": True,
+            "do_not_rewrite_titles_evidence_limits_questions": True,
         },
-        "insight_payload": payload.to_dict(),
-        "report_entities": report_entities.to_dict(),
-        "report_cards": [
-            {
-                "kind": card.kind,
-                "priority": card.priority,
-                "title": card.title,
-                "claim": card.claim,
-                "evidence": card.evidence,
-                "question": card.question,
-            }
-            for card in report_cards
-        ],
+        "report_view_model": view_model.to_dict(),
         "expected_output": {
-            "summary_text": "short readable profile report",
-            "details_text": "longer readable profile report",
+            "summary_claims": {
+                section.kind: "rewritten claim"
+                for section in view_model.summary_sections
+            },
+            "details_claims": {
+                section.kind: "rewritten claim"
+                for section in view_model.details_sections
+            },
             "safety_notes": [],
         },
     }
+
+
+def _require_matching_sections(
+    parsed: _ProfileResponse,
+    view_model: ReportViewModel,
+) -> None:
+    expected_summary = {section.kind for section in view_model.summary_sections}
+    expected_details = {section.kind for section in view_model.details_sections}
+    if set(parsed.summary_claims) != expected_summary:
+        raise ProfileInterpreterError("section_mismatch")
+    if set(parsed.details_claims) != expected_details:
+        raise ProfileInterpreterError("section_mismatch")
+    empty_claims = [
+        claim
+        for claim in (*parsed.summary_claims.values(), *parsed.details_claims.values())
+        if not claim.strip()
+    ]
+    if empty_claims:
+        raise ProfileInterpreterError("section_mismatch")
 
 
 def _first_message_text(response: Any) -> str | None:

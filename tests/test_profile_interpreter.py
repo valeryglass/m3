@@ -11,6 +11,7 @@ from app.profile_interpreter import (
     profile_text_violations,
     resolve_profile_report_mode,
 )
+from app.report_view_model import build_report_view_model
 from app.schemas.episode import Episode
 from app.user_report import render_details, render_summary
 
@@ -69,15 +70,9 @@ def test_deterministic_profile_interpreter_matches_current_report():
 
 
 def test_deepseek_profile_interpreter_uses_safe_structured_payload_only():
+    view_model = build_report_view_model(_payload_ready_report_payload())
     client, completions = _client(
-        json.dumps(
-            {
-                "summary_text": "Короткий отчет\n\nВ выборке видно несколько повторов.",
-                "details_text": "Подробный отчет\n\nЭто осторожное описание текущей выборки.",
-                "safety_notes": ["sample-bound"],
-            },
-            ensure_ascii=False,
-        )
+        _response_for_view_model(view_model)
     )
     interpreter = DeepSeekProfileInterpreter(
         api_key="test",
@@ -89,14 +84,18 @@ def test_deepseek_profile_interpreter_uses_safe_structured_payload_only():
 
     assert result.mode == "llm"
     assert result.report.summary_text.startswith("Короткий отчет")
+    assert "В этой части видно повторение." in result.report.summary_text
+    assert "Поддержка:" in result.report.summary_text
+    assert "Вопрос:" in result.report.summary_text
     assert completions.kwargs["model"] == "deepseek-v4-flash"
     assert completions.kwargs["response_format"] == {"type": "json_object"}
     assert completions.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
     request = json.loads(completions.kwargs["messages"][1]["content"])
-    assert request["task"] == "render_profile_report"
-    assert "insight_payload" in request
-    assert "report_entities" in request
-    assert "report_cards" in request
+    assert request["task"] == "copy_edit_profile_report_claims"
+    assert "report_view_model" in request
+    assert "insight_payload" not in request
+    assert "report_entities" not in request
+    assert "report_cards" not in request
     assert "source_quote" not in completions.kwargs["messages"][1]["content"]
 
 
@@ -105,8 +104,18 @@ def test_llm_unsafe_wording_falls_back_to_deterministic_and_journals(tmp_path):
     client, _ = _client(
         json.dumps(
             {
-                "summary_text": "Это значит устойчивый диагноз.",
-                "details_text": "Подробный отчет",
+                "summary_claims": {
+                    section.kind: "Это значит устойчивый диагноз."
+                    for section in build_report_view_model(
+                        _payload_ready_report_payload()
+                    ).summary_sections
+                },
+                "details_claims": {
+                    section.kind: "Подробный отчет"
+                    for section in build_report_view_model(
+                        _payload_ready_report_payload()
+                    ).details_sections
+                },
                 "safety_notes": [],
             },
             ensure_ascii=False,
@@ -130,11 +139,88 @@ def test_llm_unsafe_wording_falls_back_to_deterministic_and_journals(tmp_path):
     )
 
     assert interpreted.mode == "deterministic"
-    assert interpreted.fallback_reason == "unsafe_wording"
+    assert interpreted.fallback_reason == "unsafe_or_low_quality"
     assert interpreted.report.summary_text == render_summary(report)
     text = journal_path.read_text(encoding="utf-8")
     assert "profile_interpreter.fallback" in text
     assert "Это значит" not in text
+
+
+def test_llm_section_mismatch_falls_back_to_deterministic(tmp_path):
+    report = _report()
+    view_model = build_report_view_model(_payload_ready_report_payload())
+    summary_claims = {
+        section.kind: "В этой части видно повторение."
+        for section in view_model.summary_sections
+    }
+    summary_claims.pop(view_model.summary_sections[0].kind)
+    client, _ = _client(
+        json.dumps(
+            {
+                "summary_claims": summary_claims,
+                "details_claims": {
+                    section.kind: "В этой части видно повторение."
+                    for section in view_model.details_sections
+                },
+                "safety_notes": [],
+            },
+            ensure_ascii=False,
+        )
+    )
+    settings = load_settings(
+        {
+            "TELEGRAM_BOT_TOKEN": "token",
+            "M3_APP_MODE": "production",
+            "DEEPSEEK_API_KEY": "test",
+            "M3_PROFILE_LLM_MODEL": "deepseek-v4-flash",
+        }
+    )
+    journal_path = tmp_path / "journal.jsonl"
+
+    interpreted = interpret_profile_for_settings(
+        report,
+        settings,
+        journal_log=JournalLog(journal_path),
+        client=client,
+    )
+
+    assert interpreted.mode == "deterministic"
+    assert interpreted.fallback_reason == "section_mismatch"
+    assert interpreted.report.details_text == render_details(report)
+
+
+def test_llm_schema_smell_wording_falls_back_to_deterministic(tmp_path):
+    report = _report()
+    view_model = build_report_view_model(_payload_ready_report_payload())
+    client, _ = _client(
+        json.dumps(
+            {
+                "summary_claims": {
+                    section.kind: "В рамках сценария этот триггер ведет в подход."
+                    for section in view_model.summary_sections
+                },
+                "details_claims": {
+                    section.kind: "В этой части видно повторение."
+                    for section in view_model.details_sections
+                },
+                "safety_notes": [],
+            },
+            ensure_ascii=False,
+        )
+    )
+    settings = load_settings(
+        {
+            "TELEGRAM_BOT_TOKEN": "token",
+            "M3_APP_MODE": "production",
+            "DEEPSEEK_API_KEY": "test",
+            "M3_PROFILE_LLM_MODEL": "deepseek-v4-flash",
+        }
+    )
+
+    interpreted = interpret_profile_for_settings(report, settings, client=client)
+
+    assert interpreted.mode == "deterministic"
+    assert interpreted.fallback_reason == "unsafe_or_low_quality"
 
 
 def test_missing_profile_llm_config_falls_back_safely(tmp_path):
@@ -161,12 +247,30 @@ def test_missing_profile_llm_config_falls_back_safely(tmp_path):
 def test_profile_text_guard_blocks_internal_and_diagnostic_terms():
     assert "payload" in profile_text_violations("payload", "")
     assert "диагноз" in profile_text_violations("это диагноз", "")
+    assert "триггер" in profile_text_violations("этот триггер", "")
 
 
 def _payload_ready_report_payload():
     from app.insight_payload import build_insight_payload
 
     return build_insight_payload(_report())
+
+
+def _response_for_view_model(view_model):
+    return json.dumps(
+        {
+            "summary_claims": {
+                section.kind: "В этой части видно повторение."
+                for section in view_model.summary_sections
+            },
+            "details_claims": {
+                section.kind: "В этой части видно повторение."
+                for section in view_model.details_sections
+            },
+            "safety_notes": ["sample-bound"],
+        },
+        ensure_ascii=False,
+    )
 
 
 def _report():

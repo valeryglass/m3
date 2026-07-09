@@ -194,6 +194,87 @@ Acceptance:
 - no raw provider output, raw transcript text, or unsupported inference enters
   episode JSON.
 
+## RM-A5 Production LLM Profile Interpreter
+
+Status: implemented.
+
+Goal: allow beta production `/profile` to use an LLM wording layer while keeping
+`ml` mode deterministic.
+
+Acceptance:
+
+- `M3_PROFILE_REPORT_MODE=auto` resolves to deterministic profile rendering in
+  `ml` mode and LLM profile rendering in `production`;
+- `M3_PROFILE_LLM_PROVIDER=deepseek` and explicit `M3_PROFILE_LLM_MODEL` select
+  the production profile provider;
+- LLM input uses safe analytics facts only: `InsightPayload`, Report Entities,
+  report cards, coverage, support counts, gaps, and provenance identifiers;
+- raw episode text, transcripts, source quotes, prompts, API keys, and raw LLM
+  output are not journaled or sent through report QA output;
+- missing provider config, provider failure, invalid JSON, or unsafe wording
+  falls back to deterministic profile text and writes a process-journal event.
+
+Known gap:
+
+- the first LLM interpreter can still produce schema-like summaries. It proves
+  the provider path, not final report UX quality.
+
+## RM-A6 Report ViewModel Contract
+
+Status: implemented.
+
+Goal: create a render-ready report object between ReportCards and text output.
+
+Acceptance:
+
+- `ReportViewModel` exposes `summary_sections` and `details_sections`;
+- each section carries title, plain claim, evidence lines, support/coverage
+  facts, limits, and next observation question when present;
+- deterministic `/profile` renders from `ReportViewModel`, not directly from
+  raw cards;
+- the ViewModel uses user-facing labels and avoids internal labels such as
+  `approach`, `neutral_mixed`, `trigger`, `annotation`, and schema terms;
+- existing deterministic profile facts remain sample-bound and provenance-backed.
+
+## RM-A7 LLM As Copy Editor, Not Analyst
+
+Status: implemented.
+
+Goal: make production LLM profile rendering polish prepared report sections
+instead of summarizing raw payload facts.
+
+Acceptance:
+
+- LLM input is `ReportViewModel` plus strict style rules, not a freeform
+  `InsightPayload` dump;
+- LLM output preserves section count, section order, support counts, evidence
+  facts, limits, and questions;
+- LLM output cannot add findings, remove coverage limits, or invent advice;
+- any fact drift, missing section, missing support count, or missing question
+  falls back to deterministic profile text;
+- prompt/version names are bumped so old output can be distinguished in journal
+  and tests.
+
+## RM-A8 Report Quality Gate
+
+Status: implemented.
+
+Goal: block schema-like or low-quality LLM profile output before it reaches
+Telegram.
+
+Acceptance:
+
+- quality guard rejects diagnostic, stable-trait, causal, internal, and
+  schema-smell wording;
+- schema-smell examples include `проаннотированы`, `триггер`, `подход`,
+  `компенсация`, `исход`, and `в рамках сценария`;
+- guard requires readable section structure, sample limitation, support facts,
+  and next observation questions where the ViewModel has them;
+- rejected LLM output falls back to deterministic profile text and journals a
+  safe failure reason such as `unsafe_or_low_quality`;
+- `beta-report-qa` covers deterministic report text and fake LLM outputs without
+  printing raw private content.
+
 ## Supporting Epic: Input-To-Schema Transport Tool
 
 Goal: make user input reliably become schema-valid episode drafts.

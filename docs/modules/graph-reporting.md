@@ -20,7 +20,9 @@ plus selected annotations.
 - graph signatures carrying accepted primary/secondary life domains.
 - deterministic Report Entity projections for report views.
 - card-composed plain-language `/profile` summary and details projections.
-- production LLM `/profile` interpretation over safe report facts.
+- render-ready Report ViewModel projections for deterministic and LLM profile
+  rendering.
+- production LLM `/profile` claim polishing over safe report view facts.
 - optional Markdown debug exports.
 
 ## Dependencies
@@ -47,12 +49,14 @@ sets. `app.insight_payload` packages those facts into the shared downstream
 analytics artifact. `app.report_entities` projects the shared payload into the
 stable report vocabulary: Evidence, Pattern, Exception, Change, Finding,
 Question, and Gap. `app.report_cards` turns report entities into report-view
-card candidates. `app.user_report` renders deterministic short and detailed
-`/profile` text from those cards. `app.profile_interpreter` selects the runtime
-profile mode: `ml` uses deterministic rendering, while `production` may ask the
-configured LLM provider to rewrite safe `InsightPayload`/Report Entity/card
-facts into more readable text. It does not generate new annotations, choose
-independent map semantics, send raw episode text, or produce diagnostic
+card candidates. `app.report_view_model` turns cards into the render-ready
+summary/details sections used by both deterministic and LLM profile rendering.
+`app.user_report` renders deterministic short and detailed `/profile` text from
+that ViewModel. `app.profile_interpreter` selects the runtime profile mode:
+`ml` uses deterministic rendering, while `production` may ask the configured
+LLM provider to polish section claims only. Titles, evidence, support counts,
+limits, and questions stay deterministic. It does not generate new annotations,
+choose independent map semantics, send raw episode text, or produce diagnostic
 interpretations.
 
 For Beta-1 report work, use `roles/report-interpreter.md`: report interpretation

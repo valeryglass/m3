@@ -436,6 +436,10 @@ Scope:
 - RM-05 payload, map, short-report, and long-report QA;
 - RM-06 brand text rewrite inventory;
 - RM-07 tutorial script;
+- RM-A5 production LLM profile interpreter;
+- RM-A6 Report ViewModel contract;
+- RM-A7 LLM as section-preserving copy editor;
+- RM-A8 report quality gate;
 - sturdy existing input flows;
 - input-to-schema transport;
 - episode-to-graph refresh role/workflow;

@@ -186,6 +186,22 @@ def test_report_payload_qa_report_text_guard_blocks_forbidden_wording(
     assert any("forbidden report wording" in item for item in status["blockers"])
 
 
+def test_report_payload_qa_report_text_guard_blocks_schema_smell(
+    tmp_path,
+    monkeypatch,
+):
+    episode_dir, run_dir = _episode_dir_with_run(tmp_path)
+    monkeypatch.setattr(
+        "app.report_payload_qa.render_summary_from_payload",
+        lambda payload: "проаннотированы триггер подход компенсация исход",
+    )
+
+    status = build_qa_status(episode_dir, run_dir, "telegram-chat:123")
+
+    assert status["status"] == STATUS_BLOCKED
+    assert any("forbidden report wording" in item for item in status["blockers"])
+
+
 def test_report_payload_qa_output_excludes_raw_quotes_and_report_text(tmp_path):
     episode_dir, run_dir = _episode_dir_with_run(tmp_path)
 
