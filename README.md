@@ -15,7 +15,6 @@ The project has working layers:
 - `data/ux-events/`: private step-level UX analytics event log.
 - `data/exports/map-payload/`: explicit tracked map payload JSON/HTML exports.
 - `data/reports/`: optional private debug/export snapshots.
-- `config/`: runtime configuration files.
 - `app/`: runnable Telegram loop extractor app.
 - `docs/`: architecture operating system and methodology drafts.
 - `roles/`: optional Codex role specs for specific tasks.
@@ -94,7 +93,7 @@ Normal bot access is granted through approved records in
 `data/userlist/users.json`. The `.env` admin settings only control hidden admin
 commands and owner notifications.
 
-The bot uses `config/tone.yaml` for user-facing loop tone, with fallback text in
+The bot uses `app/tone.yaml` for user-facing loop tone, with fallback text in
 `app/tone_engine.py`. Tone changes interface wording only; CBT data and analytics
 event fields stay unchanged.
 

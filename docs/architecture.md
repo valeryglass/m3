@@ -66,7 +66,6 @@ graph/report analytics directly.
 - `sources/`: immutable reference/source seeds.
 - `model/`: accepted CBT domain model and JSON contracts.
 - `app/`: runtime code and local CLIs.
-- `config/`: runtime configuration.
 - `data/`: private runtime artifacts, ignored by Git.
 - `docs/`: architecture operating system and methodology drafts for humans.
 - `roles/`: role prompts and task behavior specs.

@@ -34,7 +34,7 @@ def test_load_settings_uses_default_data_paths():
     assert settings.profile_llm_model == ""
     assert settings.ux_idle_after_sec == 7200
     assert settings.initial_session_ttl_sec == 600
-    assert str(settings.tone_config) == "config/tone.yaml"
+    assert str(settings.tone_config) == "app/tone.yaml"
     assert str(settings.audio_temp_dir) == "data/runtime-audio"
     assert str(settings.intake_transcript_dir) == "data/intake-transcripts"
     assert str(settings.capture_artifact_dir) == "data/capture-artifacts"

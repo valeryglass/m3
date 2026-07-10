@@ -39,7 +39,7 @@ modules:
       - app/audio_flow_store.py
       - app/messages.py
       - app/tone_engine.py
-      - config/tone.yaml
+      - app/tone.yaml
       - data/runtime-sessions/
       - data/runtime-flows/
     inputs:

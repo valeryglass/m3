@@ -30,7 +30,7 @@ The active engine is JSON:
   extraction attempts.
 - `data/exports/map-payload/` stores explicit tracked map payload JSON/HTML exports.
 - `data/reports/` stores optional private debug/export snapshots only.
-- `config/tone.yaml` configures user-facing loop tone.
+- `app/tone.yaml` configures user-facing loop tone.
 
 The agent's job is to keep accepted contracts and artifacts coherent. Do not
 invent architecture to feel productive.
@@ -59,7 +59,6 @@ raw/       -- immutable user texts, thoughts, logs, and artifacts
 sources/   -- immutable reference/source materials
 model/     -- accepted CBT model and JSON contracts
 data/      -- private runtime artifacts and session memory
-config/    -- runtime configuration files
 app/       -- Telegram loop extractor application
 docs/      -- architecture operating system and methodology drafts
 roles/     -- optional role specs

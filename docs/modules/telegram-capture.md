@@ -19,7 +19,7 @@ directly to review. Audio requires an additional transcript-confirmation gate.
 - private in-progress session memory under `data/runtime-sessions/`.
 - private explicit flow state under `data/runtime-flows/`.
 - private review state under `data/runtime-sessions/review/`.
-- tone configuration from `config/tone.yaml`.
+- tone configuration from `app/tone.yaml`.
 
 ## Outputs
 

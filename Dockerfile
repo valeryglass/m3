@@ -10,7 +10,6 @@ RUN python -m pip install --upgrade pip \
     && python -m pip install --no-cache-dir .
 
 COPY app ./app
-COPY config ./config
 COPY model ./model
 COPY roles ./roles
 
