@@ -60,7 +60,8 @@ RM order:
 
 - RM-00: align roadmap source of truth.
 - RM-01: add runtime mode and DeepSeek provider support. Status: implemented.
-- RM-02: add operator analytics commands. Status: implemented.
+- RM-02: keep analytics as direct CLI tools and keep Makefile admin-bot-only.
+  Status: implemented.
 - RM-03: define capture smoke to beta standard. Status: implemented.
 - RM-04: produce or verify a fresh annotation-run. Status: implemented.
 - RM-05: QA payload, map, short report, and long report. Status: implemented.

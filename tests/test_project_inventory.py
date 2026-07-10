@@ -90,7 +90,6 @@ def test_active_docs_do_not_reference_stale_architecture_paths():
 
 def test_map_payload_exports_do_not_use_report_directory():
     active_paths = [
-        ROOT / "Makefile",
         ROOT / "README.md",
         ROOT / "AGENTS.md",
         ROOT / "project.manifest.yaml",

@@ -61,14 +61,13 @@ boundary. Audio requires transcript confirmation before draft creation.
 ```bash
 cp .env.example .env
 # fill TELEGRAM_BOT_TOKEN, M3_TELEGRAM_ADMIN_CHAT_IDS, and M3_TELEGRAM_OWNER_CHAT_ID
-python -m app.telegram_bot
+make bot
 ```
 
 The same bot can run in the local Docker runtime capsule:
 
 ```bash
 make docker-bot
-docker compose up bot
 ```
 
 Runtime episode artifacts, session memory, and alpha userlist records are stored
@@ -80,7 +79,8 @@ Use the repo-local virtualenv for Codex and patch validation:
 
 ```bash
 make venv
-make check
+.venv/bin/python -m py_compile app/*.py app/schemas/*.py
+.venv/bin/python -m pytest -q
 ```
 
 Docker remains the runtime capsule for the bot; `.venv` is for local tests and

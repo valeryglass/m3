@@ -145,27 +145,15 @@ def _recommended_command(
     source: str | None,
 ) -> str:
     if recommendation == RECOMMENDATION_FULL_SNAPSHOT:
-        return _make_command(
-            "annotation-full",
+        return _annotation_command(
             episode_dir=episode_dir,
             annotation_run_root=annotation_run_root,
             source=source,
         )
     if recommendation == RECOMMENDATION_MISSING_ONLY and annotation_run_dir is not None:
-        return _make_command(
-            "annotation-missing",
+        return _annotation_command(
             episode_dir=episode_dir,
             annotation_run_root=annotation_run_root,
-            annotation_run_dir=annotation_run_dir,
-            source=source,
-        )
-    if (
-        recommendation == RECOMMENDATION_NO_OP_FULL_COVERAGE
-        and annotation_run_dir is not None
-    ):
-        return _make_command(
-            "beta-analytics",
-            episode_dir=episode_dir,
             annotation_run_dir=annotation_run_dir,
             source=source,
         )
@@ -213,21 +201,34 @@ def _record_status_journal(
     )
 
 
-def _make_command(
-    target: str,
+def _annotation_command(
     *,
     episode_dir: Path,
-    annotation_run_root: Path | None = None,
+    annotation_run_root: Path,
     annotation_run_dir: Path | None = None,
     source: str | None = None,
 ) -> str:
-    parts = ["make", target, f"EPISODE_DIR={_quote(episode_dir.as_posix())}"]
-    if annotation_run_root is not None:
-        parts.append(f"ANNOTATION_RUN_ROOT={_quote(annotation_run_root.as_posix())}")
+    parts = [
+        "python",
+        "-m",
+        "app.annotation_producer",
+        "run",
+        "--episode-dir",
+        _quote(episode_dir.as_posix()),
+        "--output-root",
+        _quote(annotation_run_root.as_posix()),
+    ]
     if annotation_run_dir is not None:
-        parts.append(f"ANNOTATION_RUN_DIR={_quote(annotation_run_dir.as_posix())}")
+        parts.extend(
+            [
+                "--only-missing",
+                "--annotation-run-dir",
+                _quote(annotation_run_dir.as_posix()),
+            ]
+        )
     if source:
-        parts.append(f"ANNOTATION_SOURCE={_quote(source)}")
+        parts.extend(["--source", _quote(source)])
+    parts.append("--write")
     return " ".join(parts)
 
 

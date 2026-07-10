@@ -78,8 +78,10 @@ Raw audio should remain temporary-only unless a later ADR changes retention.
 ## Pre-Restart Checks
 
 ```bash
-make check
-make check-whisper
+.venv/bin/python -m py_compile app/*.py app/schemas/*.py
+.venv/bin/python -m pytest -q
+command -v ffmpeg
+command -v "${M3_WHISPER_COMMAND:-.venv/bin/whisper}"
 ```
 
 If running only inside Docker, use the equivalent container command.

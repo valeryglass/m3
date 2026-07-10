@@ -49,7 +49,7 @@ Report cards may explain:
 Default operator QA command:
 
 ```bash
-make beta-report-qa ANNOTATION_RUN_DIR=data/annotation-runs/<selected-run>
+python -m app.report_payload_qa --episode-dir data/episodes --annotation-run-dir data/annotation-runs/<selected-run> --source <source> --insight-payload-path data/exports/insight-payload/<source-safe>.json --map-payload-path data/exports/map-payload/<source-safe>.json
 ```
 
 Before accepting report output, check:

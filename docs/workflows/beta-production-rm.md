@@ -31,9 +31,11 @@ flows being smoked.
 ```bash
 git status --short --branch
 git diff --check
-make check
-make test-docs
-make release-audio-check
+.venv/bin/python -m py_compile app/*.py app/schemas/*.py
+.venv/bin/python -m pytest -q
+.venv/bin/python -m pytest tests/test_project_inventory.py tests/test_roles.py -q
+command -v ffmpeg
+command -v "${M3_WHISPER_COMMAND:-.venv/bin/whisper}"
 docker compose config --quiet
 ```
 
@@ -92,7 +94,7 @@ Use `roles/fresh-analytics.md`.
 Start with the read-only status command:
 
 ```bash
-make fresh-analytics-status
+python -m app.fresh_analytics_status --episode-dir data/episodes --annotation-run-root data/annotation-runs
 ```
 
 Follow the JSON recommendation:
@@ -109,7 +111,7 @@ Follow the JSON recommendation:
 Then audit:
 
 ```bash
-make audit ANNOTATION_RUN_DIR=<selected-run>
+python -m app.annotation_audit --episode-dir data/episodes --annotation-run-root data/annotation-runs --annotation-run-dir <selected-run>
 ```
 
 Record:
@@ -127,12 +129,12 @@ Use `roles/report-interpreter.md` for report interpretation and QA.
 For explicit exports, set `ANNOTATION_RUN_DIR` to the selected run.
 
 ```bash
-make export-graph-report ANNOTATION_RUN_DIR=<selected-run>
-make export-insight-payload ANNOTATION_RUN_DIR=<selected-run>
-make export-map-payload ANNOTATION_RUN_DIR=<selected-run>
-make export-map-html
-make export-ux-report
-make beta-report-qa ANNOTATION_RUN_DIR=<selected-run>
+python -m app.graph_report --episode-dir data/episodes --output-dir data/reports/graph --by-source --min-count 2 --annotation-run-dir <selected-run>
+python -m app.insight_payload --episode-dir data/episodes --annotation-run-dir <selected-run> --source <source> --output data/exports/insight-payload/<source-safe>.json
+python -m app.map_payload --episode-dir data/episodes --annotation-run-dir <selected-run> --source <source> --output data/exports/map-payload/<source-safe>.json
+python -m app.map_payload_html --input data/exports/map-payload/<source-safe>.json --output data/exports/map-payload/<source-safe>.html
+python -m app.ux_analytics --output-dir data/reports/ux
+python -m app.report_payload_qa --episode-dir data/episodes --annotation-run-dir <selected-run> --source <source> --insight-payload-path data/exports/insight-payload/<source-safe>.json --map-payload-path data/exports/map-payload/<source-safe>.json
 ```
 
 Verify:
@@ -147,8 +149,8 @@ Verify:
   sample-bound;
 - UX analytics can show funnel-level and user-level dropoff without raw content.
 
-`make beta-report-qa` is the acceptance check for report/payload consistency. It
-must pass with `status=passed` before beta can be marked ready.
+`app.report_payload_qa` is the acceptance check for report/payload consistency.
+It must pass with `status=passed` before beta can be marked ready.
 
 Failure rule: report/payload contradiction is a beta blocker unless explicitly
 documented as a known limitation.

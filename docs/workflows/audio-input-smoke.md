@@ -26,11 +26,15 @@ mode or change episode/schema behavior.
 Run local checks first:
 
 ```bash
-make release-audio-check
+.venv/bin/python -m py_compile app/*.py app/schemas/*.py
+.venv/bin/python -m pytest -q
+.venv/bin/python -m pytest tests/test_project_inventory.py tests/test_roles.py -q
+command -v ffmpeg
+command -v "${M3_WHISPER_COMMAND:-.venv/bin/whisper}"
 ```
 
-If `make check-whisper` fails, run `make venv` or set `M3_WHISPER_COMMAND` to a
-valid command before live beta smoke.
+If the Whisper command check fails, run `make venv` or set
+`M3_WHISPER_COMMAND` to a valid command before live beta smoke.
 
 For live beta smoke, run the bot through the beta workflow in
 `docs/workflows/beta-production-rm.md` so Docker config, provider config, and

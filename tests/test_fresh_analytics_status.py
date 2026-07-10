@@ -35,7 +35,8 @@ def test_fresh_analytics_status_without_run_recommends_full_snapshot(tmp_path):
     status = build_status(episode_dir, run_root, journal_log=journal_path)
 
     assert status["recommendation"] == RECOMMENDATION_FULL_SNAPSHOT
-    assert "make annotation-full" in status["recommended_command"]
+    assert "python -m app.annotation_producer run" in status["recommended_command"]
+    assert "--write" in status["recommended_command"]
     assert status["selected_annotation_run_path"] is None
     assert status["dry_run"]["generated_count"] == 1
     assert not run_root.exists()
@@ -64,8 +65,7 @@ def test_fresh_analytics_status_full_run_is_noop_full_coverage(tmp_path):
     assert status["selected_annotation_run_id"] == "run-20260618-120000-deterministic"
     assert status["coverage"] == "full"
     assert status["dry_run"]["generated_count"] == 0
-    assert "make beta-analytics" in status["recommended_command"]
-    assert f"ANNOTATION_RUN_DIR={run_dir.as_posix()}" in status["recommended_command"]
+    assert status["recommended_command"] == ""
 
 
 def test_fresh_analytics_status_partial_run_recommends_missing_only(tmp_path):
@@ -90,8 +90,11 @@ def test_fresh_analytics_status_partial_run_recommends_missing_only(tmp_path):
     assert status["pending_episode_ids"] == ["episode-20260503-2"]
     assert status["dry_run"]["generated_count"] == 1
     assert status["dry_run"]["coverage_after"] == "full"
-    assert "make annotation-missing" in status["recommended_command"]
-    assert f"ANNOTATION_RUN_DIR={run_dir.as_posix()}" in status["recommended_command"]
+    assert "python -m app.annotation_producer run" in status["recommended_command"]
+    assert "--only-missing" in status["recommended_command"]
+    assert f"--annotation-run-dir {run_dir.as_posix()}" in status[
+        "recommended_command"
+    ]
     assert not (run_root / "run-20260618-120001-deterministic").exists()
 
 

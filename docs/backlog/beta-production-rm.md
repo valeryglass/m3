@@ -63,12 +63,15 @@ Acceptance:
 
 Status: implemented.
 
-Goal: reduce beta operator command friction for fresh analytics.
+Goal: keep fresh analytics available through direct CLIs while keeping Makefile
+limited to local admin bot/test commands.
 
 Acceptance:
 
-- Makefile/operator commands cover annotation dry-run, missing-only refresh,
-  full refresh, graph report, InsightPayload, map payload/HTML, and UX report;
+- direct CLI tools cover annotation dry-run, missing-only refresh, full refresh,
+  graph report, InsightPayload, map payload/HTML, and UX report;
+- Makefile is limited to virtualenv setup, local bot lifecycle, and Docker bot
+  lifecycle;
 - commands require explicit selected annotation-run where exports need one.
 
 ## RM-03 Capture Smoke To Beta Standard
@@ -107,8 +110,7 @@ observed episodes.
 
 Acceptance:
 
-- `make fresh-analytics-status` gives a read-only recommendation before
-  writing;
+- `app.fresh_analytics_status` gives a read-only recommendation before writing;
 - dry-run, selected annotation-run, coverage, readiness, and blocker state are
   visible as JSON;
 - missing-only snapshot is recommended when a valid base run exists;
@@ -130,7 +132,7 @@ Acceptance:
 - reports interpret payload/card facts rather than reselecting conflicting
   analytics;
 - map/report/profile wording remains cautious and sample-bound;
-- `make beta-report-qa` verifies selected-run consistency, export agreement,
+- `app.report_payload_qa` verifies selected-run consistency, export agreement,
   payload readiness, and report wording guards.
 
 ## RM-06 Brand Text Rewrite
@@ -272,8 +274,8 @@ Acceptance:
   and next observation questions where the ViewModel has them;
 - rejected LLM output falls back to deterministic profile text and journals a
   safe failure reason such as `unsafe_or_low_quality`;
-- `beta-report-qa` covers deterministic report text and fake LLM outputs without
-  printing raw private content.
+- `app.report_payload_qa` covers deterministic report text and fake LLM outputs
+  without printing raw private content.
 
 ## Supporting Epic: Input-To-Schema Transport Tool
 
@@ -397,9 +399,11 @@ Primary artifacts:
 ## Verification Checklist
 
 ```bash
-make check
-make test-docs
-make release-audio-check
+.venv/bin/python -m py_compile app/*.py app/schemas/*.py
+.venv/bin/python -m pytest -q
+.venv/bin/python -m pytest tests/test_project_inventory.py tests/test_roles.py -q
+command -v ffmpeg
+command -v "${M3_WHISPER_COMMAND:-.venv/bin/whisper}"
 ```
 
 Then run:

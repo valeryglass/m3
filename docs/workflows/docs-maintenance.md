@@ -48,7 +48,7 @@ unless they change one of those surfaces.
 6. Run the mechanical guard:
 
 ```bash
-make test-docs
+.venv/bin/python -m pytest tests/test_project_inventory.py tests/test_roles.py -q
 ```
 
 ## What The Tests Cover

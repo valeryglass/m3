@@ -74,7 +74,8 @@ Before pushing a branch:
 ```bash
 git status --short --branch
 git diff --check
-make check
+.venv/bin/python -m py_compile app/*.py app/schemas/*.py
+.venv/bin/python -m pytest -q
 ```
 
 Before merging into a more stable branch, also run the relevant manual smoke
