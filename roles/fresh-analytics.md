@@ -14,6 +14,10 @@ hydrate from the selected or latest valid run.
 This role does not collect new user data, modify observed episode files, or
 rewrite analytics consumers.
 
+The live bot normally refreshes deterministic annotations after Save and on
+startup. This role verifies that automation or repairs a recorded blocker; it is
+not a routine manual step for every episode.
+
 ## Frame
 
 ```text

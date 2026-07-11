@@ -448,7 +448,7 @@ Implemented result:
 
 ## RM-15 Automatic Analytics Freshness
 
-Status: planned.
+Status: implemented; live restart/container-volume evidence remains in RM-16.
 
 Goal: ensure `/profile` has an explicit, repeatable relationship to episodes
 saved after the currently selected annotation-run.
@@ -474,6 +474,21 @@ Acceptance:
 - simultaneous saves coalesce safely into complete snapshots;
 - `/profile`, payload, map, and debug reports select the same valid run;
 - refresh failure preserves the last valid run and exposes a clear blocker.
+
+Implemented result:
+
+- durable Episodes act as the recovery queue, so startup discovers any coverage
+  gap without a second persisted queue;
+- successful Save enqueues one coalescing background worker and does not wait for
+  deterministic annotation production;
+- the worker writes a full first snapshot or a complete missing-only replacement
+  and loops when another Save arrives during production;
+- latest valid selection uses manifest creation time, while an explicit stale
+  `M3_ANNOTATION_RUN_DIR` blocks automatic movement instead of being ignored;
+- `/profile` fixes one selected run per render, preserves the partial-coverage
+  note, and uses neutral processing copy before a first report is ready;
+- admin graph output names selected run, freshness, and pending count;
+- failed refresh preserves the prior valid run and journals safe blocker metadata.
 
 ## RM-16 Public Beta Operations Gate
 

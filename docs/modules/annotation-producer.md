@@ -43,6 +43,18 @@ Admin backdoor:
 /admin_annotate_gaps
 ```
 
+## Automatic Refresh
+
+`app.analytics_refresh` runs the same deterministic producer after successful
+Telegram Save and during startup recovery. Current Episode IDs are compared with
+the latest valid annotation snapshot, so Episodes themselves are the durable
+pending-work record.
+
+One coordinator coalesces concurrent saves. It writes a full snapshot when no
+valid base exists and a complete missing-only snapshot otherwise. A failure
+preserves the previous run. An owner-pinned `M3_ANNOTATION_RUN_DIR` is never
+silently replaced; a stale pin blocks automatic refresh until it is cleared.
+
 ## Boundaries
 
 - `episode_annotator` is pure business logic: `Episode.observed -> Derived`.

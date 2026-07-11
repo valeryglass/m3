@@ -52,6 +52,10 @@ Each selected run is a self-contained snapshot for its known episode set.
 Missing-only producer updates must carry existing rows forward unchanged and
 must not publish incomplete delta runs.
 
+Without an explicit run pin, latest valid selection is ordered by manifest
+`created_at` and then path name. Automatic refresh publishes immutable complete
+snapshots; readers never select the temporary directory used during writing.
+
 Domain enrichment also writes a complete replacement snapshot. It must preserve
 the selected base run except for the new `domain_annotations` field.
 

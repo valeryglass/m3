@@ -347,6 +347,7 @@ modules:
     owned_paths:
       - app/episode_annotator.py
       - app/annotation_producer.py
+      - app/analytics_refresh.py
       - app/domain_classifier.py
       - app/domain_enrichment.py
       - docs/modules/annotation-producer.md
@@ -356,6 +357,7 @@ modules:
     outputs:
       - data/annotation-runs/
       - annotation coverage delta summaries
+      - automatic freshness state and safe process events
     interfaces:
       - episode_to_annotation
     capabilities:
@@ -363,6 +365,9 @@ modules:
       - annotation_run_production
       - missing_annotation_backfill
       - self_contained_annotation_snapshots
+      - post_save_annotation_refresh
+      - startup_annotation_recovery
+      - concurrent_refresh_coalescing
       - life_domain_annotation
       - reviewed_domain_enrichment
 

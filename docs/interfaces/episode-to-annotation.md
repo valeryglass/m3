@@ -31,6 +31,8 @@ Annotation Runs.
 - annotation-runs are durable derived graph artifacts.
 - annotation production is explicit: the producer creates annotations, while
   hydration only reads selected annotations.
+- the Telegram runtime may trigger deterministic production after Save and on
+  startup; durable Episodes, not an auxiliary queue, define pending work.
 - missing-only production carries selected rows forward unchanged and writes
   only complete replacement snapshots; delta-only runs are prohibited.
 - analytics loaders hydrate runtime `Episode.derived` from the selected

@@ -25,7 +25,16 @@ from app.config import (
     owner_chat_id_for_settings,
 )
 from app.capture_flow_store import CaptureFlowStore
-from app.analytics_loader import annotation_coverage_for_episode_ids
+from app.analytics_loader import (
+    annotation_coverage_for_episode_ids,
+    selected_annotation_run,
+)
+from app.analytics_refresh import (
+    FRESHNESS_BLOCKED,
+    FRESHNESS_REFRESHING,
+    FRESHNESS_STALE,
+    AnalyticsRefreshCoordinator,
+)
 from app.annotation_producer import produce_annotation_run
 from app.graph_report import build_report, load_episodes
 from app.telegram_media import (
@@ -129,6 +138,12 @@ def _run_bot(settings: Settings) -> None:
     journal_log = _journal_log_for_settings(settings)
     provider_guard = provider_guard_for_settings(
         settings,
+        journal_log=journal_log,
+    )
+    analytics_refresh = AnalyticsRefreshCoordinator(
+        settings.episode_dir,
+        settings.annotation_run_root,
+        annotation_run_dir=settings.annotation_run_dir,
         journal_log=journal_log,
     )
     tone = load_tone_engine(settings.tone_config)
@@ -248,6 +263,7 @@ def _run_bot(settings: Settings) -> None:
             profile_cache=context.chat_data,
             provider_guard=provider_guard,
             ux_events=ux_events,
+            analytics_refresh=analytics_refresh,
         )
 
     async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -356,6 +372,7 @@ def _run_bot(settings: Settings) -> None:
         await _handle_episode_callback_after_authorized(
             update, storage, session_store, ux_events, tone,
             review_store=review_store,
+            analytics_refresh=analytics_refresh,
         )
 
     async def transcript_callback(
@@ -398,6 +415,7 @@ def _run_bot(settings: Settings) -> None:
             profile_cache=context.chat_data,
             provider_guard=provider_guard,
             ux_events=ux_events,
+            analytics_refresh=analytics_refresh,
         )
 
     async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -425,7 +443,12 @@ def _run_bot(settings: Settings) -> None:
     ) -> None:
         if not await _authorize_admin(update, settings, tone, ux_events):
             return
-        await _handle_admin_annotate_gaps_after_admin(update, settings, tone)
+        await _handle_admin_annotate_gaps_after_admin(
+            update,
+            settings,
+            tone,
+            analytics_refresh=analytics_refresh,
+        )
 
     async def unknown_command(
         update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -437,6 +460,7 @@ def _run_bot(settings: Settings) -> None:
         await _handle_unknown_command_after_authorized(update, tone)
 
     async def post_init(application) -> None:
+        await analytics_refresh.start()
         profile = _bot_profile(tone)
         await application.bot.set_my_commands(
             [
@@ -448,6 +472,9 @@ def _run_bot(settings: Settings) -> None:
             short_description=profile["short_description"]
         )
         await application.bot.set_my_description(description=profile["description"])
+
+    async def post_shutdown(application) -> None:
+        await analytics_refresh.wait_idle()
 
     async def error_handler(update, context) -> None:
         _record_telegram_error(
@@ -464,6 +491,7 @@ def _run_bot(settings: Settings) -> None:
         .write_timeout(30)
         .concurrent_updates(PerChatUpdateProcessor(max_concurrent_updates=8))
         .post_init(post_init)
+        .post_shutdown(post_shutdown)
         .build()
     )
     application.add_error_handler(error_handler)
@@ -784,10 +812,17 @@ async def _handle_profile_after_authorized(
     profile_cache: MutableMapping[str, object] | None = None,
     provider_guard: ProviderGuard | None = None,
     ux_events: UxEventLog | None = None,
+    analytics_refresh: AnalyticsRefreshCoordinator | None = None,
 ) -> None:
-    report = _build_chat_profile_report(settings, update.effective_chat.id)
+    report, selected_run_path = _build_chat_profile_report_selection(
+        settings,
+        update.effective_chat.id,
+    )
     if report is None:
-        await _reply_text(update, tone.profile_missing())
+        await _reply_text(
+            update,
+            await _profile_unavailable_text(tone, analytics_refresh),
+        )
         return
     brief = await _profile_brief_with_guard(
         report,
@@ -801,6 +836,10 @@ async def _handle_profile_after_authorized(
         profile_cache[PROFILE_CACHE_KEY] = {
             "brief_artifact_ids": list(brief.selected_artifact_ids),
         }
+        if selected_run_path is not None:
+            profile_cache[PROFILE_CACHE_KEY]["annotation_run_path"] = (
+                selected_run_path.as_posix()
+            )
     await _reply_text(
         update,
         brief.text,
@@ -817,6 +856,7 @@ async def _handle_profile_callback_after_authorized(
     profile_cache: MutableMapping[str, object] | None = None,
     provider_guard: ProviderGuard | None = None,
     ux_events: UxEventLog | None = None,
+    analytics_refresh: AnalyticsRefreshCoordinator | None = None,
 ) -> None:
     query = getattr(update, "callback_query", None)
     if query is not None:
@@ -834,9 +874,19 @@ async def _handle_profile_callback_after_authorized(
         )
         return
 
-    report = _build_chat_profile_report(settings, update.effective_chat.id)
+    cached_run_path = _cached_profile_annotation_run_path(profile_cache)
+    report, _ = _build_chat_profile_report_selection(
+        settings,
+        update.effective_chat.id,
+        annotation_run_dir=cached_run_path,
+        use_configured_run=cached_run_path is None,
+    )
     if report is None:
-        await _reply_to_callback(query, tone.profile_missing(), parse_mode=None)
+        await _reply_to_callback(
+            query,
+            await _profile_unavailable_text(tone, analytics_refresh),
+            parse_mode=None,
+        )
         return
     expanded = await _profile_expanded_with_guard(
         report,
@@ -890,13 +940,63 @@ def _cached_profile_brief_artifact_ids(
     )
 
 
-def _build_chat_profile_report(settings: Settings, chat_id: int):
-    if settings.episode_dir is None or not settings.episode_dir.exists():
+def _cached_profile_annotation_run_path(
+    profile_cache: MutableMapping[str, object] | None,
+) -> Path | None:
+    if profile_cache is None:
         return None
+    cached = profile_cache.get(PROFILE_CACHE_KEY)
+    if not isinstance(cached, dict):
+        return None
+    value = cached.get("annotation_run_path")
+    return Path(value) if isinstance(value, str) and value else None
+
+
+async def _profile_unavailable_text(
+    tone,
+    analytics_refresh: AnalyticsRefreshCoordinator | None,
+) -> str:
+    if analytics_refresh is None:
+        return tone.profile_missing()
+    freshness = await analytics_refresh.status()
+    if freshness.state in {
+        FRESHNESS_STALE,
+        FRESHNESS_REFRESHING,
+        FRESHNESS_BLOCKED,
+    }:
+        return tone.profile_updating()
+    return tone.profile_missing()
+
+
+def _build_chat_profile_report(settings: Settings, chat_id: int):
+    report, _ = _build_chat_profile_report_selection(settings, chat_id)
+    return report
+
+
+def _build_chat_profile_report_selection(
+    settings: Settings,
+    chat_id: int,
+    *,
+    annotation_run_dir: Path | None = None,
+    use_configured_run: bool = True,
+):
+    if settings.episode_dir is None or not settings.episode_dir.exists():
+        return None, None
+    configured_run_dir = (
+        getattr(settings, "annotation_run_dir", None)
+        if use_configured_run
+        else annotation_run_dir
+    )
+    selected_run = selected_annotation_run(
+        settings.episode_dir,
+        annotation_run_dir=configured_run_dir,
+        annotation_run_root=getattr(settings, "annotation_run_root", None),
+    )
+    selected_run_path = selected_run.path if selected_run is not None else None
     source = f"telegram-chat:{chat_id}"
     loaded_episodes = load_episodes(
         settings.episode_dir,
-        annotation_run_dir=getattr(settings, "annotation_run_dir", None),
+        annotation_run_dir=selected_run_path,
         annotation_run_root=getattr(settings, "annotation_run_root", None),
     )
     episodes = [
@@ -905,19 +1005,19 @@ def _build_chat_profile_report(settings: Settings, chat_id: int):
         if episode.source == source
     ]
     if not episodes:
-        return None
+        return None, selected_run_path
     report = build_report(
         episodes,
         coverage=annotation_coverage_for_episode_ids(
             {episode.id for episode in episodes},
-            annotation_run_dir=getattr(settings, "annotation_run_dir", None),
+            annotation_run_dir=selected_run_path,
             annotation_run_root=getattr(settings, "annotation_run_root", None),
             known_episode_ids={episode.id for episode in loaded_episodes},
         ),
     )
     if not report.graph_ready or not any(item.report_ready for item in report.readiness):
-        return None
-    return report
+        return None, selected_run_path
+    return report, selected_run_path
 
 
 async def _handle_report_graph_after_admin(update, settings: Settings, tone) -> None:
@@ -931,6 +1031,8 @@ async def _handle_report_graph_after_admin(update, settings: Settings, tone) -> 
         update,
         tone.graph_reports_ready(
             episodes=summary["episodes"],
+            selected_run_id=summary["selected_annotation_run_id"],
+            freshness=summary["freshness"],
             observed_count=summary["observed_count"],
             annotated_count=summary["annotated_count"],
             pending_count=summary["pending_count"],
@@ -946,8 +1048,20 @@ async def _handle_report_graph_after_admin(update, settings: Settings, tone) -> 
 
 
 async def _handle_admin_annotate_gaps_after_admin(
-    update, settings: Settings, tone
+    update,
+    settings: Settings,
+    tone,
+    *,
+    analytics_refresh: AnalyticsRefreshCoordinator | None = None,
 ) -> None:
+    if analytics_refresh is not None:
+        freshness = await analytics_refresh.refresh_now()
+        await _reply_text(
+            update,
+            _admin_analytics_freshness_summary(freshness),
+            parse_mode=None,
+        )
+        return
     try:
         summary = produce_annotation_run(
             settings.episode_dir,
@@ -972,6 +1086,17 @@ async def _handle_admin_annotate_gaps_after_admin(
         return
 
     await _reply_text(update, _admin_annotate_gaps_summary(summary), parse_mode=None)
+
+
+def _admin_analytics_freshness_summary(freshness) -> str:
+    return (
+        "Аннотации проверены\n"
+        f"freshness: {freshness.state}\n"
+        f"coverage: {freshness.annotated_count}/{freshness.observed_count}\n"
+        f"pending: {freshness.pending_count}\n"
+        f"run: {freshness.selected_run_id or '-'}\n"
+        f"blocker: {freshness.blocker or '-'}"
+    )
 
 
 def _admin_annotate_gaps_summary(summary) -> str:
@@ -1956,6 +2081,7 @@ async def _handle_episode_callback_after_authorized(
     tone,
     *,
     review_store: DraftReviewSessionStore | None = None,
+    analytics_refresh: AnalyticsRefreshCoordinator | None = None,
 ) -> None:
     query = getattr(update, "callback_query", None)
     if query is not None:
@@ -2026,6 +2152,8 @@ async def _handle_episode_callback_after_authorized(
             )
         )
         review_store.delete_session(chat_id)
+        if analytics_refresh is not None:
+            await analytics_refresh.enqueue(episode_path.stem)
         await _reply_to_callback(query, tone.saved_episode(tone.complete(), episode_count))
         return
     if data == "episode:cancel":

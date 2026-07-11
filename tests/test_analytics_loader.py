@@ -136,6 +136,34 @@ def test_latest_valid_annotation_run_is_discovered(tmp_path):
     assert episodes[0].derived.nodes[0].text == "latest"
 
 
+def test_latest_run_uses_manifest_time_not_directory_name(tmp_path):
+    episode_dir = tmp_path / "episodes"
+    run_root = tmp_path / "annotation-runs"
+    lexically_newer = run_root / "run-z"
+    chronologically_newer = run_root / "run-a"
+    episode_dir.mkdir()
+    _write_json(episode_dir / "episode-20260430-1.json", _observed_only_episode())
+    _write_annotation_run(
+        lexically_newer,
+        [_annotation_row("episode-20260430-1", _derived(text="older"))],
+    )
+    _write_annotation_run(
+        chronologically_newer,
+        [_annotation_row("episode-20260430-1", _derived(text="newer"))],
+    )
+    manifest_path = chronologically_newer / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["created_at"] = "2026-06-06T00:00:00Z"
+    _write_json(manifest_path, manifest)
+
+    episodes = load_analytics_episodes(
+        episode_dir,
+        annotation_run_root=run_root,
+    )
+
+    assert episodes[0].derived.nodes[0].text == "newer"
+
+
 def test_invalid_latest_discovered_run_is_skipped_for_older_valid_run(tmp_path):
     episode_dir = tmp_path / "episodes"
     run_root = tmp_path / "annotation-runs"

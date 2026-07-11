@@ -98,6 +98,11 @@ Start with the read-only status command:
 python -m app.fresh_analytics_status --episode-dir data/episodes --annotation-run-root data/annotation-runs
 ```
 
+The live bot should already have refreshed coverage after Save or startup. Use
+this command to verify automatic behavior. Run the recommended producer command
+only to repair a recorded blocker or to prepare explicit offline release
+evidence.
+
 Follow the JSON recommendation:
 
 - `no_op_empty`: record that there are no observed episodes and stop analytics

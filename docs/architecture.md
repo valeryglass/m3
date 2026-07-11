@@ -59,6 +59,10 @@ input handlers mutate runtime state. The four visible methods use typed
 pre-draft state where needed. Classic 10Q uses `LoopSession`; completed
 extractions use `DraftReviewSession`. They require `/cancel` before switching.
 
+After Save, Analytics Refresh compares durable Episodes with the latest valid
+annotation snapshot and coalesces deterministic missing-only production. On
+startup the same comparison recovers pending work; no separate queue is stored.
+
 ```text
 one_take_audio
   -> audio_intake_started
@@ -110,7 +114,7 @@ graph/report analytics directly.
 - Episode Model + Storage owns the JSON contract, Pydantic mirror, persistence,
   and legacy normalization.
 - Annotation Producer owns deterministic `Episode.observed -> Derived` business
-  logic and explicit annotation-run writing.
+  logic, complete annotation-run writing, and automatic refresh orchestration.
 - Annotation Runs owns versioned selected derived annotations and readiness
   gates.
 - Graph Reporting owns computed graph views, deterministic pattern metrics,

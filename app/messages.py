@@ -154,9 +154,14 @@ SESSION_MESSAGES = {
     "profile_missing": (
         "Профиль пока не собран. Нужны сохранённые и обработанные эпизоды."
     ),
+    "profile_updating": (
+        "Обработка отчёта пока не завершена. Попробуй открыть /profile немного позже."
+    ),
     "report_failed": "Не удалось собрать отчёт: {error}",
     "graph_reports_ready": (
         "Отчёт собран\n"
+        "run: {selected_run_id}\n"
+        "freshness: {freshness}\n"
         "episodes: {episodes}\n"
         "coverage: {annotated_count}/{observed_count} annotated ({coverage}); pending: {pending_count}\n"
         "invalid: {invalid}\n"

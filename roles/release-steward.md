@@ -104,6 +104,11 @@ Confirm capture/profile quotas, global token budget, queue bounds, retry policy,
 and circuit cooldown are intentional for the beta cohort. Defaults are technical
 limits, not approved budget evidence.
 
+For RM-15, save a disposable episode, confirm the bot replies before background
+annotation completes, and verify startup recovery plus final full coverage. The
+public runtime must not pin `M3_ANNOTATION_RUN_DIR`; explicit run pins are for
+offline QA/exports and block automatic selection movement when stale.
+
 Use the RM-12 through RM-16 acceptance criteria in
 `docs/backlog/beta-production-rm.md` until RM-16 creates the dedicated public
 beta release workflow. Any missing criterion is a public-beta blocker, not a

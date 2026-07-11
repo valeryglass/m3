@@ -171,11 +171,14 @@ def test_session_messages_render_concise_prompts():
     assert tone.profile_missing() == (
         "Профиль пока не собран. Нужны сохранённые и обработанные эпизоды."
     )
+    assert tone.profile_updating().startswith("Обработка отчёта пока не завершена")
     assert tone.report_failed("broken <data>") == (
         "Не удалось собрать отчёт: broken &lt;data&gt;"
     )
     assert tone.graph_reports_ready(
         episodes=1,
+        selected_run_id="run-test",
+        freshness="ready",
         observed_count=1,
         annotated_count=1,
         pending_count=0,
@@ -188,6 +191,8 @@ def test_session_messages_render_concise_prompts():
         payload_eligible=1,
     ) == (
         "Отчёт собран\n"
+        "run: run-test\n"
+        "freshness: ready\n"
         "episodes: 1\n"
         "coverage: 1/1 annotated (full); pending: 0\n"
         "invalid: 0\n"
@@ -229,6 +234,7 @@ def test_session_messages_render_concise_prompts():
         "admin_paused",
         "admin_bad_command",
         "profile_missing",
+        "profile_updating",
         "report_failed",
         "graph_reports_ready",
         "expired_initial_session",

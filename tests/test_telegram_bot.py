@@ -413,6 +413,69 @@ def test_profile_command_uses_latest_annotation_run(tmp_path):
     assert "Учтено 1 из 2 эпизодов; 1 ждут обработки." in message.replies[0]
 
 
+def test_profile_cache_records_selected_annotation_run(tmp_path):
+    annotation_run_root = tmp_path / "annotation-runs"
+    run_dir = annotation_run_root / "run-20260605"
+    settings = _settings(
+        episode_dir=tmp_path / "episodes",
+        annotation_run_root=annotation_run_root,
+    )
+    settings.episode_dir.mkdir(parents=True)
+    episode = _graph_ready_episode()
+    derived = episode.pop("derived")
+    _write_json(settings.episode_dir / "episode-20260503-1.json", episode)
+    _write_annotation_run(
+        run_dir,
+        {"episode_id": "episode-20260503-1", "derived": derived},
+    )
+    profile_cache = {}
+
+    _run(
+        telegram_bot._handle_profile_after_authorized(
+            _fake_update(123, _FakeMessage("/profile")),
+            settings,
+            ToneEngine.default(),
+            profile_cache=profile_cache,
+        )
+    )
+
+    assert profile_cache[telegram_bot.PROFILE_CACHE_KEY][
+        "annotation_run_path"
+    ] == run_dir.as_posix()
+
+
+def test_profile_missing_uses_processing_copy_while_refresh_is_stale(tmp_path):
+    settings = _settings(
+        episode_dir=tmp_path / "episodes",
+        annotation_run_root=tmp_path / "annotation-runs",
+    )
+    settings.episode_dir.mkdir(parents=True)
+    episode = _graph_ready_episode()
+    episode.pop("derived")
+    _write_json(settings.episode_dir / "episode-20260503-1.json", episode)
+    message = _FakeMessage("/profile")
+
+    class StaleRefresh:
+        async def status(self):
+            return SimpleNamespace(state="stale")
+
+    refresh = StaleRefresh()
+
+    _run(
+        telegram_bot._handle_profile_after_authorized(
+            _fake_update(123, message),
+            settings,
+            ToneEngine.default(),
+            analytics_refresh=refresh,
+        )
+    )
+
+    assert message.replies == [
+        "Обработка отчёта пока не завершена. "
+        "Попробуй открыть /profile немного позже."
+    ]
+
+
 def test_profile_details_cache_miss_sends_deterministic_report(tmp_path):
     settings = _settings(episode_dir=tmp_path / "episodes")
     settings.episode_dir.mkdir(parents=True)
@@ -847,6 +910,8 @@ def test_report_graph_builds_summary_without_writing_reports(tmp_path):
     assert not (tmp_path / "reports").exists()
     assert message.replies == [
         "Отчёт собран\n"
+        "run: -\n"
+        "freshness: stale\n"
         "episodes: 1\n"
         "coverage: 1/1 annotated (full); pending: 0\n"
         "invalid: 0\n"
@@ -2079,6 +2144,33 @@ def test_save_callback_writes_episode_and_replies_completion(tmp_path):
     assert callback.message.replies == ["Готово. Эпизод собран\n\nВсего эпизодов: 1"]
     assert callback.message.reply_options == [{"parse_mode": "HTML"}]
     assert ux_events.read()[-1]["event_type"] == "session_completed"
+
+
+def test_save_callback_enqueues_saved_episode_for_analytics(tmp_path):
+    storage = JsonStorage(episode_dir=tmp_path / "episodes")
+    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    session_store.save_session(_complete_review_session())
+    callback = _FakeCallbackQuery("episode:save")
+    enqueued = []
+
+    async def enqueue(episode_id):
+        enqueued.append(episode_id)
+
+    refresh = SimpleNamespace(enqueue=enqueue)
+
+    _run(
+        telegram_bot._handle_episode_callback_after_authorized(
+            _fake_callback_update(123, callback),
+            storage,
+            session_store,
+            ux_events,
+            ToneEngine.default(),
+            analytics_refresh=refresh,
+        )
+    )
+
+    assert enqueued == ["episode-20260503-1"]
 
 
 def test_save_callback_writes_unified_episode(tmp_path):

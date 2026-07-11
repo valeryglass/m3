@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -52,14 +53,27 @@ def load_latest_annotation_run(
     if not run_root.exists():
         return None
 
-    for run_dir in sorted(run_root.glob("run-*"), reverse=True):
+    candidates: list[tuple[datetime, str, Path]] = []
+    for run_dir in run_root.glob("run-*"):
         if not run_dir.is_dir():
             continue
+        try:
+            manifest = _load_manifest(run_dir / "manifest.json")
+        except ValueError:
+            continue
+        candidates.append((_utc_created_at(manifest.created_at), run_dir.name, run_dir))
+    for _, _, run_dir in sorted(candidates, reverse=True):
         try:
             return load_annotation_run(run_dir, episode_ids=episode_ids)
         except ValueError:
             continue
     return None
+
+
+def _utc_created_at(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def _load_manifest(path: Path) -> AnnotationRunManifest:

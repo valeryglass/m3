@@ -86,8 +86,9 @@ Docker remains the runtime capsule for the bot; `.venv` is for local tests and
 development checks.
 
 Analytics can use versioned derived annotations from `data/annotation-runs/`.
-Set `M3_ANNOTATION_RUN_DIR` to force one run, or leave it empty to use the
-latest valid `run-*` under `M3_ANNOTATION_RUN_ROOT`.
+Set `M3_ANNOTATION_RUN_DIR` to force one run for offline QA, or leave it empty so
+runtime freshness can advance to the latest valid `run-*` under
+`M3_ANNOTATION_RUN_ROOT`.
 
 Normal bot access is granted through approved records in
 `data/userlist/users.json`. The `.env` admin settings only control hidden admin

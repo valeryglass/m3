@@ -212,6 +212,9 @@ class ToneEngine:
     def profile_missing(self) -> str:
         return SESSION_MESSAGES["profile_missing"]
 
+    def profile_updating(self) -> str:
+        return SESSION_MESSAGES["profile_updating"]
+
     def report_failed(self, error: Exception | str) -> str:
         return SESSION_MESSAGES["report_failed"].format(error=escape(str(error)))
 
@@ -219,6 +222,8 @@ class ToneEngine:
         self,
         *,
         episodes: int,
+        selected_run_id: str | None,
+        freshness: str,
         observed_count: int,
         annotated_count: int,
         pending_count: int,
@@ -232,6 +237,8 @@ class ToneEngine:
     ) -> str:
         return SESSION_MESSAGES["graph_reports_ready"].format(
             episodes=episodes,
+            selected_run_id=escape(selected_run_id or "-"),
+            freshness=escape(freshness),
             observed_count=observed_count,
             annotated_count=annotated_count,
             pending_count=pending_count,
