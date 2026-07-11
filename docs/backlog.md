@@ -14,7 +14,8 @@ and too early for accepted model docs.
 Status: implemented.
 
 - CAP-01: accepted ADR 0013 and typed pre-draft capture state.
-- CAP-02: promoted `/10q`, `/3b`, `/1t`, and `/1a`; retained hidden aliases.
+- CAP-02: promoted `/10q`, `/3b`, `/1t`, and `/1a`; temporary hidden aliases
+  were later retired by RM-10 and ADR 0017.
 - CAP-03: marked classic capture as the `classic_10q` draft strategy.
 - CAP-04: added armed one-take text capture.
 - CAP-05: added restart-safe sequential three-block capture.
@@ -161,15 +162,15 @@ Implementation split:
   routing.
 - BL-06c: add a draft-to-session bridge so one-take drafts can enter the
   existing LoopSession runtime without Telegram routing changes.
-- BL-06d: add explicit hidden `/capture <text>` Telegram routing into the
+- BL-06d: historically added hidden `/capture <text>` Telegram routing into the
   one-take draft/session bridge while leaving plain text without session
   unchanged.
 - BL-06e: superseded by userflow containment. Plain idle text returns `/start`
-  guidance; `/capture` remains the explicit hidden developer route.
+  guidance; the temporary `/capture` developer route was retired by RM-10.
 
 Acceptance:
 
-- hidden `/capture` can create a partial draft.
+- historical `/capture` behavior was covered before retirement by RM-10.
 - missing fields are detected.
 - the user can confirm, continue, edit, or discard.
 
@@ -230,8 +231,8 @@ Implementation split:
 
 - BL-09a: add passive three-block-to-draft construction with a default
   canonical field mapping and no Telegram routing.
-- BL-09b: add hidden `/capture3 a | b | c` routing that creates a
-  three-block draft/session.
+- BL-09b: historically added hidden `/capture3 a | b | c` routing; RM-10 later
+  retired it after `/3b` became canonical.
 - BL-09c: decide whether three-block should become a visible intake option.
 
 Acceptance:

@@ -55,9 +55,9 @@ Field-guide titles, examples, and tips remain internal reference material and
 are not included in Telegram question messages.
 
 The public Telegram command menu exposes `/start`, `/10q`, `/3b`, `/1t`,
-`/1a`, `/status`, `/profile`, `/cancel`, and `/help`. Compatibility aliases
-`/1v`, `/voice`, `/capture`, and `/capture3` remain registered but hidden from
-the menu. Admin and operator commands are also hidden from regular users.
+`/1a`, `/status`, `/profile`, `/cancel`, and `/help`. Former compatibility
+commands are retired; unknown commands return `/help` guidance without changing
+flow state. Admin and operator commands remain hidden from regular users.
 
 Episode files are observed source artifacts. Telegram capture does not persist
 top-level `derived` or `current_derived`.

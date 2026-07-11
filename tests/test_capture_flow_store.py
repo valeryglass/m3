@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -58,26 +57,3 @@ def test_expired_capture_flow_is_removed(tmp_path):
 
     assert store.load_flow(123, now=NOW + timedelta(seconds=601)) is None
     assert not (store.flow_dir / "chat-123.json").exists()
-
-
-def test_legacy_audio_flow_file_remains_readable(tmp_path):
-    legacy_dir = tmp_path / "audio-one-take"
-    legacy_dir.mkdir()
-    (legacy_dir / "chat-123.json").write_text(
-        json.dumps(
-            {
-                "chat_id": 123,
-                "created_at": "2026-06-21T09:00:00Z",
-                "expires_at": "2026-06-21T09:10:00Z",
-                "flow": "audio_one_take",
-                "status": "awaiting_media",
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    flow = CaptureFlowStore(tmp_path).load_flow(123, now=NOW)
-
-    assert flow is not None
-    assert flow.mode == "one_take_audio"
-    assert flow.status == "awaiting_media"

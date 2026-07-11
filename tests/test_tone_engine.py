@@ -131,6 +131,7 @@ def test_session_messages_render_concise_prompts():
         "Сейчас активной сессии нет. Отправь /start, чтобы начать новый эпизод"
     )
     assert tone.cancel() == "Сессия отменена"
+    assert tone.unknown_command() == "Неизвестная команда. Открой /help."
     assert tone.unauthorized() == "Нет доступа"
     assert tone.waitlisted() == (
         "Спасибо за интерес. Мы добавили тебя в waitlist. "
@@ -205,6 +206,7 @@ def test_session_messages_render_concise_prompts():
         "no_active_loop",
         "no_active_loop_start",
         "cancel",
+        "unknown_command",
         "unauthorized",
         "waitlisted",
         "admin_waitlist_notice",

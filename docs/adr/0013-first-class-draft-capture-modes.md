@@ -6,7 +6,8 @@ Accepted for the first-class Telegram capture epic.
 
 Superseded by ADR 0014 for non-10Q extraction, Gap Hydration usage, and review
 session ownership. Command names, explicit containment, transcript
-confirmation, and raw-audio retention policy remain accepted.
+confirmation, and raw-audio retention policy remain accepted except that ADR
+0017 retires the hidden command aliases and old audio-flow state reader.
 
 ## Decision
 

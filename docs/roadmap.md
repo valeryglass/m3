@@ -17,8 +17,8 @@ Accepted alpha result:
 - `/start` and `/10q` start classic question capture.
 - `/1t` arms one-take text capture.
 - `/3b` collects three sequential blocks.
-- `/1a` arms voice/audio capture; hidden `/1v` is an alias.
-- hidden `/capture`, `/capture3`, and `/voice` remain compatibility routes.
+- `/1a` arms voice/audio capture; former hidden aliases were retired by RM-10.
+- direct `/capture` and `/capture3` developer routes were retired by RM-10.
 - completed capture evidence is persisted privately before extraction.
 - non-10Q modes require grounded structured extraction and go directly to
   review.
@@ -71,7 +71,7 @@ RM order:
 - RM-09: allow partial non-10Q drafts to continue into missing-field questions.
   Status: implemented.
 - RM-10: retire hidden Telegram compatibility commands and unused flow
-  compatibility code after ADR and private-state checks. Status: planned.
+  compatibility code after ADR and private-state checks. Status: implemented.
 - RM-11: aggregate safe per-command and per-user command usage in UX reports.
   Status: planned.
 - RM-A5: add production LLM profile interpretation over safe analytics payloads.
@@ -97,10 +97,10 @@ Current beta capture finding:
 - final review and Save remain blocked until the observed episode is
   schema-valid.
 
-Current command-surface truth: the public menu exposes only canonical beta user
-commands, but hidden `/1v`, `/voice`, `/capture`, and `/capture3` handlers remain
-registered until RM-10. Raw UX events already carry command names; command-level
-report aggregation remains RM-11.
+Current command-surface truth: only canonical beta user commands and explicit
+admin/operator commands are registered. Retired commands use generic `/help`
+guidance. Raw UX events retain historical command names; command-level report
+aggregation remains RM-11.
 
 Current runtime truth: non-10Q production capture extraction defaults to
 DeepSeek through owner-controlled runtime mode/provider settings. OpenAI
@@ -255,7 +255,7 @@ Goal: make deploy readiness observable.
 Acceptance:
 
 - full local test suite passes before rollout.
-- smoke covers idle containment, classic 10Q, hidden `/voice`, supported and
+- smoke covers idle containment, classic 10Q, canonical `/1a`, supported and
   unsupported media, cancellation, `/help`, `/profile`, and post-audio idle
   behavior.
 - operator notes distinguish hidden draft tools from explicit transcript intake.

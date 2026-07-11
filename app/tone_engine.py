@@ -161,6 +161,9 @@ class ToneEngine:
     def cancel(self) -> str:
         return SESSION_MESSAGES["cancel"]
 
+    def unknown_command(self) -> str:
+        return SESSION_MESSAGES["unknown_command"]
+
     def unauthorized(self) -> str:
         return SESSION_MESSAGES["unauthorized"]
 

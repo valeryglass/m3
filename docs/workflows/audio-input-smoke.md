@@ -65,8 +65,10 @@ operator evidence are checked together.
 | `/status` during active flow | flow state unchanged; current progress is reported | none | no session/flow mutation |
 | `/help` during either flow | flow state unchanged; current help copy | none | no session/flow mutation |
 | `/profile` during either flow | flow state unchanged; current report behavior | none | no session/flow mutation |
+| unknown command | remains in current state; returns `/help` guidance | none | no session/flow mutation |
 
-Hidden `/capture`, `/capture3`, `/voice`, and `/1v` remain compatibility routes.
+Retired `/capture`, `/capture3`, `/voice`, and `/1v` follow the unknown-command
+path and must not start capture.
 
 ## Evidence Record
 

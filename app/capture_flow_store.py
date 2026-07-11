@@ -50,11 +50,6 @@ class CaptureFlow:
         if self.status == "awaiting_transcript_confirmation" and not self.transcript_path:
             raise ValueError("transcript confirmation requires a transcript path")
 
-    @property
-    def flow(self) -> str:
-        """Compatibility name used by the former audio-only flow."""
-        return "audio_one_take" if self.mode == "one_take_audio" else self.mode
-
     def to_dict(self) -> dict[str, object]:
         payload = asdict(self)
         payload["created_at"] = _format_utc(self.created_at)
@@ -64,12 +59,6 @@ class CaptureFlow:
 
     @classmethod
     def from_dict(cls, payload: dict[str, object]) -> CaptureFlow:
-        if payload.get("flow") == "audio_one_take" and "mode" not in payload:
-            payload = {
-                **payload,
-                "mode": "one_take_audio",
-                "status": payload.get("status", "awaiting_media"),
-            }
         return cls(
             chat_id=int(payload["chat_id"]),
             mode=str(payload["mode"]),
@@ -89,7 +78,6 @@ class CaptureFlowStore:
     def __init__(self, root: Path) -> None:
         self.root = root
         self.flow_dir = root / "capture"
-        self.legacy_audio_flow_dir = root / "audio-one-take"
         self.flow_dir.mkdir(parents=True, exist_ok=True)
 
     def arm_flow(
@@ -121,9 +109,6 @@ class CaptureFlowStore:
             json.dumps(flow.to_dict(), ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
-        legacy_path = self._legacy_audio_flow_path(flow.chat_id)
-        if path != legacy_path:
-            legacy_path.unlink(missing_ok=True)
         return flow
 
     def append_three_block(
@@ -184,10 +169,7 @@ class CaptureFlowStore:
     ) -> CaptureFlow | None:
         path = self._flow_path(chat_id)
         if not path.exists():
-            legacy_path = self._legacy_audio_flow_path(chat_id)
-            if not legacy_path.exists():
-                return None
-            path = legacy_path
+            return None
         flow = CaptureFlow.from_dict(json.loads(path.read_text(encoding="utf-8")))
         if flow.chat_id != chat_id:
             raise ValueError("capture flow chat id does not match path")
@@ -198,13 +180,9 @@ class CaptureFlowStore:
 
     def delete_flow(self, chat_id: int) -> None:
         self._flow_path(chat_id).unlink(missing_ok=True)
-        self._legacy_audio_flow_path(chat_id).unlink(missing_ok=True)
 
     def _flow_path(self, chat_id: int) -> Path:
         return self.flow_dir / f"chat-{chat_id}.json"
-
-    def _legacy_audio_flow_path(self, chat_id: int) -> Path:
-        return self.legacy_audio_flow_dir / f"chat-{chat_id}.json"
 
 
 def _expiry(now: datetime, ttl_sec: int) -> datetime:

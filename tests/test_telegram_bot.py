@@ -6,7 +6,6 @@ from types import SimpleNamespace
 import pytest
 
 import app.telegram_bot as telegram_bot
-from app.audio_flow_store import AudioFlowStore
 from app.capture_flow_store import CaptureFlowStore
 from app.capture_extraction import (
     UnavailableCaptureExtractionProvider,
@@ -114,10 +113,6 @@ def test_user_command_menu_includes_primary_handlers_and_excludes_internal_comma
         "profile",
         "cancel",
         "help",
-        "1v",
-        "capture",
-        "capture3",
-        "voice",
         "approve",
         "pause",
         "report_graph",
@@ -135,6 +130,18 @@ def test_user_command_menu_includes_primary_handlers_and_excludes_internal_comma
         {"command": "cancel", "description": "Отменить сессию"},
         {"command": "help", "description": "Показать команды"},
     )
+
+
+def test_unknown_command_replies_with_help_guidance():
+    message = _FakeMessage("/retired")
+
+    _run(
+        telegram_bot._handle_unknown_command_after_authorized(
+            _fake_update(123, message), ToneEngine.default()
+        )
+    )
+
+    assert message.replies == ["Неизвестная команда. Открой /help."]
 
 
 def test_bot_profile_uses_tone_engine_copy():
@@ -1150,8 +1157,8 @@ def test_voice_command_arms_audio_flow_without_creating_classic_session(
     now = datetime(2026, 6, 18, 9, 0, tzinfo=timezone.utc)
     monkeypatch.setattr(telegram_bot, "utc_now", lambda: now)
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
-    message = _FakeMessage("/voice")
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
+    message = _FakeMessage("/1a")
 
     _run(
         telegram_bot._handle_voice_command_after_authorized(
@@ -1176,10 +1183,10 @@ def test_repeated_voice_command_does_not_extend_audio_flow_expiry(
     armed_at = datetime(2026, 6, 18, 9, 0, tzinfo=timezone.utc)
     retried_at = armed_at + timedelta(seconds=30)
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
-    original = audio_flow_store.arm_flow(123, now=armed_at, ttl_sec=600)
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
+    original = audio_flow_store.arm_flow(123, mode="one_take_audio", now=armed_at, ttl_sec=600)
     monkeypatch.setattr(telegram_bot, "utc_now", lambda: retried_at)
-    message = _FakeMessage("/voice")
+    message = _FakeMessage("/1a")
 
     _run(
         telegram_bot._handle_voice_command_after_authorized(
@@ -1197,8 +1204,8 @@ def test_repeated_voice_command_does_not_extend_audio_flow_expiry(
 def test_voice_command_during_classic_session_requires_cancel(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     session_store.save_session(_emotion_step_session())
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
-    message = _FakeMessage("/voice")
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
+    message = _FakeMessage("/1a")
 
     _run(
         telegram_bot._handle_voice_command_after_authorized(
@@ -1217,8 +1224,8 @@ def test_voice_command_during_classic_session_requires_cancel(tmp_path):
 def test_start_during_audio_flow_requires_cancel(tmp_path):
     now = datetime.now(timezone.utc).replace(microsecond=0)
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
-    original = audio_flow_store.arm_flow(123, now=now, ttl_sec=600)
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
+    original = audio_flow_store.arm_flow(123, mode="one_take_audio", now=now, ttl_sec=600)
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage("/start")
 
@@ -1241,7 +1248,7 @@ def test_start_during_audio_flow_requires_cancel(tmp_path):
 def test_start_during_classic_session_requires_cancel(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     session_store.save_session(_emotion_step_session())
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage("/start")
 
@@ -1265,9 +1272,10 @@ def test_start_during_classic_session_requires_cancel(tmp_path):
 
 def test_text_during_audio_flow_keeps_flow_armed(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
     audio_flow_store.arm_flow(
         123,
+        mode="one_take_audio",
         now=datetime.now(timezone.utc),
         ttl_sec=600,
     )
@@ -1295,9 +1303,10 @@ def test_text_during_audio_flow_keeps_flow_armed(tmp_path):
 
 def test_cancel_clears_audio_flow_without_classic_session(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
     audio_flow_store.arm_flow(
         123,
+        mode="one_take_audio",
         now=datetime.now(timezone.utc),
         ttl_sec=600,
     )
@@ -1323,7 +1332,7 @@ def test_cancel_clears_audio_flow_without_classic_session(tmp_path):
 def test_cancel_clears_classic_session_without_audio_flow(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     session_store.save_session(_emotion_step_session())
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
     ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
     message = _FakeMessage("/cancel")
 
@@ -1347,9 +1356,10 @@ def test_cancel_clears_classic_session_without_audio_flow(tmp_path):
 def test_cancel_clears_inconsistent_classic_and_audio_state(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     session_store.save_session(_emotion_step_session())
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
     audio_flow_store.arm_flow(
         123,
+        mode="one_take_audio",
         now=datetime.now(timezone.utc),
         ttl_sec=600,
     )
@@ -1377,9 +1387,10 @@ def test_text_with_inconsistent_classic_and_audio_state_requires_cancel(tmp_path
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     original_session = _emotion_step_session()
     session_store.save_session(original_session)
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
     original_flow = audio_flow_store.arm_flow(
         123,
+        mode="one_take_audio",
         now=datetime.now(timezone.utc).replace(microsecond=0),
         ttl_sec=600,
     )
@@ -1409,9 +1420,10 @@ def test_help_does_not_change_classic_or_audio_state(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     original_session = _emotion_step_session()
     session_store.save_session(original_session)
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
     original_flow = audio_flow_store.arm_flow(
         123,
+        mode="one_take_audio",
         now=datetime.now(timezone.utc).replace(microsecond=0),
         ttl_sec=600,
     )
@@ -1427,9 +1439,10 @@ def test_profile_does_not_change_classic_or_audio_state(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
     original_session = _emotion_step_session()
     session_store.save_session(original_session)
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
     original_flow = audio_flow_store.arm_flow(
         123,
+        mode="one_take_audio",
         now=datetime.now(timezone.utc).replace(microsecond=0),
         ttl_sec=600,
     )
@@ -1451,184 +1464,6 @@ def test_profile_does_not_change_classic_or_audio_state(tmp_path):
         "Профиль пока не собран. Нужны сохранённые и обработанные эпизоды."
     ]
 
-
-def test_capture_command_without_text_does_not_create_session(tmp_path):
-    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    message = _FakeMessage("/capture")
-
-    _run(
-        telegram_bot._handle_capture_after_authorized(
-            _fake_update(123, message),
-            session_store,
-            ux_events,
-            _settings(),
-            ToneEngine.default(),
-        )
-    )
-
-    assert session_store.load_session(123) is None
-    assert ux_events.read() == []
-    assert message.replies == ["Используй /capture текст эпизода"]
-
-
-def test_capture_command_extracts_one_take_text_to_review(tmp_path):
-    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
-    review_store = DraftReviewSessionStore(
-        tmp_path / "runtime-sessions", loop_session_store=session_store
-    )
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    message = _FakeMessage("/capture коллега резко ответил в чате")
-
-    _run(
-        telegram_bot._handle_capture_after_authorized(
-            _fake_update(123, message),
-            session_store,
-            ux_events,
-            _settings(),
-            ToneEngine.default(),
-            review_store=review_store,
-            extraction_provider=_GroundedExtractionProvider(),
-        )
-    )
-
-    loaded = review_store.load_session(123)
-    assert loaded is not None
-    assert session_store.load_session(123) is None
-    assert loaded.observed["situation"]["source_quote"] == (
-        "коллега резко ответил в чате"
-    )
-    assert message.replies[0].endswith("Сохраняем?")
-    assert [event["event_type"] for event in ux_events.read()] == [
-        "input_received",
-        "draft_created",
-    ]
-
-
-def test_capture_command_requires_cancel_for_existing_session(tmp_path):
-    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    existing = LoopSession(
-        chat_id=123,
-        session_id="session-old",
-        target_index=1,
-        episode_date="2026-05-03",
-        observed={"situation": {"value": "old", "source_quote": "old"}},
-    )
-    session_store.save_session(existing)
-    message = _FakeMessage("/capture новый эпизод")
-
-    _run(
-        telegram_bot._handle_capture_after_authorized(
-            _fake_update(123, message),
-            session_store,
-            ux_events,
-            _settings(),
-            ToneEngine.default(),
-        )
-    )
-
-    loaded = session_store.load_session(123)
-    assert loaded is not None
-    assert loaded.observed["situation"] == {
-        "value": "old",
-        "source_quote": "old",
-    }
-    assert ux_events.read() == []
-    assert message.replies == [telegram_bot._cancel_active_flow_first()]
-
-
-
-def test_capture3_command_without_three_blocks_does_not_create_session(tmp_path):
-    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    message = _FakeMessage("/capture3 only one block")
-
-    _run(
-        telegram_bot._handle_capture3_after_authorized(
-            _fake_update(123, message),
-            session_store,
-            ux_events,
-            _settings(),
-            ToneEngine.default(),
-        )
-    )
-
-    assert session_store.load_session(123) is None
-    assert ux_events.read() == []
-    assert message.replies == [
-        "Используй /capture3 что случилось | что внутри | что сделал"
-    ]
-
-
-def test_capture3_command_extracts_three_blocks_to_review(tmp_path):
-    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
-    review_store = DraftReviewSessionStore(
-        tmp_path / "runtime-sessions", loop_session_store=session_store
-    )
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    message = _FakeMessage("/capture3 факт | мысль внутри | я замолчал")
-
-    _run(
-        telegram_bot._handle_capture3_after_authorized(
-            _fake_update(123, message),
-            session_store,
-            ux_events,
-            _settings(),
-            ToneEngine.default(),
-            review_store=review_store,
-            extraction_provider=_GroundedExtractionProvider(),
-        )
-    )
-
-    loaded = review_store.load_session(123)
-    assert loaded is not None
-    assert session_store.load_session(123) is None
-    assert loaded.observed["situation"]["source_quote"] == "факт"
-    assert loaded.observed["automatic_thought"]["source_quote"] == "мысль внутри"
-    assert loaded.observed["behavior"]["source_quote"] == "я замолчал"
-    events = ux_events.read()
-    assert [event["event_type"] for event in events] == [
-        "input_received",
-        "draft_created",
-    ]
-    assert events[0]["funnel"] == "three_block"
-    assert events[0]["media_kind"] == "three_block"
-    assert events[1]["draft_fields"] == 7
-    assert message.replies[0].endswith("Сохраняем?")
-
-
-def test_capture3_command_requires_cancel_for_existing_session(tmp_path):
-    session_store = LoopSessionStore(tmp_path / "runtime-sessions")
-    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
-    existing = LoopSession(
-        chat_id=123,
-        session_id="session-old",
-        target_index=1,
-        episode_date="2026-05-03",
-        observed={"situation": {"value": "old", "source_quote": "old"}},
-    )
-    session_store.save_session(existing)
-    message = _FakeMessage("/capture3 новый факт | внутри | действие")
-
-    _run(
-        telegram_bot._handle_capture3_after_authorized(
-            _fake_update(123, message),
-            session_store,
-            ux_events,
-            _settings(),
-            ToneEngine.default(),
-        )
-    )
-
-    loaded = session_store.load_session(123)
-    assert loaded is not None
-    assert loaded.observed["situation"] == {
-        "value": "old",
-        "source_quote": "old",
-    }
-    assert ux_events.read() == []
-    assert message.replies == [telegram_bot._cancel_active_flow_first()]
 
 def test_voice_input_artifact_from_update_preserves_telegram_metadata():
     voice = SimpleNamespace(
@@ -2712,9 +2547,10 @@ def test_armed_audio_flow_accepts_supported_media_and_completes(
     session_store.delete_session = lambda chat_id: pytest.fail(
         "audio intake must not delete a LoopSession"
     )
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
     audio_flow_store.arm_flow(
         123,
+        mode="one_take_audio",
         now=datetime.now(timezone.utc),
         ttl_sec=600,
     )
@@ -2916,9 +2752,10 @@ def test_transcript_chunks_preserve_complete_text():
 
 def test_unsupported_document_while_audio_armed_keeps_flow(tmp_path):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
     audio_flow_store.arm_flow(
         123,
+        mode="one_take_audio",
         now=datetime.now(timezone.utc),
         ttl_sec=600,
     )
@@ -3044,9 +2881,10 @@ def test_audio_storage_failure_keeps_flow_armed(tmp_path, monkeypatch):
 
 def _armed_voice_test_context(tmp_path, *, duration=9):
     session_store = LoopSessionStore(tmp_path / "runtime-sessions")
-    audio_flow_store = AudioFlowStore(tmp_path / "runtime-flows")
+    audio_flow_store = CaptureFlowStore(tmp_path / "runtime-flows")
     audio_flow_store.arm_flow(
         123,
+        mode="one_take_audio",
         now=datetime.now(timezone.utc),
         ttl_sec=600,
     )

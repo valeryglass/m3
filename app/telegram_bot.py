@@ -233,38 +233,6 @@ def main() -> None:
             review_store=review_store,
         )
 
-    async def capture(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(
-            update, settings, tone, ux_events, userlist, context.bot
-        ):
-            return
-        await _handle_capture_after_authorized(
-            update,
-            session_store,
-            ux_events,
-            settings,
-            tone,
-            capture_flow_store=capture_flow_store,
-            review_store=review_store,
-            extraction_provider=extraction_provider,
-        )
-
-    async def capture3(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not await _authorize(
-            update, settings, tone, ux_events, userlist, context.bot
-        ):
-            return
-        await _handle_capture3_after_authorized(
-            update,
-            session_store,
-            ux_events,
-            settings,
-            tone,
-            capture_flow_store=capture_flow_store,
-            review_store=review_store,
-            extraction_provider=extraction_provider,
-        )
-
     async def voice_command(
         update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
@@ -414,6 +382,15 @@ def main() -> None:
             return
         await _handle_admin_annotate_gaps_after_admin(update, settings, tone)
 
+    async def unknown_command(
+        update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        if not await _authorize(
+            update, settings, tone, ux_events, userlist, context.bot
+        ):
+            return
+        await _handle_unknown_command_after_authorized(update, tone)
+
     async def post_init(application) -> None:
         profile = _bot_profile(tone)
         await application.bot.set_my_commands(
@@ -441,14 +418,10 @@ def main() -> None:
     application.add_handler(CommandHandler("3b", three_block))
     application.add_handler(CommandHandler("1t", one_take_text))
     application.add_handler(CommandHandler("1a", voice_command))
-    application.add_handler(CommandHandler("1v", voice_command))
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("cancel", cancel))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("profile", profile))
-    application.add_handler(CommandHandler("capture", capture))
-    application.add_handler(CommandHandler("capture3", capture3))
-    application.add_handler(CommandHandler("voice", voice_command))
     application.add_handler(CommandHandler("approve", approve))
     application.add_handler(CommandHandler("pause", pause))
     application.add_handler(CommandHandler("report_graph", report_graph))
@@ -456,6 +429,7 @@ def main() -> None:
     application.add_handler(
         CommandHandler("admin_annotate_gaps", admin_annotate_gaps)
     )
+    application.add_handler(MessageHandler(filters.COMMAND, unknown_command))
     application.add_handler(CallbackQueryHandler(episode_callback, pattern="^episode:"))
     application.add_handler(
         CallbackQueryHandler(transcript_callback, pattern="^transcript:")
@@ -479,12 +453,6 @@ USER_COMMANDS = (
     "cancel",
     "help",
 )
-COMPATIBILITY_COMMANDS = (
-    "1v",
-    "capture",
-    "capture3",
-    "voice",
-)
 ADMIN_COMMANDS = (
     "approve",
     "pause",
@@ -492,7 +460,7 @@ ADMIN_COMMANDS = (
     "report_ux",
     "admin_annotate_gaps",
 )
-REGISTERED_COMMANDS = (*USER_COMMANDS, *COMPATIBILITY_COMMANDS, *ADMIN_COMMANDS)
+REGISTERED_COMMANDS = (*USER_COMMANDS, *ADMIN_COMMANDS)
 REPORT_REPLY_LIMIT = 3800
 TELEGRAM_TEXT_LIMIT = 3800
 PROFILE_CACHE_KEY = "profile_interpretation"
@@ -557,6 +525,10 @@ def _bot_profile(tone) -> dict[str, str]:
 async def _send_help(update, tone) -> None:
     if update.message is not None:
         await _reply_text(update, tone.help())
+
+
+async def _handle_unknown_command_after_authorized(update, tone) -> None:
+    await _reply_text(update, tone.unknown_command())
 
 
 async def _handle_profile_after_authorized(
@@ -1188,158 +1160,6 @@ def _capture_extraction_failed_text() -> str:
     return (
         "Не удалось надежно разобрать этот эпизод. Исходный материал сохранен "
         "приватно; начни заново той же командой."
-    )
-
-
-async def _handle_capture_after_authorized(
-    update,
-    session_store: LoopSessionStore,
-    ux_events: UxEventLog,
-    settings: Settings,
-    tone,
-    *,
-    capture_flow_store: CaptureFlowStore | None = None,
-    review_store: DraftReviewSessionStore | None = None,
-    extraction_provider=None,
-) -> None:
-    chat_id = update.effective_chat.id
-    now = utc_now()
-    if review_store is not None and review_store.load_session(chat_id, now=now):
-        await _reply_text(update, _cancel_active_flow_first())
-        return
-    existing_session = session_store.load_session(chat_id)
-    if _expire_initial_session_if_stale(
-        session_store,
-        ux_events,
-        existing_session,
-        chat_id,
-        now,
-        settings.initial_session_ttl_sec,
-    ):
-        await _reply_text(update, _expired_initial_session_text(tone))
-        return
-    existing_flow = (
-        capture_flow_store.load_flow(chat_id, now=now)
-        if capture_flow_store is not None
-        else None
-    )
-    decision = route_user_input(
-        has_classic_session=existing_session is not None,
-        active_flow=_flow_kind_for_capture_flow(existing_flow),
-        input_kind=InputKind.ONE_TAKE_TEXT_COMMAND,
-    )
-    if decision is RouteDecision.REQUIRE_CANCEL:
-        await _reply_text(update, _cancel_active_flow_first())
-        return
-    if decision is not RouteDecision.ARM_ONE_TAKE_TEXT:
-        raise RuntimeError(f"Unsupported capture route decision: {decision}")
-
-    text = _command_argument_text(getattr(update.message, "text", "") or "")
-    if not text:
-        await _reply_text(update, "Используй /capture текст эпизода")
-        return
-
-    review_store = review_store or DraftReviewSessionStore(
-        getattr(settings, "runtime_session_dir", session_store.session_dir),
-        loop_session_store=session_store,
-    )
-    extraction_provider = extraction_provider or _capture_extraction_provider_for_settings(
-        settings
-    )
-    await _extract_capture_to_review(
-        update,
-        session_store,
-        review_store,
-        ux_events,
-        tone,
-        chat_id=chat_id,
-        settings=settings,
-        extraction_provider=extraction_provider,
-        mode="one_take_text",
-        pieces=(("one_take_text", text),),
-        now=now,
-        media_kind="text",
-        message_id=getattr(update.message, "message_id", None),
-    )
-
-
-async def _handle_capture3_after_authorized(
-    update,
-    session_store: LoopSessionStore,
-    ux_events: UxEventLog,
-    settings: Settings,
-    tone,
-    *,
-    capture_flow_store: CaptureFlowStore | None = None,
-    review_store: DraftReviewSessionStore | None = None,
-    extraction_provider=None,
-) -> None:
-    chat_id = update.effective_chat.id
-    now = utc_now()
-    if review_store is not None and review_store.load_session(chat_id, now=now):
-        await _reply_text(update, _cancel_active_flow_first())
-        return
-    existing_session = session_store.load_session(chat_id)
-    if _expire_initial_session_if_stale(
-        session_store,
-        ux_events,
-        existing_session,
-        chat_id,
-        now,
-        settings.initial_session_ttl_sec,
-    ):
-        await _reply_text(update, _expired_initial_session_text(tone))
-        return
-    existing_flow = (
-        capture_flow_store.load_flow(chat_id, now=now)
-        if capture_flow_store is not None
-        else None
-    )
-    decision = route_user_input(
-        has_classic_session=existing_session is not None,
-        active_flow=_flow_kind_for_capture_flow(existing_flow),
-        input_kind=InputKind.THREE_BLOCK_COMMAND,
-    )
-    if decision is RouteDecision.REQUIRE_CANCEL:
-        await _reply_text(update, _cancel_active_flow_first())
-        return
-    if decision is not RouteDecision.ARM_THREE_BLOCK:
-        raise RuntimeError(f"Unsupported capture3 route decision: {decision}")
-
-    blocks = _capture3_blocks(getattr(update.message, "text", "") or "")
-    if blocks is None:
-        await _reply_text(
-            update,
-            "Используй /capture3 что случилось | что внутри | что сделал",
-        )
-        return
-
-    review_store = review_store or DraftReviewSessionStore(
-        getattr(settings, "runtime_session_dir", session_store.session_dir),
-        loop_session_store=session_store,
-    )
-    extraction_provider = extraction_provider or _capture_extraction_provider_for_settings(
-        settings
-    )
-    await _extract_capture_to_review(
-        update,
-        session_store,
-        review_store,
-        ux_events,
-        tone,
-        chat_id=chat_id,
-        settings=settings,
-        extraction_provider=extraction_provider,
-        mode="three_block",
-        pieces=tuple(
-            zip(
-                ("outside_context", "inner_context", "response_outcome"),
-                blocks,
-            )
-        ),
-        now=now,
-        media_kind="three_block",
-        message_id=getattr(update.message, "message_id", None),
     )
 
 
@@ -2796,21 +2616,6 @@ def _voice_input_artifact_from_update(update):
         mime_type=getattr(voice, "mime_type", None),
         file_size=getattr(voice, "file_size", None),
     )
-
-
-def _capture3_blocks(text: str) -> tuple[str, str, str] | None:
-    payload = _command_argument_text(text)
-    parts = tuple(part.strip() for part in payload.split("|"))
-    if len(parts) != 3 or any(not part for part in parts):
-        return None
-    return parts
-
-
-def _command_argument_text(text: str) -> str:
-    parts = text.split(maxsplit=1)
-    if len(parts) < 2:
-        return ""
-    return parts[1].strip()
 
 
 def _telegram_update_metadata(update) -> dict:

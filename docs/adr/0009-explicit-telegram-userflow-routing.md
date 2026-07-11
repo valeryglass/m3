@@ -5,7 +5,9 @@
 Accepted for `mvp2/userflow-containment`.
 
 Superseded for active flow names and transcript-to-draft continuation by ADR
-0013. Its explicit routing and no-silent-flow-replacement rules remain accepted.
+0013. ADR 0017 supersedes its `/voice`, `/capture`, `/capture3`, and legacy
+audio-flow compatibility clauses. Its explicit routing and
+no-silent-flow-replacement rules remain accepted.
 
 ## Decision
 

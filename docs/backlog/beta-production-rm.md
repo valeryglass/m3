@@ -200,7 +200,7 @@ Acceptance:
 
 ## RM-10 Canonical Telegram Command Surface
 
-Status: planned.
+Status: implemented.
 
 Goal: retire hidden compatibility commands and their command-specific code so
 the Telegram runtime has one supported route for each beta capture strategy.

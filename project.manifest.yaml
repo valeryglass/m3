@@ -36,7 +36,6 @@ modules:
       - app/session_store.py
       - app/user_flow_router.py
       - app/capture_flow_store.py
-      - app/audio_flow_store.py
       - app/messages.py
       - app/tone_engine.py
       - app/tone.yaml
