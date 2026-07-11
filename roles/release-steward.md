@@ -73,3 +73,23 @@ Beta is ready only when:
 
 If any item fails, mark the release blocked and record private-data-safe
 evidence instead of softening the decision.
+
+## Beta-2 Public Readiness
+
+Do not reuse the trusted-user Beta-1 decision as public-beta evidence. Public
+beta remains approval-gated and additionally requires:
+
+- versioned consent, adult/private-chat checks, and verified data export/delete;
+- atomic single-writer persistence and non-blocking provider execution;
+- per-user/global provider limits and cost evidence;
+- automatic annotation freshness with honest stale-state behavior;
+- hardened container operation plus tested backup, restore, rollback, and
+  deletion handling;
+- protected data-volume operation and curated brief/expanded report safety
+  evidence;
+- completed RM-06, RM-07, RM-10, and RM-11 product/operations work.
+
+Use the RM-12 through RM-16 acceptance criteria in
+`docs/backlog/beta-production-rm.md` until RM-16 creates the dedicated public
+beta release workflow. Any missing criterion is a public-beta blocker, not a
+known limitation.

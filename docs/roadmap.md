@@ -70,6 +70,10 @@ RM order:
 - RM-08: add capture extraction debug visibility. Status: implemented.
 - RM-09: allow partial non-10Q drafts to continue into missing-field questions.
   Status: implemented.
+- RM-10: retire hidden Telegram compatibility commands and unused flow
+  compatibility code after ADR and private-state checks. Status: planned.
+- RM-11: aggregate safe per-command and per-user command usage in UX reports.
+  Status: planned.
 - RM-A5: add production LLM profile interpretation over safe analytics payloads.
   Status: implemented.
 - RM-A6: introduce a render-ready Report ViewModel contract. Status:
@@ -93,6 +97,11 @@ Current beta capture finding:
 - final review and Save remain blocked until the observed episode is
   schema-valid.
 
+Current command-surface truth: the public menu exposes only canonical beta user
+commands, but hidden `/1v`, `/voice`, `/capture`, and `/capture3` handlers remain
+registered until RM-10. Raw UX events already carry command names; command-level
+report aggregation remains RM-11.
+
 Current runtime truth: non-10Q production capture extraction defaults to
 DeepSeek through owner-controlled runtime mode/provider settings. OpenAI
 Responses remains explicit compatibility.
@@ -110,6 +119,40 @@ call. The details callback makes a separate expanded-only call on cache miss and
 caches that expanded text in Telegram `chat_data`. Each surface has its own
 deterministic fallback and journal event. LLM map-focus generation is paused;
 the deterministic MapPayload contract remains unchanged.
+
+## Beta-2 Public Readiness
+
+Status: planned after Beta-1 release evidence is complete.
+
+Access model: publicly discoverable, approval-gated adult beta. Fully anonymous
+open access is not part of this milestone.
+
+Goal:
+
+```text
+versioned consent + private chat
+-> atomic single-instance runtime
+-> bounded provider usage
+-> automatically fresh analytics
+-> tested public-beta operations
+```
+
+RM order:
+
+- RM-12: add versioned consent, private-chat enforcement, retention policy, and
+  complete per-user export/deletion tooling.
+- RM-13: make JSON persistence atomic, enforce a single writer, and move blocking
+  provider work off the Telegram event loop.
+- RM-14: add per-user/global quotas, in-flight bounds, budget telemetry, and
+  provider circuit behavior.
+- RM-15: refresh deterministic annotations after Save and expose honest
+  freshness state to profile/report consumers.
+- RM-16: harden Docker operations and certify live consent, provider, freshness,
+  backup, restore, deletion, and rollback workflows.
+
+Public beta is blocked until RM-12 through RM-16 and the remaining RM-06,
+RM-07, RM-10, and RM-11 work are complete. This track changes operational and
+personal-data boundaries, not the accepted episode or analytics contracts.
 
 ## MVP2 Audio Input Track
 
