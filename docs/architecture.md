@@ -20,9 +20,17 @@ Telegram user
   -> Annotation Runs
   -> Graph Reporting
   -> Insight Payloads
-     -> User Report Rendering
+     -> Report Entities -> Report Cards -> Report ViewModel
+        -> deterministic report rendering
+        -> Structured Evidence Interpretation
+           -> brief provider call on /profile
+           -> expanded provider call on Подробнее
      -> Pattern Payloads
 ```
+
+LLM profile interpretation and map projection are currently separate. Profile
+interpretation consumes the safe report artifact registry; deterministic map
+payloads continue to consume `InsightPayload` without LLM map-focus hints.
 
 Supporting flows:
 

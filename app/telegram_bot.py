@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import MutableMapping
 from pathlib import Path
 from threading import Thread
 from time import monotonic
@@ -43,7 +44,10 @@ from app.report_runner import (
     build_graph_report_summary,
     build_ux_report_text,
 )
-from app.profile_interpreter import render_profile_for_settings
+from app.profile_interpreter import (
+    interpret_profile_brief_for_settings,
+    interpret_profile_expanded_for_settings,
+)
 from app.input_funnels import (
     artifact_text,
     audio_document_input_artifact,
@@ -56,7 +60,7 @@ from app.intake_transcripts import (
     load_intake_transcript,
     save_intake_transcript,
 )
-from app.journal import DEFAULT_JOURNAL_LOG, JournalLog
+from app.journal import JournalLog
 from app.loop_extractor import (
     active_target,
     apply_user_reply,
@@ -207,7 +211,12 @@ def main() -> None:
             update, settings, tone, ux_events, userlist, context.bot
         ):
             return
-        await _handle_profile_after_authorized(update, settings, tone)
+        await _handle_profile_after_authorized(
+            update,
+            settings,
+            tone,
+            profile_cache=context.chat_data,
+        )
 
     async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
@@ -371,7 +380,12 @@ def main() -> None:
             update, settings, tone, ux_events, userlist, context.bot
         ):
             return
-        await _handle_profile_callback_after_authorized(update, settings, tone)
+        await _handle_profile_callback_after_authorized(
+            update,
+            settings,
+            tone,
+            profile_cache=context.chat_data,
+        )
 
     async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await _handle_admin_decision(
@@ -405,7 +419,7 @@ def main() -> None:
         await application.bot.set_my_commands(
             [
                 BotCommand(command=command["command"], description=command["description"])
-                for command in _visible_command_menu(tone)
+                for command in _user_command_menu(tone)
             ]
         )
         await application.bot.set_my_short_description(
@@ -454,29 +468,34 @@ def main() -> None:
     application.run_polling(bootstrap_retries=-1)
 
 
-REGISTERED_COMMANDS = (
+USER_COMMANDS = (
     "start",
     "10q",
     "3b",
     "1t",
     "1a",
-    "1v",
     "status",
+    "profile",
     "cancel",
     "help",
-    "profile",
+)
+COMPATIBILITY_COMMANDS = (
+    "1v",
     "capture",
     "capture3",
     "voice",
+)
+ADMIN_COMMANDS = (
     "approve",
     "pause",
     "report_graph",
     "report_ux",
     "admin_annotate_gaps",
 )
-VISIBLE_COMMANDS = ("start", "10q", "3b", "1t", "1a", "cancel", "help")
+REGISTERED_COMMANDS = (*USER_COMMANDS, *COMPATIBILITY_COMMANDS, *ADMIN_COMMANDS)
 REPORT_REPLY_LIMIT = 3800
 TELEGRAM_TEXT_LIMIT = 3800
+PROFILE_CACHE_KEY = "profile_interpretation"
 
 
 def _transcription_provider_for_settings(settings):
@@ -492,8 +511,15 @@ def _transcription_provider_for_settings(settings):
 def _capture_extraction_provider_for_settings(settings):
     return capture_extraction_provider_for_settings(
         settings,
-        journal_log=JournalLog(getattr(settings, "journal_log", DEFAULT_JOURNAL_LOG)),
+        journal_log=_journal_log_for_settings(settings),
     )
+
+
+def _journal_log_for_settings(settings) -> JournalLog | None:
+    path = getattr(settings, "journal_log", None)
+    if path is None:
+        return None
+    return JournalLog(Path(path))
 
 
 def target_fields_for_review() -> tuple[str, ...]:
@@ -511,13 +537,13 @@ def target_fields_for_review() -> tuple[str, ...]:
     )
 
 
-def _visible_command_menu(tone) -> tuple[dict[str, str], ...]:
+def _user_command_menu(tone) -> tuple[dict[str, str], ...]:
     return tuple(
         {
             "command": command,
             "description": tone.command_description(command),
         }
-        for command in VISIBLE_COMMANDS
+        for command in USER_COMMANDS
     )
 
 
@@ -533,25 +559,41 @@ async def _send_help(update, tone) -> None:
         await _reply_text(update, tone.help())
 
 
-async def _handle_profile_after_authorized(update, settings: Settings, tone) -> None:
+async def _handle_profile_after_authorized(
+    update,
+    settings: Settings,
+    tone,
+    *,
+    profile_cache: MutableMapping[str, object] | None = None,
+) -> None:
     report = _build_chat_profile_report(settings, update.effective_chat.id)
     if report is None:
         await _reply_text(update, tone.profile_missing())
         return
-    profile = render_profile_for_settings(
+    brief = interpret_profile_brief_for_settings(
         report,
         settings,
-        journal_log=JournalLog(getattr(settings, "journal_log", DEFAULT_JOURNAL_LOG)),
+        journal_log=_journal_log_for_settings(settings),
     )
+    if profile_cache is not None:
+        profile_cache[PROFILE_CACHE_KEY] = {
+            "brief_artifact_ids": list(brief.selected_artifact_ids),
+        }
     await _reply_text(
         update,
-        profile.summary_text,
+        brief.text,
         reply_markup=_profile_details_reply_markup(),
         parse_mode=None,
     )
 
 
-async def _handle_profile_callback_after_authorized(update, settings: Settings, tone) -> None:
+async def _handle_profile_callback_after_authorized(
+    update,
+    settings: Settings,
+    tone,
+    *,
+    profile_cache: MutableMapping[str, object] | None = None,
+) -> None:
     query = getattr(update, "callback_query", None)
     if query is not None:
         await query.answer()
@@ -559,19 +601,65 @@ async def _handle_profile_callback_after_authorized(update, settings: Settings, 
     if data != "profile:details":
         return
 
+    cached_details = _cached_profile_details(profile_cache)
+    if cached_details is not None:
+        await _reply_to_callback(
+            query,
+            _trim_report_text(cached_details),
+            parse_mode=None,
+        )
+        return
+
     report = _build_chat_profile_report(settings, update.effective_chat.id)
     if report is None:
         await _reply_to_callback(query, tone.profile_missing(), parse_mode=None)
         return
-    profile = render_profile_for_settings(
+    expanded = interpret_profile_expanded_for_settings(
         report,
         settings,
-        journal_log=JournalLog(getattr(settings, "journal_log", DEFAULT_JOURNAL_LOG)),
+        brief_artifact_ids=_cached_profile_brief_artifact_ids(profile_cache),
+        journal_log=_journal_log_for_settings(settings),
     )
+    if profile_cache is not None:
+        cached = profile_cache.get(PROFILE_CACHE_KEY)
+        if not isinstance(cached, dict):
+            cached = {}
+            profile_cache[PROFILE_CACHE_KEY] = cached
+        cached["expanded_text"] = expanded.text
     await _reply_to_callback(
         query,
-        _trim_report_text(profile.details_text),
+        _trim_report_text(expanded.text),
         parse_mode=None,
+    )
+
+
+def _cached_profile_details(
+    profile_cache: MutableMapping[str, object] | None,
+) -> str | None:
+    if profile_cache is None:
+        return None
+    cached = profile_cache.get(PROFILE_CACHE_KEY)
+    if not isinstance(cached, dict):
+        return None
+    details = cached.get("expanded_text")
+    return details if isinstance(details, str) and details.strip() else None
+
+
+def _cached_profile_brief_artifact_ids(
+    profile_cache: MutableMapping[str, object] | None,
+) -> tuple[str, ...]:
+    if profile_cache is None:
+        return ()
+    cached = profile_cache.get(PROFILE_CACHE_KEY)
+    if not isinstance(cached, dict):
+        return ()
+    artifact_ids = cached.get("brief_artifact_ids")
+    if not isinstance(artifact_ids, list):
+        return ()
+    return tuple(
+        artifact_id
+        for artifact_id in artifact_ids
+        if isinstance(artifact_id, str) and artifact_id
     )
 
 
@@ -969,7 +1057,7 @@ async def _extract_capture_to_review(
             "capture_extraction_dir",
             review_store.review_dir.parent / "capture-extractions",
         ),
-        journal_log=JournalLog(getattr(settings, "journal_log", DEFAULT_JOURNAL_LOG)),
+        journal_log=_journal_log_for_settings(settings),
         allow_partial_draft=True,
     )
     if outcome.draft is None:
@@ -1703,9 +1791,7 @@ async def _handle_message_after_authorized(
                     review_store.review_dir.parent / "capture-extractions",
                 ),
                 created_at=now,
-                journal_log=JournalLog(
-                    getattr(settings, "journal_log", DEFAULT_JOURNAL_LOG)
-                ),
+                journal_log=_journal_log_for_settings(settings),
             )
             review = review_session_from_extraction(
                 chat_id=chat_id,

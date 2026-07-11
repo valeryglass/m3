@@ -12,9 +12,14 @@ from app.graph_report import build_report, load_episodes
 from app.insight_payload import build_insight_payload, require_payload_export_ready
 from app.journal import DEFAULT_JOURNAL_LOG, JournalLog, journal_event, record_journal_event
 from app.map_payload import build_map_payload
+from app.report_interpretation import (
+    build_report_interpretation_input,
+    report_interpretation_is_eligible,
+)
 from app.profile_interpreter import profile_text_violations
 from app.report_cards import build_report_cards
 from app.report_entities import build_report_entities
+from app.report_view_model import build_report_view_model, render_details_view
 from app.user_report import render_details_from_payload, render_summary_from_payload
 
 STATUS_PASSED = "passed"
@@ -99,6 +104,8 @@ def _build_qa_status(
     insight_payload = build_insight_payload(report)
     report_entities = build_report_entities(insight_payload)
     report_cards = build_report_cards(insight_payload)
+    report_view_model = build_report_view_model(insight_payload)
+    interpretation_input = build_report_interpretation_input(insight_payload)
     short_report = render_summary_from_payload(insight_payload)
     long_report = render_details_from_payload(insight_payload)
     map_payload = build_map_payload(
@@ -131,6 +138,13 @@ def _build_qa_status(
         )
     )
     checks.extend(_report_text_checks(short_report, long_report, report_cards))
+    checks.extend(
+        _interpretation_input_checks(
+            interpretation_input,
+            long_report=long_report,
+            deterministic_details=render_details_view(report_view_model),
+        )
+    )
 
     status = STATUS_PASSED if all(check.passed for check in checks) else STATUS_BLOCKED
     return {
@@ -152,6 +166,13 @@ def _build_qa_status(
         "report_card_kinds": [card.kind for card in report_cards],
         "report_entity_kinds": sorted(
             {entity.kind for entity in report_entities.entities}
+        ),
+        "interpretation_artifact_kinds": sorted(
+            {item.entity_kind for item in interpretation_input.artifacts}
+        ),
+        "interpretation_artifact_count": len(interpretation_input.artifacts),
+        "interpretation_eligible": report_interpretation_is_eligible(
+            interpretation_input
         ),
         "map_primitive_kinds": sorted(
             {
@@ -293,6 +314,63 @@ def _report_text_checks(
     return checks
 
 
+def _interpretation_input_checks(
+    interpretation_input,
+    *,
+    long_report: str,
+    deterministic_details: str,
+) -> list[CheckResult]:
+    checks: list[CheckResult] = []
+    serialized = json.dumps(interpretation_input.to_dict(), ensure_ascii=False)
+    artifact_ids = [item.artifact_id for item in interpretation_input.artifacts]
+    entity_kinds = {item.entity_kind for item in interpretation_input.artifacts}
+    safe_shape = (
+        entity_kinds.issubset(
+            {"evidence", "pattern", "exception", "change", "question", "gap"}
+        )
+        and len(artifact_ids) == len(set(artifact_ids))
+        and not any(
+            forbidden in serialized
+            for forbidden in (
+                "source_quote",
+                "transcript",
+                "episode_id",
+                "episode_ids",
+            )
+        )
+    )
+    if safe_shape:
+        checks.append(
+            _pass(
+                "interpretation_input_safe",
+                "structured interpretation input is safe",
+            )
+        )
+    else:
+        checks.append(
+            _fail(
+                "interpretation_input_safe",
+                "structured interpretation input is unsafe",
+            )
+        )
+
+    if long_report == deterministic_details:
+        checks.append(
+            _pass(
+                "deterministic_fallback_available",
+                "deterministic expanded fallback is available",
+            )
+        )
+    else:
+        checks.append(
+            _fail(
+                "deterministic_fallback_available",
+                "deterministic expanded fallback differs",
+            )
+        )
+    return checks
+
+
 def _blocked(
     source: str,
     annotation_run_dir: Path | None,
@@ -316,6 +394,11 @@ def _blocked(
         "coverage": {},
         "readiness": {},
         "report_card_kinds": [],
+        "report_entity_kinds": [],
+        "interpretation_artifact_kinds": [],
+        "interpretation_artifact_count": 0,
+        "interpretation_eligible": False,
+        "map_primitive_kinds": [],
         "short_report_chars": 0,
         "long_report_chars": 0,
         "checks": [check.as_dict() for check in checks],

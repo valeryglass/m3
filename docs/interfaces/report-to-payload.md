@@ -34,6 +34,8 @@ payload JSON.
 - timespan analytics use fixed 1-week buckets.
 - map payloads expose graph-derived semantics and provenance without choosing a
   final visual renderer.
+- profile LLM interpretation does not emit map-focus hints; MapPayload entities,
+  topology, provenance, and geometry remain deterministic.
 - file exports fail before writing unless an explicit annotation-run gives full
   coverage and payload eligibility for every selected-source episode.
 

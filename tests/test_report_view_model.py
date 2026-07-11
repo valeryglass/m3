@@ -74,3 +74,23 @@ def test_report_view_model_rendering_hides_raw_internal_labels():
     assert "compensate" not in text
     assert "neutral_mixed" not in text
     assert "source_quote" not in text
+
+
+def test_report_view_model_uses_plain_text_dividers_for_header_and_sections():
+    report = build_report(
+        [
+            _load_episode(_episode("episode-20260430-1")),
+            _load_episode(_episode("episode-20260430-2")),
+        ]
+    )
+    model = build_report_view_model(build_insight_payload(report))
+
+    summary = render_summary_view(model)
+    details = render_details_view(model)
+
+    assert summary.startswith("Короткий отчет\n────────────\nВ выборке: 2 эпизода.")
+    assert details.startswith("Подробный отчет\n────────────\nВ выборке: 2 эпизода.")
+    assert "────────────\nГлавный повторяющийся сценарий\n\n" in summary
+    assert "────────────\nГлавный повторяющийся сценарий\n\n" in details
+    assert "────────────\n\n────────────" not in summary
+    assert "────────────\n\n────────────" not in details

@@ -20,9 +20,8 @@ plus selected annotations.
 - graph signatures carrying accepted primary/secondary life domains.
 - deterministic Report Entity projections for report views.
 - card-composed plain-language `/profile` summary and details projections.
-- render-ready Report ViewModel projections for deterministic and LLM profile
-  rendering.
-- production LLM `/profile` claim polishing over safe report view facts.
+- render-ready Report ViewModel projections for deterministic fallback.
+- independent production brief and expanded report interpretations.
 - optional Markdown debug exports.
 
 ## Dependencies
@@ -49,25 +48,39 @@ sets. `app.insight_payload` packages those facts into the shared downstream
 analytics artifact. `app.report_entities` projects the shared payload into the
 stable report vocabulary: Evidence, Pattern, Exception, Change, Finding,
 Question, and Gap. `app.report_cards` turns report entities into report-view
-card candidates. `app.report_view_model` turns cards into the render-ready
-summary/details sections used by both deterministic and LLM profile rendering.
-`app.user_report` renders deterministic short and detailed `/profile` text from
-that ViewModel. `app.profile_interpreter` selects the runtime profile mode:
-`ml` uses deterministic rendering, while `production` may ask the configured
-LLM provider to polish section claims only. Titles, evidence, support counts,
-limits, and questions stay deterministic. It does not generate new annotations,
-choose independent map semantics, send raw episode text, or produce diagnostic
-interpretations.
+card candidates. `app.report_view_model` turns cards into deterministic
+summary/details sections. `app.user_report` renders the deterministic fallback.
+`app.report_interpretation` deduplicates the same safe Evidence, Pattern,
+Exception, Change, Question, and Gap material into an artifact registry.
+`app.profile_interpreter` selects the runtime profile mode: `ml` uses the
+deterministic card report, while `production` may ask the configured LLM
+provider for two independent interpretations. `/profile` requests only the
+brief. The explicit details callback requests expanded sections and limitations
+only when no expanded cache exists. Both calls consume the same safe artifact
+registry, use thinking-disabled mode, and have independent deterministic
+fallbacks. They do not generate annotations, receive raw episode text, or
+interpret the person. LLM map-focus generation is paused.
+
+Deterministic and generated profile reports share one plain-text presentation:
+a fixed Unicode divider separates the report header and each meaning block.
+Telegram sends this text without HTML parsing, so presentation does not alter
+analytics, interpretation contracts, or report caching.
+
+Quantitative evidence remains grounded. Generated text may restate a number only
+when that value is present in the specifically referenced interpretation
+artifact; unsupported numbers trigger the deterministic fallback.
+When generated report text repeats the exact global sample size, the runtime
+attaches `evidence:sample` deterministically before applying this validation.
 
 For Beta-1 report work, use `roles/report-interpreter.md`: report interpretation
 must consume `InsightPayload`/Report Entity/report-card facts and must not
 reselect conflicting motifs, forks, domains, outcomes, or gaps independently
 from payload consumers.
 
-The detailed user report is composed from cards for repeated scenarios, choice
-points, counterexamples, contrasts, horizon-specific outcomes, and next
-observation questions. These remain facts about the current sample, not stable
-traits.
+The deterministic detailed report remains a complete fallback. The production
+expanded report may combine repeated scenarios, choice points,
+counterexamples, contrasts, and outcome patterns into fewer meaning blocks.
+Every generated block names its supporting interpretation artifacts.
 
 Life-domain values enter graph signatures only from accepted
 `domain_annotations`. Graph Reporting does not classify situation text.

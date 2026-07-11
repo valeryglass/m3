@@ -240,7 +240,7 @@ Acceptance:
 
 ## RM-A7 LLM As Copy Editor, Not Analyst
 
-Status: implemented.
+Status: implemented; production rendering superseded by RM-A9.
 
 Goal: make production LLM profile rendering polish prepared report sections
 instead of summarizing raw payload facts.
@@ -261,21 +261,73 @@ Acceptance:
 
 Status: implemented.
 
-Goal: block schema-like or low-quality LLM profile output before it reaches
-Telegram.
+Goal: block unsafe, ungrounded, or internally named LLM profile output before
+it reaches Telegram without treating ordinary analytical vocabulary as a
+runtime failure.
 
 Acceptance:
 
-- quality guard rejects diagnostic, stable-trait, causal, internal, and
-  schema-smell wording;
-- schema-smell examples include `проаннотированы`, `триггер`, `подход`,
-  `компенсация`, `исход`, and `в рамках сценария`;
+- hard guard rejects explicit diagnostic, stable-trait, advisory, and internal
+  wording such as `проаннотированы`;
+- user-facing terms such as `триггер`, `подход`, `компенсация`, `исход`, and
+  `в рамках сценария` are style preferences, not fallback conditions;
+- causal connective phrases are not rejected by keyword alone; causal restraint
+  remains in the provider prompt while artifact references, numeric facts, and
+  composition are validated structurally;
 - guard requires readable section structure, sample limitation, support facts,
   and next observation questions where the ViewModel has them;
 - rejected LLM output falls back to deterministic profile text and journals a
   safe failure reason such as `unsafe_or_low_quality`;
 - `app.report_payload_qa` covers deterministic report text and fake LLM outputs
   without printing raw private content.
+
+## RM-A9 Structured Evidence Interpretation
+
+Status: implemented; provider-call composition superseded by RM-A10.
+
+Goal: let production LLM rendering select and combine prepared report artifacts
+into one structured interpretation bundle without becoming a free essay.
+
+Acceptance:
+
+- production input is a deduplicated registry built from `InsightPayload`,
+  Report Entities, and Report Cards without raw text, source quotes,
+  transcripts, or episode IDs;
+- one provider response contains a two-to-five-sentence brief, two to five
+  structured expanded sections, one optional grounded question, limitations,
+  and one to three basic map-focus hints;
+- every generated block names valid supporting artifact IDs and numeric facts
+  remain grounded in those specifically referenced artifacts;
+- at least one section combines multiple analytical artifacts and later
+  sections introduce new material instead of reproducing cards;
+- map focus uses only compatible Region, Path, Boundary, Anchor, and Field roles
+  and never changes MapPayload or layout;
+- `/profile` caches expanded text and map focus in `context.chat_data`; the
+  details callback performs no second provider call;
+- `ml`, cache miss, insufficient material, provider failure, or unsafe output
+  uses the complete deterministic fallback;
+- journals retain only safe provider, status, and count metadata.
+
+## RM-A10 Split Brief / Expanded Profile Interpretation
+
+Status: implemented.
+
+Goal: align provider calls with the two Telegram report actions and remove
+all-or-nothing coupling between brief, expanded, and map presentation.
+
+Acceptance:
+
+- `/profile` makes one brief-only provider call;
+- `profile:details` makes one expanded-only provider call when expanded text is
+  not already cached;
+- repeated details callbacks reuse cached expanded text;
+- brief and expanded failures use independent deterministic fallbacks and
+  surface-specific journal events;
+- expanded may receive validated brief artifact IDs as priority hints, but not
+  generated brief prose;
+- both calls use the configured DeepSeek profile model with thinking disabled;
+- LLM map-focus output is removed from report prompts, validation, and Telegram
+  cache while deterministic map payload/export architecture remains available.
 
 ## Supporting Epic: Input-To-Schema Transport Tool
 

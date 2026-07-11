@@ -120,6 +120,8 @@ def test_session_messages_render_concise_prompts():
         "/3b — три последовательных блока\n"
         "/1t — один текст, затем только недостающее\n"
         "/1a — одно голосовое или аудио\n"
+        "/status — показать текущий шаг\n"
+        "/profile — открыть короткий и подробный отчёт\n"
         "/cancel — отменить сессию\n"
         "/help — показать команды\n\n"
         "Связь: @mesto3"
@@ -260,6 +262,8 @@ def test_command_descriptions_render_unchanged():
     assert tone.command_description("3b") == "Эпизод через 3 блока"
     assert tone.command_description("1t") == "Эпизод одним текстом"
     assert tone.command_description("1a") == "Эпизод голосом или аудио"
+    assert tone.command_description("status") == "Показать текущий шаг"
+    assert tone.command_description("profile") == "Показать профиль и отчёт"
     assert tone.command_description("cancel") == "Отменить сессию"
     assert tone.command_description("help") == "Показать команды"
     assert COMMAND_DESCRIPTIONS == {
@@ -268,6 +272,8 @@ def test_command_descriptions_render_unchanged():
         "3b": "Эпизод через 3 блока",
         "1t": "Эпизод одним текстом",
         "1a": "Эпизод голосом или аудио",
+        "status": "Показать текущий шаг",
+        "profile": "Показать профиль и отчёт",
         "cancel": "Отменить сессию",
         "help": "Показать команды",
     }

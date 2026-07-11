@@ -18,8 +18,9 @@ flows being smoked.
   `M3_CAPTURE_EXTRACTION_MODEL` for non-10Q capture extraction.
 - Beta production `/profile` uses `M3_PROFILE_REPORT_MODE=auto`,
   `M3_PROFILE_LLM_PROVIDER=deepseek`, and explicit `M3_PROFILE_LLM_MODEL` for
-  LLM-readable profile text. Missing or failed LLM profile rendering must fall
-  back to deterministic profile text and write a process-journal event.
+  separate structured brief and expanded interpretation calls. Missing,
+  insufficient, or failed interpretation must fall back independently for that
+  report surface and write a process-journal event. LLM map focus is paused.
 - `M3_CAPTURE_EXTRACTION_PROVIDER=openai` remains an explicit compatibility
   option, not the beta production default.
 - Whisper/ffmpeg prerequisites are available for audio smoke.
@@ -145,8 +146,14 @@ Verify:
   features;
 - map payload does not reselect conflicting motifs, forks, domains, outcomes, or
   gaps;
-- `/profile` short summary and inline long details remain cautious and
-  sample-bound;
+- production `/profile` brief and expanded sections are independent cautious,
+  artifact-backed interpretations over the same registry;
+- inline details make a separate provider call on cache miss and reuse cached
+  expanded text on repeated callbacks;
+- a brief failure does not prevent expanded interpretation, and an expanded
+  failure does not replace an already displayed brief;
+- profile interpretation emits no map-focus hints and does not alter the
+  deterministic map payload;
 - UX analytics can show funnel-level and user-level dropoff without raw content.
 
 `app.report_payload_qa` is the acceptance check for report/payload consistency.

@@ -5,6 +5,7 @@ from typing import Any
 
 from app.insight_payload import InsightPayload
 from app.report_cards import ReportCard, build_report_cards
+from app.report_text_layout import append_report_block, report_header
 
 
 VERSION = "0.1"
@@ -60,66 +61,43 @@ def build_report_view_model(payload: InsightPayload) -> ReportViewModel:
 
 
 def render_summary_view(model: ReportViewModel) -> str:
-    lines = ["Короткий отчет", "", model.sample_line]
-    if model.coverage_note:
-        lines.append(model.coverage_note)
+    lines = report_header(
+        "Короткий отчет",
+        (model.sample_line, model.coverage_note),
+    )
 
     for section in model.summary_sections:
-        if lines[-1] != "":
-            lines.append("")
-        lines.extend(_render_section(section, compact=True))
+        append_report_block(
+            lines,
+            _render_section_content(section, compact=True),
+            title=section.title,
+        )
 
-    if len(lines) == 3:
-        lines.extend(["", "Пока недостаточно обработанных эпизодов для аккуратного вывода."])
+    if not model.summary_sections:
+        append_report_block(
+            lines,
+            ("Пока недостаточно обработанных эпизодов для аккуратного вывода.",),
+        )
     return "\n".join(lines).rstrip()
 
 
 def render_details_view(model: ReportViewModel) -> str:
-    lines = ["Подробный отчет", ""]
+    lines = report_header(
+        "Подробный отчет",
+        (model.sample_line, model.coverage_note),
+    )
     for section in model.details_sections:
-        if lines[-1] != "":
-            lines.append("")
-        lines.extend(_render_section(section, compact=False))
-    if len(lines) == 2:
-        lines.append("Пока недостаточно обработанных эпизодов для аккуратного вывода.")
+        append_report_block(
+            lines,
+            _render_section_content(section, compact=False),
+            title=section.title,
+        )
+    if not model.details_sections:
+        append_report_block(
+            lines,
+            ("Пока недостаточно обработанных эпизодов для аккуратного вывода.",),
+        )
     return "\n".join(lines).rstrip()
-
-
-def apply_claim_rewrites(
-    model: ReportViewModel,
-    *,
-    summary_claims: dict[str, str],
-    details_claims: dict[str, str],
-) -> ReportViewModel:
-    return ReportViewModel(
-        kind=model.kind,
-        version=model.version,
-        sample_line=model.sample_line,
-        coverage_note=model.coverage_note,
-        summary_sections=tuple(
-            _rewrite_section(section, summary_claims)
-            for section in model.summary_sections
-        ),
-        details_sections=tuple(
-            _rewrite_section(section, details_claims)
-            for section in model.details_sections
-        ),
-    )
-
-
-def _rewrite_section(
-    section: ReportViewSection,
-    claims: dict[str, str],
-) -> ReportViewSection:
-    claim = claims.get(section.kind, section.claim).strip()
-    return ReportViewSection(
-        kind=section.kind,
-        title=section.title,
-        claim=claim or section.claim,
-        evidence=section.evidence,
-        limits=section.limits,
-        question=section.question,
-    )
 
 
 def _section(card: ReportCard) -> ReportViewSection:
@@ -157,8 +135,8 @@ def _first_card(cards: tuple[ReportCard, ...], kind: str) -> ReportCard | None:
     return None
 
 
-def _render_section(section: ReportViewSection, *, compact: bool) -> list[str]:
-    lines = [section.title, "", section.claim]
+def _render_section_content(section: ReportViewSection, *, compact: bool) -> list[str]:
+    lines = [section.claim]
     if section.evidence:
         lines.append("")
         lines.extend(f"- {line}" for line in section.evidence)

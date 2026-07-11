@@ -89,7 +89,19 @@ def test_telegram_bot_module_imports_without_contacting_telegram():
     assert callable(telegram_bot.main)
 
 
-def test_visible_command_menu_excludes_hidden_status():
+def test_journal_requires_explicit_settings_path(tmp_path):
+    assert telegram_bot._journal_log_for_settings(SimpleNamespace()) is None
+
+    journal_path = tmp_path / "journal.jsonl"
+    journal = telegram_bot._journal_log_for_settings(
+        SimpleNamespace(journal_log=journal_path)
+    )
+
+    assert journal is not None
+    assert journal.path == journal_path
+
+
+def test_user_command_menu_includes_primary_handlers_and_excludes_internal_commands():
     tone = ToneEngine.default()
 
     assert telegram_bot.REGISTERED_COMMANDS == (
@@ -98,11 +110,11 @@ def test_visible_command_menu_excludes_hidden_status():
         "3b",
         "1t",
         "1a",
-        "1v",
         "status",
+        "profile",
         "cancel",
         "help",
-        "profile",
+        "1v",
         "capture",
         "capture3",
         "voice",
@@ -112,12 +124,14 @@ def test_visible_command_menu_excludes_hidden_status():
         "report_ux",
         "admin_annotate_gaps",
     )
-    assert telegram_bot._visible_command_menu(tone) == (
+    assert telegram_bot._user_command_menu(tone) == (
         {"command": "start", "description": "Начать 10 вопросов"},
         {"command": "10q", "description": "Эпизод через 10 вопросов"},
         {"command": "3b", "description": "Эпизод через 3 блока"},
         {"command": "1t", "description": "Эпизод одним текстом"},
         {"command": "1a", "description": "Эпизод голосом или аудио"},
+        {"command": "status", "description": "Показать текущий шаг"},
+        {"command": "profile", "description": "Показать профиль и отчёт"},
         {"command": "cancel", "description": "Отменить сессию"},
         {"command": "help", "description": "Показать команды"},
     )
@@ -193,10 +207,12 @@ def test_send_help_replies_without_creating_session(tmp_path):
         "Он помогает аккуратно зафиксировать один эпизод по CBT/ACT-фрейму\n\n"
         "Команды:\n"
         "/start или /10q — десять коротких вопросов\n"
-        "/3b — три последовательных блока\n"
-        "/1t — один текст, затем только недостающее\n"
-        "/1a — одно голосовое или аудио\n"
-        "/cancel — отменить сессию\n"
+            "/3b — три последовательных блока\n"
+            "/1t — один текст, затем только недостающее\n"
+            "/1a — одно голосовое или аудио\n"
+            "/status — показать текущий шаг\n"
+            "/profile — открыть короткий и подробный отчёт\n"
+            "/cancel — отменить сессию\n"
         "/help — показать команды\n\n"
         "Связь: @mesto3"
     ]
@@ -232,58 +248,127 @@ def test_profile_command_replies_with_current_report(tmp_path):
         assert reply_markup.inline_keyboard[0][0].callback_data == "profile:details"
 
 
-def test_profile_command_uses_llm_profile_in_production(tmp_path, monkeypatch):
+def test_profile_command_calls_only_brief_and_caches_focus_ids(tmp_path, monkeypatch):
     settings = _settings(episode_dir=tmp_path / "episodes", app_mode="production")
     settings.episode_dir.mkdir(parents=True)
     _write_json(settings.episode_dir / "episode-20260503-1.json", _graph_ready_episode())
     message = _FakeMessage("/profile")
     calls = []
+    profile_cache = {}
 
-    def fake_render_profile(report, settings, *, journal_log=None):
+    def fake_interpret_brief(report, settings, *, journal_log=None):
         calls.append((report, settings, journal_log))
         return SimpleNamespace(
-            summary_text="LLM short profile",
-            details_text="LLM long profile",
+            text="LLM short profile",
+            selected_artifact_ids=("pattern:dominant_motif", "exception:fork"),
         )
 
-    monkeypatch.setattr(telegram_bot, "render_profile_for_settings", fake_render_profile)
+    monkeypatch.setattr(
+        telegram_bot,
+        "interpret_profile_brief_for_settings",
+        fake_interpret_brief,
+    )
 
     _run(
         telegram_bot._handle_profile_after_authorized(
             _fake_update(123, message),
             settings,
             ToneEngine.default(),
+            profile_cache=profile_cache,
         )
     )
 
     assert message.replies == ["LLM short profile"]
     assert len(calls) == 1
     assert calls[0][1].app_mode == "production"
+    assert profile_cache[telegram_bot.PROFILE_CACHE_KEY] == {
+        "brief_artifact_ids": ["pattern:dominant_motif", "exception:fork"]
+    }
 
 
-def test_profile_details_callback_uses_same_profile_interpreter(tmp_path, monkeypatch):
+def test_profile_details_callback_uses_cached_llm_expanded_without_provider(
+    tmp_path,
+    monkeypatch,
+):
     settings = _settings(episode_dir=tmp_path / "episodes", app_mode="production")
     settings.episode_dir.mkdir(parents=True)
     _write_json(settings.episode_dir / "episode-20260503-1.json", _graph_ready_episode())
     callback = _FakeCallbackQuery("profile:details")
+    profile_cache = {
+        telegram_bot.PROFILE_CACHE_KEY: {
+            "brief_artifact_ids": ["pattern:dominant_motif"],
+            "expanded_text": "Cached structured expanded profile",
+        }
+    }
 
-    def fake_render_profile(report, settings, *, journal_log=None):
-        return SimpleNamespace(
-            summary_text="LLM short profile",
-            details_text="LLM long profile",
-        )
+    def fail_expanded(*args, **kwargs):
+        raise AssertionError("cached details must not call expanded provider")
 
-    monkeypatch.setattr(telegram_bot, "render_profile_for_settings", fake_render_profile)
+    monkeypatch.setattr(
+        telegram_bot,
+        "interpret_profile_expanded_for_settings",
+        fail_expanded,
+    )
 
     _run(
         telegram_bot._handle_profile_callback_after_authorized(
             _fake_callback_update(123, callback),
             settings,
             ToneEngine.default(),
+            profile_cache=profile_cache,
         )
     )
 
-    assert callback.message.replies == ["LLM long profile"]
+    assert callback.message.replies == ["Cached structured expanded profile"]
+
+
+def test_profile_details_callback_calls_expanded_lazily_and_caches_result(
+    tmp_path,
+    monkeypatch,
+):
+    settings = _settings(episode_dir=tmp_path / "episodes", app_mode="production")
+    settings.episode_dir.mkdir(parents=True)
+    _write_json(settings.episode_dir / "episode-20260503-1.json", _graph_ready_episode())
+    callback = _FakeCallbackQuery("profile:details")
+    profile_cache = {
+        telegram_bot.PROFILE_CACHE_KEY: {
+            "brief_artifact_ids": ["pattern:dominant_motif", "exception:fork"],
+        }
+    }
+    calls = []
+
+    def fake_expanded(
+        report,
+        settings,
+        *,
+        brief_artifact_ids=(),
+        journal_log=None,
+    ):
+        calls.append((report, settings, brief_artifact_ids, journal_log))
+        return SimpleNamespace(text="Fresh LLM expanded profile")
+
+    monkeypatch.setattr(
+        telegram_bot,
+        "interpret_profile_expanded_for_settings",
+        fake_expanded,
+    )
+
+    _run(
+        telegram_bot._handle_profile_callback_after_authorized(
+            _fake_callback_update(123, callback),
+            settings,
+            ToneEngine.default(),
+            profile_cache=profile_cache,
+        )
+    )
+
+    assert len(calls) == 1
+    assert calls[0][2] == ("pattern:dominant_motif", "exception:fork")
+    assert callback.message.replies == ["Fresh LLM expanded profile"]
+    assert profile_cache[telegram_bot.PROFILE_CACHE_KEY]["expanded_text"] == (
+        "Fresh LLM expanded profile"
+    )
+    assert "map_focus" not in profile_cache[telegram_bot.PROFILE_CACHE_KEY]
 
 
 def test_profile_command_uses_latest_annotation_run(tmp_path):
@@ -321,7 +406,7 @@ def test_profile_command_uses_latest_annotation_run(tmp_path):
     assert "Учтено 1 из 2 эпизодов; 1 ждут обработки." in message.replies[0]
 
 
-def test_profile_details_callback_sends_detailed_report(tmp_path):
+def test_profile_details_cache_miss_sends_deterministic_report(tmp_path):
     settings = _settings(episode_dir=tmp_path / "episodes")
     settings.episode_dir.mkdir(parents=True)
     _write_json(settings.episode_dir / "episode-20260503-1.json", _graph_ready_episode())
@@ -332,6 +417,7 @@ def test_profile_details_callback_sends_detailed_report(tmp_path):
             _fake_callback_update(123, callback),
             settings,
             ToneEngine.default(),
+            profile_cache={},
         )
     )
 

@@ -75,9 +75,14 @@ RM order:
 - RM-A6: introduce a render-ready Report ViewModel contract. Status:
   implemented.
 - RM-A7: constrain LLM profile rendering to section-preserving copy editing.
-  Status: implemented.
-- RM-A8: add a report quality gate for schema-like or low-quality LLM output.
-  Status: implemented.
+  Status: implemented; superseded by RM-A9.
+- RM-A8: add report grounding and hard safety guards while keeping ordinary
+  analytical vocabulary out of fallback decisions. Status: implemented.
+- RM-A9: compose one structured evidence interpretation bundle for brief,
+  expanded, and basic map-focus consumers. Status: implemented; provider-call
+  composition superseded by RM-A10.
+- RM-A10: split brief and expanded profile interpretation calls and pause LLM
+  map-focus generation. Status: implemented.
 
 Current beta capture finding:
 
@@ -92,17 +97,19 @@ Current runtime truth: non-10Q production capture extraction defaults to
 DeepSeek through owner-controlled runtime mode/provider settings. OpenAI
 Responses remains explicit compatibility.
 
-Current profile truth: `M3_PROFILE_REPORT_MODE=auto` keeps deterministic
-`/profile` reports in `ml` mode and uses the configured LLM profile provider in
-`production`. LLM profile interpretation consumes safe `InsightPayload`, Report
-Entity, and report-card facts only; if the provider is missing or fails, the bot
-falls back to deterministic profile text and records a process-journal event.
+Current profile truth: `M3_PROFILE_REPORT_MODE=auto` keeps the deterministic
+card report in `ml` mode and uses the configured LLM profile provider for
+structured interpretation in `production`. The provider receives only a safe,
+deduplicated Evidence, Pattern, Exception, Change, Question, and Gap artifact
+registry. Missing configuration, insufficient material, provider failure, or
+unsafe output falls back to deterministic profile text and records a
+process-journal event.
 
-Current report-rendering truth: deterministic and production LLM profile
-rendering now share a render-ready Report ViewModel. The LLM provider may polish
-section claims only; titles, evidence, support counts, limits, and questions
-remain deterministic. Schema-like or low-quality LLM wording falls back to the
-deterministic profile.
+Current report-rendering truth: `/profile` makes a brief-only production provider
+call. The details callback makes a separate expanded-only call on cache miss and
+caches that expanded text in Telegram `chat_data`. Each surface has its own
+deterministic fallback and journal event. LLM map-focus generation is paused;
+the deterministic MapPayload contract remains unchanged.
 
 ## MVP2 Audio Input Track
 

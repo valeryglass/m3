@@ -41,6 +41,10 @@ interpretation, or therapeutic advice.
 `app/spatial_payload.py` projects the shared insight payload into paths, fork
 markers, and outcome links without choosing coordinates or visual layout.
 
+LLM report interpretation is currently separate from map projection and emits no
+map-focus hints. This pause does not change `MapPayload`, coordinates, or
+deterministic map semantics.
+
 `app/map_payload.py` derives one-source map compiler payload JSON from graph
 signatures for future SVG, voxel, canvas, or other renderers. It embeds the
 shared insight and spatial payloads under `analytics` while retaining

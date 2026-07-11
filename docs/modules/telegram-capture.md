@@ -54,6 +54,11 @@ Classic 10Q presents one concise question at a time after the progress line.
 Field-guide titles, examples, and tips remain internal reference material and
 are not included in Telegram question messages.
 
+The public Telegram command menu exposes `/start`, `/10q`, `/3b`, `/1t`,
+`/1a`, `/status`, `/profile`, `/cancel`, and `/help`. Compatibility aliases
+`/1v`, `/voice`, `/capture`, and `/capture3` remain registered but hidden from
+the menu. Admin and operator commands are also hidden from regular users.
+
 Episode files are observed source artifacts. Telegram capture does not persist
 top-level `derived` or `current_derived`.
 
@@ -61,3 +66,7 @@ top-level `derived` or `current_derived`.
 Reporting for the current Telegram chat. Telegram Capture owns command
 delivery, not report analytics or composition. Regular users should not
 receive raw technical payload Markdown through this command.
+
+In production mode, `/profile` requests the brief first. The explicit details
+callback requests expanded interpretation only on cache miss and then reuses the
+cached expanded text for repeated callbacks.

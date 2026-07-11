@@ -325,6 +325,7 @@ modules:
       - app/report_cards.py
       - app/report_entities.py
       - app/report_view_model.py
+      - app/report_interpretation.py
       - app/profile_interpreter.py
       - app/report_payload_qa.py
       - model/graph.md
@@ -332,6 +333,7 @@ modules:
       - hydrated graph-ready episodes
     outputs:
       - computed GraphReport views
+      - deterministic fallback reports and split LLM brief/expanded interpretations
       - private-data-safe report/payload QA summaries
       - optional Markdown debug exports
     interfaces:
@@ -346,6 +348,9 @@ modules:
       - card_composed_profile_reports
       - report_view_model_rendering
       - production_llm_profile_interpretation
+      - structured_evidence_interpretation
+      - split_brief_expanded_interpretation
+      - lazy_expanded_profile_rendering
       - accepted_domain_graph_signatures
       - report_payload_consistency_qa
 

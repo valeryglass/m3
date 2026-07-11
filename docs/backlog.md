@@ -438,8 +438,10 @@ Scope:
 - RM-07 tutorial script;
 - RM-A5 production LLM profile interpreter;
 - RM-A6 Report ViewModel contract;
-- RM-A7 LLM as section-preserving copy editor;
+- RM-A7 historical section-preserving LLM copy editor;
 - RM-A8 report quality gate;
+- RM-A9 structured evidence interpretation bundle;
+- RM-A10 split brief/expanded profile interpretation and pause LLM map focus;
 - sturdy existing input flows;
 - input-to-schema transport;
 - episode-to-graph refresh role/workflow;

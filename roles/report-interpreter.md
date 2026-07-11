@@ -17,8 +17,14 @@ annotation-runs, mutate payloads, or change map layout.
 ## Frame
 
 ```text
-InsightPayload -> report cards -> user-facing interpretation
+InsightPayload -> report entities -> report cards -> artifact registry
+  -> brief interpretation
+  -> expanded interpretation
 ```
+
+Analytics answers: "What did we find?"
+
+Narrative answers: "What does this collection of findings currently suggest?"
 
 ## Guardrails
 
@@ -31,6 +37,13 @@ InsightPayload -> report cards -> user-facing interpretation
 - Do not phrase unordered co-presence as causality.
 - Mention coverage, gaps, or low support when they limit interpretation.
 - Keep report wording useful without exposing backend jargon.
+- Interpret the report, not the person.
+- Keep deterministic short and expanded reports as the complete fallback.
+- Let production interpretation select, rank, and combine artifacts into fewer
+  meaning blocks.
+- Keep quantitative claims tied to the specifically referenced artifacts;
+  unsupported numbers must trigger deterministic fallback.
+- Keep LLM map-focus generation paused; map payloads remain deterministic.
 
 ## Interpretation Targets
 
@@ -62,6 +75,13 @@ Before accepting report output, check:
 - map/render terms are not presented as CBT-domain entities;
 - `/profile`, debug Markdown, and map payload summaries do not disagree about
   primary motifs, forks, domains, outcomes, or gaps.
+- every generated block references supplied artifact IDs;
+- at least one block combines multiple analytical artifacts;
+- one global question replaces per-card questions;
+- brief and expanded use separate provider responses over the same safe registry;
+- a failure on one report surface does not invalidate the other;
+- expanded is requested lazily and reused from cache on repeated details callbacks;
+- profile prompts and responses contain no map-focus contract.
 
 ## Output
 

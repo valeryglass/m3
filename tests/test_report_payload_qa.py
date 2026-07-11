@@ -40,6 +40,19 @@ def test_report_payload_qa_full_source_run_passes(tmp_path):
     assert any(check["name"] == "report_entities_available" for check in status["checks"])
     assert any(check["name"] == "map_primitives_available" for check in status["checks"])
     assert any(check["name"] == "report_map_support_agreement" for check in status["checks"])
+    assert {"evidence", "pattern", "exception", "question"}.issubset(
+        set(status["interpretation_artifact_kinds"])
+    )
+    assert status["interpretation_artifact_count"] >= 7
+    assert status["interpretation_eligible"] is True
+    assert any(
+        check["name"] == "interpretation_input_safe"
+        for check in status["checks"]
+    )
+    assert any(
+        check["name"] == "deterministic_fallback_available"
+        for check in status["checks"]
+    )
     events = _read_jsonl(journal_path)
     assert [event["event_type"] for event in events] == [
         "report_payload_qa.started",
@@ -193,13 +206,44 @@ def test_report_payload_qa_report_text_guard_blocks_schema_smell(
     episode_dir, run_dir = _episode_dir_with_run(tmp_path)
     monkeypatch.setattr(
         "app.report_payload_qa.render_summary_from_payload",
-        lambda payload: "проаннотированы триггер подход компенсация исход",
+        lambda payload: "эпизоды проаннотированы",
     )
 
     status = build_qa_status(episode_dir, run_dir, "telegram-chat:123")
 
     assert status["status"] == STATUS_BLOCKED
     assert any("forbidden report wording" in item for item in status["blockers"])
+
+
+def test_report_payload_qa_report_text_guard_allows_analytical_terms(
+    tmp_path,
+    monkeypatch,
+):
+    episode_dir, run_dir = _episode_dir_with_run(tmp_path)
+    monkeypatch.setattr(
+        "app.report_payload_qa.render_summary_from_payload",
+        lambda payload: "триггер приводит к компенсации исхода в рамках сценария",
+    )
+
+    status = build_qa_status(episode_dir, run_dir, "telegram-chat:123")
+
+    assert not any("forbidden report wording" in item for item in status["blockers"])
+
+
+def test_report_payload_qa_blocks_corrupt_deterministic_fallback(
+    tmp_path,
+    monkeypatch,
+):
+    episode_dir, run_dir = _episode_dir_with_run(tmp_path)
+    monkeypatch.setattr(
+        "app.report_payload_qa.render_details_from_payload",
+        lambda payload: "Изменённый подробный отчёт.",
+    )
+
+    status = build_qa_status(episode_dir, run_dir, "telegram-chat:123")
+
+    assert status["status"] == STATUS_BLOCKED
+    assert "deterministic expanded fallback differs" in status["blockers"]
 
 
 def test_report_payload_qa_output_excludes_raw_quotes_and_report_text(tmp_path):
