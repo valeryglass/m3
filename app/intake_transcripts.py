@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from app.input_funnels import InputArtifact, artifact_text
 from app.schemas.intake_transcript import IntakeTranscript
+from app.runtime_storage import atomic_write_json
 
 
 SCHEMA_VERSION = "m3.intake_transcript.v1"
@@ -64,12 +64,8 @@ def build_intake_transcript(
 
 def save_intake_transcript(root: Path, transcript: IntakeTranscript) -> Path:
     path = transcript_path(root, transcript.chat_id, transcript.message_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
     payload = transcript.model_dump(mode="json")
-    path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    atomic_write_json(path, payload, sort_keys=True)
     return path
 
 

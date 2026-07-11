@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import asyncio
 from collections.abc import MutableMapping
 from pathlib import Path
-from threading import Thread
 from time import monotonic
+from app.blocking_runtime import run_blocking
 from app.capture_artifacts import build_capture_artifact, save_capture_artifact
 from app.capture_extraction import (
     link_capture_extraction_to_episode,
@@ -60,7 +59,7 @@ from app.intake_transcripts import (
     load_intake_transcript,
     save_intake_transcript,
 )
-from app.journal import JournalLog
+from app.journal import JournalLog, journal_event, record_journal_event
 from app.loop_extractor import (
     active_target,
     apply_user_reply,
@@ -75,6 +74,7 @@ from app.loop_extractor import (
 )
 from app.session_store import LoopSessionStore
 from app.storage import JsonStorage
+from app.runtime_storage import LockUnavailableError, ProcessLock
 from app.tone_engine import load_tone_engine
 from app.user_flow_router import (
     FlowKind,
@@ -96,6 +96,18 @@ from app.ux_events import (
 
 def main() -> None:
     settings = load_settings()
+    process_lock = ProcessLock(settings.runtime_flow_dir / ".bot-writer.lock")
+    try:
+        with process_lock:
+            _run_bot(settings)
+    except LockUnavailableError as exc:
+        raise SystemExit(
+            "Telegram bot is already running for this runtime data root: "
+            f"{process_lock.path}"
+        ) from exc
+
+
+def _run_bot(settings: Settings) -> None:
     storage = JsonStorage(settings.episode_dir)
     session_store = LoopSessionStore(settings.runtime_session_dir)
     review_store = DraftReviewSessionStore(
@@ -110,6 +122,7 @@ def main() -> None:
     extraction_provider = _capture_extraction_provider_for_settings(settings)
 
     try:
+        from app.telegram_update_processor import PerChatUpdateProcessor
         from telegram import BotCommand, Update
         from telegram.ext import (
             Application,
@@ -404,15 +417,24 @@ def main() -> None:
         )
         await application.bot.set_my_description(description=profile["description"])
 
+    async def error_handler(update, context) -> None:
+        _record_telegram_error(
+            update,
+            getattr(context, "error", None),
+            _journal_log_for_settings(settings),
+        )
+
     application = (
         Application.builder()
         .token(settings.telegram_bot_token)
         .connect_timeout(30)
         .read_timeout(30)
         .write_timeout(30)
+        .concurrent_updates(PerChatUpdateProcessor(max_concurrent_updates=8))
         .post_init(post_init)
         .build()
     )
+    application.add_error_handler(error_handler)
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("10q", ten_question))
     application.add_handler(CommandHandler("3b", three_block))
@@ -490,6 +512,36 @@ def _journal_log_for_settings(settings) -> JournalLog | None:
     return JournalLog(Path(path))
 
 
+def _record_telegram_error(update, error, journal_log: JournalLog | None) -> None:
+    chat = getattr(update, "effective_chat", None)
+    user = getattr(update, "effective_user", None)
+    refs = {
+        key: value
+        for key, value in {
+            "update_id": getattr(update, "update_id", None),
+            "chat_id": getattr(chat, "id", None),
+            "user_id": getattr(user, "id", None),
+        }.items()
+        if value is not None
+    }
+    record_journal_event(
+        journal_log,
+        journal_event(
+            component="telegram_runtime",
+            event_type="telegram.update_failed",
+            stage="failed",
+            level="error",
+            refs=refs,
+            failure_code="unhandled_update_error",
+            details={
+                "exception_type": (
+                    type(error).__name__ if error is not None else "UnknownError"
+                )
+            },
+        ),
+    )
+
+
 def target_fields_for_review() -> tuple[str, ...]:
     return (
         "situation",
@@ -542,7 +594,8 @@ async def _handle_profile_after_authorized(
     if report is None:
         await _reply_text(update, tone.profile_missing())
         return
-    brief = interpret_profile_brief_for_settings(
+    brief = await run_blocking(
+        interpret_profile_brief_for_settings,
         report,
         settings,
         journal_log=_journal_log_for_settings(settings),
@@ -586,7 +639,8 @@ async def _handle_profile_callback_after_authorized(
     if report is None:
         await _reply_to_callback(query, tone.profile_missing(), parse_mode=None)
         return
-    expanded = interpret_profile_expanded_for_settings(
+    expanded = await run_blocking(
+        interpret_profile_expanded_for_settings,
         report,
         settings,
         brief_artifact_ids=_cached_profile_brief_artifact_ids(profile_cache),
@@ -1135,25 +1189,14 @@ async def _run_capture_extraction_in_worker(
             journal_log=journal_log,
             allow_partial_draft=allow_partial_draft,
         )
-    loop = asyncio.get_running_loop()
-    future = loop.create_future()
-
-    def worker() -> None:
-        try:
-            result = run_capture_extraction(
-                artifact,
-                provider,
-                output_root,
-                journal_log=journal_log,
-                allow_partial_draft=allow_partial_draft,
-            )
-        except BaseException as exc:  # pragma: no cover - surfaced by handler
-            loop.call_soon_threadsafe(future.set_exception, exc)
-        else:
-            loop.call_soon_threadsafe(future.set_result, result)
-
-    Thread(target=worker, daemon=True).start()
-    return await future
+    return await run_blocking(
+        run_capture_extraction,
+        artifact,
+        provider,
+        output_root,
+        journal_log=journal_log,
+        allow_partial_draft=allow_partial_draft,
+    )
 
 
 def _capture_extraction_failed_text() -> str:
@@ -2257,19 +2300,12 @@ async def _transcribe_and_attach_in_worker(transcription_provider, artifact, med
     if getattr(transcription_provider, "_m3_run_inline_for_tests", False):
         return transcribe_and_attach(transcription_provider, artifact, media)
 
-    loop = asyncio.get_running_loop()
-    future = loop.create_future()
-
-    def worker() -> None:
-        try:
-            result = transcribe_and_attach(transcription_provider, artifact, media)
-        except BaseException as exc:  # pragma: no cover - surfaced through handler tests
-            loop.call_soon_threadsafe(future.set_exception, exc)
-        else:
-            loop.call_soon_threadsafe(future.set_result, result)
-
-    Thread(target=worker, name="m3-audio-transcription", daemon=True).start()
-    return await future
+    return await run_blocking(
+        transcribe_and_attach,
+        transcription_provider,
+        artifact,
+        media,
+    )
 
 
 async def _transcribe_media_artifact_or_reply(

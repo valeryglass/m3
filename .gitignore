@@ -18,6 +18,8 @@ data/capture-debug/**
 data/backups/**
 data/exports/**
 data/reports/**
+data/**/*.lock
+data/**/*.tmp
 .env
 
 !raw/

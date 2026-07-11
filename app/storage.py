@@ -6,6 +6,7 @@ from pathlib import Path
 
 from app.derived_normalizer import normalize_episode
 from app.loop_extractor import LoopSession
+from app.runtime_storage import atomic_write_json, file_lock
 from app.schemas.episode import Episode, Observed
 
 
@@ -36,28 +37,26 @@ class JsonStorage:
         episode_date: str,
         observed: dict,
     ) -> Path:
-        episode_id = self.next_episode_id(episode_date)
-        data, _ = normalize_episode(
-            {
-                "id": episode_id,
-                "date": episode_date,
-                "source": f"telegram-chat:{chat_id}",
-                "observed": observed,
-            }
-        )
-        episode = Episode(
-            id=episode_id,
-            date=episode_date,
-            source=f"telegram-chat:{chat_id}",
-            observed=Observed.model_validate(data["observed"]),
-        )
-        persisted = episode.model_dump(mode="json", exclude={"derived"})
-        path = self.episode_dir / f"{episode_id}.json"
-        path.write_text(
-            json.dumps(persisted, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
-        return path
+        with file_lock(self.episode_dir / ".episode-write.lock"):
+            episode_id = self.next_episode_id(episode_date)
+            data, _ = normalize_episode(
+                {
+                    "id": episode_id,
+                    "date": episode_date,
+                    "source": f"telegram-chat:{chat_id}",
+                    "observed": observed,
+                }
+            )
+            episode = Episode(
+                id=episode_id,
+                date=episode_date,
+                source=f"telegram-chat:{chat_id}",
+                observed=Observed.model_validate(data["observed"]),
+            )
+            persisted = episode.model_dump(mode="json", exclude={"derived"})
+            path = self.episode_dir / f"{episode_id}.json"
+            atomic_write_json(path, persisted, lock=False)
+            return path
 
     def episode_count_for_chat(self, chat_id: int) -> int:
         source = f"telegram-chat:{chat_id}"

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
@@ -12,6 +11,7 @@ from app.schemas.capture import (
     CapturePiece,
     CapturePieceRole,
 )
+from app.runtime_storage import atomic_write_json
 
 
 def capture_text_sha256(text: str) -> str:
@@ -81,16 +81,10 @@ def capture_artifact_path(root: Path, artifact: CaptureArtifact) -> Path:
 
 def save_capture_artifact(root: Path, artifact: CaptureArtifact) -> Path:
     path = capture_artifact_path(root, artifact)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(
-            artifact.model_dump(mode="json"),
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
+    atomic_write_json(
+        path,
+        artifact.model_dump(mode="json"),
+        sort_keys=True,
     )
     return path
 

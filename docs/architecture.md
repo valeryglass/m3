@@ -46,6 +46,10 @@ Telegram Capture -> explicit userflow router
   -> Draft Review -> Episode Model + Storage
 ```
 
+Runtime Storage sits below active JSON owners. It provides atomic replacement,
+serialized JSONL append, one bot-writer lease, per-chat Telegram ordering, and
+bounded worker execution without changing artifact schemas.
+
 Telegram Capture emits UX/access events and chooses one explicit flow before
 input handlers mutate runtime state. The four visible methods use typed
 pre-draft state where needed. Classic 10Q uses `LoopSession`; completed
@@ -113,6 +117,8 @@ graph/report analytics directly.
   the shared insight payload plus report-ready graph entities.
 - UX Analytics owns append-only loop event logs and aggregate UX views.
 - Userlist / Access owns approved-user and waitlist metadata.
+- Runtime Storage owns crash-safe local write and concurrency primitives; data
+  contracts remain owned by their domain modules.
 
 ## Data Boundaries
 

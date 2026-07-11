@@ -62,6 +62,34 @@ modules:
       - first_class_capture_modes
       - transcript_confirmation_routing
       - direct_extraction_to_review
+      - per_chat_ordered_concurrency
+      - single_bot_writer
+
+  runtime_storage:
+    stage: experimental
+    enabled: true
+    purpose: Provide atomic local persistence and bounded single-instance runtime concurrency.
+    owned_paths:
+      - app/runtime_storage.py
+      - app/blocking_runtime.py
+      - app/telegram_update_processor.py
+      - docs/modules/runtime-storage.md
+    inputs:
+      - validated runtime JSON payloads
+      - safe JSONL event mappings
+      - synchronous provider operations
+    outputs:
+      - atomically replaced JSON files
+      - serialized JSONL records
+      - single-writer runtime lock
+      - per-chat ordered concurrent updates
+    capabilities:
+      - atomic_json_replace
+      - cross_process_file_locking
+      - serialized_jsonl_append
+      - collision_free_episode_allocation
+      - bounded_blocking_worker_pool
+      - per_chat_update_serialization
 
   telegram_media:
     stage: draft

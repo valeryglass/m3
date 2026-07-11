@@ -8,6 +8,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.schemas.capture import CaptureArtifact, CaptureExtractionResult
+from app.runtime_storage import atomic_write_json
 
 SCHEMA_VERSION = "m3.capture_debug.v1"
 DEFAULT_CAPTURE_DEBUG_DIR = Path("data/capture-debug")
@@ -172,11 +173,7 @@ def write_capture_debug(
 ) -> Path | None:
     try:
         path = capture_debug_path(root, artifact.chat_id, artifact.capture_id)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(debug, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        atomic_write_json(path, debug, sort_keys=True)
         return path
     except Exception:
         return None

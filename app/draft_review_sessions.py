@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -8,6 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.loop_extractor import LoopSession
+from app.runtime_storage import atomic_write_json, locked_unlink
 from app.schemas.capture import CaptureMode
 from app.schemas.episode import Observed
 from app.session_store import LoopSessionStore
@@ -101,19 +101,14 @@ class DraftReviewSessionStore:
         return review
 
     def save_session(self, session: DraftReviewSession) -> None:
-        self._session_path(session.chat_id).write_text(
-            json.dumps(
-                session.model_dump(mode="json"),
-                ensure_ascii=False,
-                indent=2,
-                sort_keys=True,
-            )
-            + "\n",
-            encoding="utf-8",
+        atomic_write_json(
+            self._session_path(session.chat_id),
+            session.model_dump(mode="json"),
+            sort_keys=True,
         )
 
     def delete_session(self, chat_id: int) -> None:
-        self._session_path(chat_id).unlink(missing_ok=True)
+        locked_unlink(self._session_path(chat_id))
 
     def _session_path(self, chat_id: int) -> Path:
         return self.review_dir / f"chat-{chat_id}.json"

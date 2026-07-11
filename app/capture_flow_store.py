@@ -6,6 +6,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
+from app.runtime_storage import atomic_write_json, locked_path, locked_unlink
+
 
 CaptureMode = Literal[
     "one_take_text",
@@ -105,10 +107,7 @@ class CaptureFlowStore:
 
     def save_flow(self, flow: CaptureFlow) -> CaptureFlow:
         path = self._flow_path(flow.chat_id)
-        path.write_text(
-            json.dumps(flow.to_dict(), ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        atomic_write_json(path, flow.to_dict())
         return flow
 
     def append_three_block(
@@ -118,14 +117,15 @@ class CaptureFlowStore:
         *,
         now: datetime,
     ) -> CaptureFlow:
-        flow = self.load_flow(chat_id, now=now)
-        if flow is None or flow.mode != "three_block":
-            raise ValueError("active three-block flow is required")
-        value = text.strip()
-        if not value:
-            raise ValueError("three-block answer is required")
-        return self.save_flow(
-            CaptureFlow(
+        path = self._flow_path(chat_id)
+        with locked_path(path):
+            flow = self._load_flow_unlocked(path, chat_id, now=now)
+            if flow is None or flow.mode != "three_block":
+                raise ValueError("active three-block flow is required")
+            value = text.strip()
+            if not value:
+                raise ValueError("three-block answer is required")
+            updated = CaptureFlow(
                 chat_id=flow.chat_id,
                 mode=flow.mode,
                 status=flow.status,
@@ -133,7 +133,8 @@ class CaptureFlowStore:
                 expires_at=flow.expires_at,
                 blocks=flow.blocks + (value,),
             )
-        )
+            self._save_flow_unlocked(path, updated)
+            return updated
 
     def await_transcript_confirmation(
         self,
@@ -143,11 +144,12 @@ class CaptureFlowStore:
         now: datetime,
         ttl_sec: int | None = None,
     ) -> CaptureFlow:
-        flow = self.load_flow(chat_id, now=now)
-        if flow is None or flow.mode != "one_take_audio":
-            raise ValueError("active audio flow is required")
-        return self.save_flow(
-            CaptureFlow(
+        path = self._flow_path(chat_id)
+        with locked_path(path):
+            flow = self._load_flow_unlocked(path, chat_id, now=now)
+            if flow is None or flow.mode != "one_take_audio":
+                raise ValueError("active audio flow is required")
+            updated = CaptureFlow(
                 chat_id=flow.chat_id,
                 mode=flow.mode,
                 status="awaiting_transcript_confirmation",
@@ -159,7 +161,8 @@ class CaptureFlowStore:
                 ),
                 transcript_path=str(transcript_path),
             )
-        )
+            self._save_flow_unlocked(path, updated)
+            return updated
 
     def load_flow(
         self,
@@ -168,6 +171,16 @@ class CaptureFlowStore:
         now: datetime | None = None,
     ) -> CaptureFlow | None:
         path = self._flow_path(chat_id)
+        with locked_path(path):
+            return self._load_flow_unlocked(path, chat_id, now=now)
+
+    def _load_flow_unlocked(
+        self,
+        path: Path,
+        chat_id: int,
+        *,
+        now: datetime | None = None,
+    ) -> CaptureFlow | None:
         if not path.exists():
             return None
         flow = CaptureFlow.from_dict(json.loads(path.read_text(encoding="utf-8")))
@@ -179,7 +192,10 @@ class CaptureFlowStore:
         return flow
 
     def delete_flow(self, chat_id: int) -> None:
-        self._flow_path(chat_id).unlink(missing_ok=True)
+        locked_unlink(self._flow_path(chat_id))
+
+    def _save_flow_unlocked(self, path: Path, flow: CaptureFlow) -> None:
+        atomic_write_json(path, flow.to_dict(), lock=False)
 
     def _flow_path(self, chat_id: int) -> Path:
         return self.flow_dir / f"chat-{chat_id}.json"

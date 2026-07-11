@@ -36,6 +36,8 @@ directly to review. Audio requires an additional transcript-confirmation gate.
   episodes.
 - Userlist / Access for approved-user checks.
 - UX Analytics for loop event logging.
+- Runtime Storage for atomic state writes, per-chat ordering, and bounded
+  blocking provider work.
 
 ## Interfaces
 
@@ -70,3 +72,7 @@ receive raw technical payload Markdown through this command.
 In production mode, `/profile` requests the brief first. The explicit details
 callback requests expanded interpretation only on cache miss and then reuses the
 cached expanded text for repeated callbacks.
+
+Different chats may be processed concurrently. Updates for the same chat remain
+ordered, and one process lock prevents a second bot writer from using the same
+runtime-flow root.

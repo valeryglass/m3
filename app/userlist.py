@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from app.runtime_storage import atomic_write_json, locked_path
 from app.ux_events import format_utc
 
 
@@ -25,6 +26,10 @@ class JsonUserList:
         self.path = path
 
     def load(self) -> dict[str, dict[str, Any]]:
+        with locked_path(self.path):
+            return self._load_unlocked()
+
+    def _load_unlocked(self) -> dict[str, dict[str, Any]]:
         if not self.path.exists():
             return {}
         data = json.loads(self.path.read_text(encoding="utf-8"))
@@ -41,29 +46,30 @@ class JsonUserList:
         now: datetime,
         profile: dict[str, Any] | None = None,
     ) -> UserListResult:
-        users = self.load()
-        key = str(chat_id)
-        created = key not in users
-        timestamp = format_utc(now)
-        profile = {
-            field: value
-            for field, value in (profile or {}).items()
-            if value is not None and value != ""
-        }
-        if created:
-            users[key] = {
-                "chat_id": chat_id,
-                "user_id": user_id,
-                "status": WAITLISTED,
-                "first_seen_at": timestamp,
-                "last_seen_at": timestamp,
+        with locked_path(self.path):
+            users = self._load_unlocked()
+            key = str(chat_id)
+            created = key not in users
+            timestamp = format_utc(now)
+            profile = {
+                field: value
+                for field, value in (profile or {}).items()
+                if value is not None and value != ""
             }
-        else:
-            users[key]["last_seen_at"] = timestamp
-            users[key]["user_id"] = user_id
-        users[key].update(profile)
-        self._save(users)
-        return UserListResult(record=dict(users[key]), created=created)
+            if created:
+                users[key] = {
+                    "chat_id": chat_id,
+                    "user_id": user_id,
+                    "status": WAITLISTED,
+                    "first_seen_at": timestamp,
+                    "last_seen_at": timestamp,
+                }
+            else:
+                users[key]["last_seen_at"] = timestamp
+                users[key]["user_id"] = user_id
+            users[key].update(profile)
+            self._save_unlocked(users)
+            return UserListResult(record=dict(users[key]), created=created)
 
     def approve(self, chat_id: int, *, decided_by: str, now: datetime) -> dict[str, Any]:
         return self._decide(
@@ -102,33 +108,34 @@ class JsonUserList:
         timestamp_key: str,
         now: datetime,
     ) -> dict[str, Any]:
-        users = self.load()
-        key = str(chat_id)
-        timestamp = format_utc(now)
-        record = users.get(
-            key,
-            {
-                "chat_id": chat_id,
-                "user_id": str(chat_id),
-                "first_seen_at": timestamp,
-                "last_seen_at": timestamp,
-            },
-        )
-        record.update(
-            {
-                "status": status,
-                timestamp_key: timestamp,
-                "decided_by": decided_by,
-            }
-        )
-        users[key] = record
-        self._save(users)
-        return dict(record)
+        with locked_path(self.path):
+            users = self._load_unlocked()
+            key = str(chat_id)
+            timestamp = format_utc(now)
+            record = users.get(
+                key,
+                {
+                    "chat_id": chat_id,
+                    "user_id": str(chat_id),
+                    "first_seen_at": timestamp,
+                    "last_seen_at": timestamp,
+                },
+            )
+            record.update(
+                {
+                    "status": status,
+                    timestamp_key: timestamp,
+                    "decided_by": decided_by,
+                }
+            )
+            users[key] = record
+            self._save_unlocked(users)
+            return dict(record)
 
-    def _save(self, users: dict[str, dict[str, Any]]) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(
-            json.dumps({"users": users}, ensure_ascii=False, indent=2, sort_keys=True)
-            + "\n",
-            encoding="utf-8",
+    def _save_unlocked(self, users: dict[str, dict[str, Any]]) -> None:
+        atomic_write_json(
+            self.path,
+            {"users": users},
+            sort_keys=True,
+            lock=False,
         )

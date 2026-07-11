@@ -22,6 +22,7 @@ from app.schemas.capture import (
     ExtractedObservedField,
     ExtractionFailureCode,
 )
+from app.runtime_storage import atomic_write_json
 
 
 PROMPT_VERSION = "capture-observed-v1"
@@ -531,16 +532,10 @@ def save_capture_extraction(
     extraction: CaptureExtraction,
 ) -> Path:
     path = extraction_path(root, chat_id, extraction.capture_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(
-            extraction.model_dump(mode="json"),
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
+    atomic_write_json(
+        path,
+        extraction.model_dump(mode="json"),
+        sort_keys=True,
     )
     return path
 

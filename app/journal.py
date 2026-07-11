@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
+
+from app.runtime_storage import append_jsonl
 
 SCHEMA_VERSION = "m3.journal_event.v1"
 DEFAULT_JOURNAL_LOG = Path("data/journal/events.jsonl")
@@ -39,9 +40,7 @@ class JournalLog:
 
     def append(self, event: Mapping[str, Any]) -> None:
         normalized = _sanitize_mapping(dict(event))
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(normalized, ensure_ascii=False, sort_keys=True) + "\n")
+        append_jsonl(self.path, normalized)
 
 
 def journal_event(

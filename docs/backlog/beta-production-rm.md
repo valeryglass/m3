@@ -347,7 +347,7 @@ Acceptance:
 
 ## RM-13 Atomic Storage And Runtime Concurrency
 
-Status: planned.
+Status: implemented; live Docker-volume verification remains in RM-16.
 
 Goal: keep the JSON runtime small while making the single-instance beta
 crash-safe and responsive under concurrent user activity.
@@ -375,6 +375,16 @@ Acceptance:
 - one slow profile or extraction call does not block unrelated Telegram updates;
 - multi-instance writes are rejected rather than silently racing;
 - existing private artifacts remain readable without schema migration.
+
+Implemented result:
+
+- active runtime JSON stores use atomic same-directory replacement;
+- episode allocation and persistence share a cross-process lock;
+- UX and process journal JSONL writes are serialized;
+- one process lock rejects a second bot writer for the runtime root;
+- Telegram runs different chats concurrently while preserving per-chat order;
+- extraction, transcription, and profile calls use a bounded worker pool;
+- unhandled update errors journal IDs and exception type without error text.
 
 ## RM-14 Provider Quotas And Cost Guardrails
 

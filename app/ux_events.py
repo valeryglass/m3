@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from app.runtime_storage import append_jsonl
+
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -34,10 +36,7 @@ class UxEventLog:
     path: Path
 
     def append(self, event: dict[str, Any]) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.open("a", encoding="utf-8").write(
-            json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n"
-        )
+        append_jsonl(self.path, event)
 
     def read(self) -> list[dict[str, Any]]:
         if not self.path.exists():
