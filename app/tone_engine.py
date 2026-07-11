@@ -170,6 +170,23 @@ class ToneEngine:
     def waitlisted(self) -> str:
         return SESSION_MESSAGES["waitlisted"]
 
+    def private_chat_required(self) -> str:
+        return SESSION_MESSAGES["private_chat_required"]
+
+    def consent_notice(self, notice_version: str) -> str:
+        return SESSION_MESSAGES["consent_notice"].format(
+            notice_version=escape(notice_version)
+        )
+
+    def consent_accepted(self) -> str:
+        return SESSION_MESSAGES["consent_accepted"]
+
+    def consent_declined(self) -> str:
+        return SESSION_MESSAGES["consent_declined"]
+
+    def consent_stale(self) -> str:
+        return SESSION_MESSAGES["consent_stale"]
+
     def admin_waitlist_notice(
         self, chat_id: int, user_id: str, profile: dict[str, Any] | None = None
     ) -> str:

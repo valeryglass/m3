@@ -609,6 +609,11 @@ def test_authorize_approved_user_passes(tmp_path):
         decided_by="123",
         now=datetime(2026, 5, 7, 10, 0, tzinfo=timezone.utc),
     )
+    userlist.accept_consent(
+        456,
+        notice_version="beta-1",
+        now=datetime(2026, 5, 7, 10, 1, tzinfo=timezone.utc),
+    )
     message = _FakeMessage("/start")
 
     authorized = _run(
@@ -625,6 +630,87 @@ def test_authorize_approved_user_passes(tmp_path):
     assert authorized is True
     assert message.replies == []
     assert userlist.load()["456"]["status"] == APPROVED
+
+
+def test_authorize_approved_user_requires_current_consent(tmp_path):
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    settings = _settings(admin_chat_ids=frozenset({123}), owner_chat_id=123)
+    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
+    userlist.approve(
+        456,
+        decided_by="123",
+        now=datetime(2026, 5, 7, 10, 0, tzinfo=timezone.utc),
+    )
+    message = _FakeMessage("/start")
+
+    authorized = _run(
+        telegram_bot._authorize(
+            _fake_update(456, message),
+            settings,
+            ToneEngine.default(),
+            ux_events,
+            userlist,
+            _FakeBot(),
+        )
+    )
+
+    assert authorized is False
+    assert "beta-1" in message.replies[0]
+    assert "18+" in message.replies[0]
+    assert ux_events.read()[-1]["event_type"] == "consent_required"
+
+
+def test_consent_callback_accepts_current_notice(tmp_path):
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    settings = _settings()
+    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
+    userlist.approve(
+        456,
+        decided_by="123",
+        now=datetime(2026, 5, 7, 10, 0, tzinfo=timezone.utc),
+    )
+    query = _FakeCallbackQuery("consent:accept:beta-1")
+
+    _run(
+        telegram_bot._handle_consent_callback(
+            _fake_callback_update(456, query),
+            settings,
+            ToneEngine.default(),
+            ux_events,
+            userlist,
+        )
+    )
+
+    assert query.answered is True
+    assert userlist.has_current_consent(456, "beta-1") is True
+    assert query.message.replies == [
+        "Согласие сохранено. Теперь можно отправить /start."
+    ]
+    assert ux_events.read()[-1]["event_type"] == "consent_accepted"
+
+
+def test_authorize_rejects_group_without_waitlisting(tmp_path):
+    ux_events = UxEventLog(tmp_path / "ux" / "events.jsonl")
+    userlist = JsonUserList(tmp_path / "userlist" / "users.json")
+    message = _FakeMessage("/start")
+    update = _fake_update(456, message)
+    update.effective_chat.type = "group"
+
+    authorized = _run(
+        telegram_bot._authorize(
+            update,
+            _settings(),
+            ToneEngine.default(),
+            ux_events,
+            userlist,
+            _FakeBot(),
+        )
+    )
+
+    assert authorized is False
+    assert userlist.load() == {}
+    assert "приватный чат" in message.replies[0]
+    assert ux_events.read()[-1]["event_type"] == "private_chat_rejected"
 
 
 def test_authorize_empty_config_still_uses_waitlist(tmp_path):
@@ -672,7 +758,10 @@ def test_admin_approve_updates_userlist_and_notifies_user(tmp_path):
     assert bot.messages == [
         {
             "chat_id": 456,
-            "text": "Доступ открыт. Отправь /start, чтобы начать.",
+            "text": (
+                "Доступ открыт. Отправь /start: перед первым эпизодом бот "
+                "покажет условия."
+            ),
             "parse_mode": "HTML",
         }
     ]

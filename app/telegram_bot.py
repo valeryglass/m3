@@ -356,6 +356,15 @@ def _run_bot(settings: Settings) -> None:
             extraction_provider=extraction_provider,
         )
 
+    async def consent_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        await _handle_consent_callback(
+            update,
+            settings,
+            tone,
+            ux_events,
+            userlist,
+        )
+
     async def profile_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not await _authorize(
             update, settings, tone, ux_events, userlist, context.bot
@@ -452,6 +461,7 @@ def _run_bot(settings: Settings) -> None:
         CommandHandler("admin_annotate_gaps", admin_annotate_gaps)
     )
     application.add_handler(MessageHandler(filters.COMMAND, unknown_command))
+    application.add_handler(CallbackQueryHandler(consent_callback, pattern="^consent:"))
     application.add_handler(CallbackQueryHandler(episode_callback, pattern="^episode:"))
     application.add_handler(
         CallbackQueryHandler(transcript_callback, pattern="^transcript:")
@@ -1933,6 +1943,27 @@ def _transcript_confirmation_reply_markup():
     )
 
 
+def _consent_reply_markup(notice_version: str):
+    try:
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    except ImportError:  # pragma: no cover - runtime dependency guard
+        return None
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "18+, принимаю",
+                    callback_data=f"consent:accept:{notice_version}",
+                ),
+                InlineKeyboardButton(
+                    "Не принимаю",
+                    callback_data=f"consent:decline:{notice_version}",
+                ),
+            ]
+        ]
+    )
+
+
 def _profile_details_reply_markup():
     try:
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -1965,8 +1996,39 @@ async def _authorize(
             **metadata,
         )
     )
+    if not _is_private_chat(update):
+        ux_events.append(
+            telegram_event(
+                "private_chat_rejected",
+                user_id,
+                created_at=now,
+                reject_reason="private_chat_required",
+                **metadata,
+            )
+        )
+        if update.message is not None:
+            await _reply_text(update, tone.private_chat_required())
+        return False
     if userlist.is_approved(chat.id):
-        return True
+        notice_version = getattr(settings, "consent_version", "beta-1")
+        if userlist.has_current_consent(chat.id, notice_version):
+            return True
+        ux_events.append(
+            telegram_event(
+                "consent_required",
+                user_id,
+                created_at=now,
+                **metadata,
+            )
+        )
+        if update.message is not None:
+            await _reply_text(
+                update,
+                tone.consent_notice(notice_version),
+                reply_markup=_consent_reply_markup(notice_version),
+                parse_mode=None,
+            )
+        return False
 
     ux_events.append(
         telegram_event(
@@ -1987,6 +2049,70 @@ async def _authorize(
     if update.message is not None:
         await _reply_text(update, tone.waitlisted())
     return False
+
+
+async def _handle_consent_callback(
+    update,
+    settings: Settings,
+    tone,
+    ux_events: UxEventLog,
+    userlist: JsonUserList,
+) -> None:
+    query = getattr(update, "callback_query", None)
+    if query is not None:
+        await query.answer()
+    chat = getattr(update, "effective_chat", None)
+    if chat is None:
+        return
+    if not _is_private_chat(update):
+        await _reply_to_callback(query, tone.private_chat_required(), parse_mode=None)
+        return
+    if not userlist.is_approved(chat.id):
+        await _reply_to_callback(query, tone.unauthorized(), parse_mode=None)
+        return
+
+    notice_version = getattr(settings, "consent_version", "beta-1")
+    data = str(getattr(query, "data", "")) if query is not None else ""
+    parts = data.split(":", maxsplit=2)
+    if len(parts) != 3 or parts[2] != notice_version:
+        await _reply_to_callback(
+            query,
+            f"{tone.consent_stale()}\n\n{tone.consent_notice(notice_version)}",
+            reply_markup=_consent_reply_markup(notice_version),
+            parse_mode=None,
+        )
+        return
+
+    now = utc_now()
+    user_id = _telegram_update_user_id(update)
+    if parts[1] == "accept":
+        userlist.accept_consent(
+            chat.id,
+            notice_version=notice_version,
+            now=now,
+        )
+        event_type = "consent_accepted"
+        reply = tone.consent_accepted()
+    elif parts[1] == "decline":
+        userlist.decline_consent(
+            chat.id,
+            notice_version=notice_version,
+            now=now,
+        )
+        event_type = "consent_declined"
+        reply = tone.consent_declined()
+    else:
+        return
+    ux_events.append(
+        telegram_event(
+            event_type,
+            user_id,
+            created_at=now,
+            chat_id=chat.id,
+            message_kind="callback",
+        )
+    )
+    await _reply_to_callback(query, reply, parse_mode=None)
 
 
 async def _authorize_admin(
@@ -2685,6 +2811,17 @@ def _telegram_update_metadata(update) -> dict:
     if message_kind == "text":
         metadata["answer_chars"] = len(text)
     return {key: value for key, value in metadata.items() if value is not None}
+
+
+def _is_private_chat(update) -> bool:
+    chat = getattr(update, "effective_chat", None)
+    if chat is None:
+        return False
+    chat_type = getattr(chat, "type", None)
+    if chat_type is not None:
+        return str(chat_type).lower() == "private"
+    user = getattr(update, "effective_user", None)
+    return user is not None and getattr(chat, "id", None) == getattr(user, "id", None)
 
 
 def _new_session_for_now(chat_id: int, now):

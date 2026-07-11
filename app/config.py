@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from typing import Mapping
 
 try:
@@ -16,6 +17,8 @@ class Settings:
     telegram_bot_token: str
     telegram_admin_chat_ids: frozenset[int]
     telegram_owner_chat_id: int | None
+    consent_version: str
+    data_retention_days: int | None
     app_mode: str
     episode_dir: Path
     runtime_session_dir: Path
@@ -78,6 +81,24 @@ def parse_bool(value: str | None, *, default: bool = False) -> bool:
     raise ValueError("boolean values must be one of: 1, 0, true, false, yes, no, on, off")
 
 
+def parse_consent_version(value: str | None) -> str:
+    version = (value or "beta-1").strip()
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,32}", version):
+        raise ValueError(
+            "M3_CONSENT_VERSION must contain 1-32 letters, digits, dots, dashes, or underscores"
+        )
+    return version
+
+
+def parse_optional_positive_int(value: str | None) -> int | None:
+    if value is None or not value.strip():
+        return None
+    parsed = int(value)
+    if parsed <= 0:
+        raise ValueError("optional positive integer must be greater than zero")
+    return parsed
+
+
 def admin_chat_ids_for_settings(settings: Settings) -> frozenset[int]:
     return settings.telegram_admin_chat_ids
 
@@ -127,6 +148,10 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         ),
         telegram_owner_chat_id=parse_optional_chat_id(
             source.get("M3_TELEGRAM_OWNER_CHAT_ID")
+        ),
+        consent_version=parse_consent_version(source.get("M3_CONSENT_VERSION")),
+        data_retention_days=parse_optional_positive_int(
+            source.get("M3_DATA_RETENTION_DAYS")
         ),
         app_mode=app_mode,
         episode_dir=Path(source.get("M3_EPISODE_DIR", "data/episodes")),

@@ -137,6 +137,13 @@ def test_session_messages_render_concise_prompts():
         "Спасибо за интерес. Мы добавили тебя в waitlist. "
         "Напишем, как только доступ откроется"
     )
+    assert "beta-1" in tone.consent_notice("beta-1")
+    assert "18+" in tone.consent_notice("beta-1")
+    assert tone.consent_accepted() == (
+        "Согласие сохранено. Теперь можно отправить /start."
+    )
+    assert tone.consent_declined().startswith("Согласие не дано")
+    assert "приватный чат" in tone.private_chat_required()
     assert tone.admin_waitlist_notice(
         456,
         "456",
@@ -156,7 +163,9 @@ def test_session_messages_render_concise_prompts():
         "/pause 456"
     )
     assert tone.admin_approved(456) == "Доступ одобрен для 456"
-    assert tone.approval_granted() == "Доступ открыт. Отправь /start, чтобы начать."
+    assert tone.approval_granted() == (
+        "Доступ открыт. Отправь /start: перед первым эпизодом бот покажет условия."
+    )
     assert tone.admin_paused(456) == "Заявка поставлена на паузу для 456"
     assert tone.admin_bad_command("/approve") == "Используй /approve &lt;chat_id&gt;"
     assert tone.profile_missing() == (
@@ -209,6 +218,11 @@ def test_session_messages_render_concise_prompts():
         "unknown_command",
         "unauthorized",
         "waitlisted",
+        "private_chat_required",
+        "consent_notice",
+        "consent_accepted",
+        "consent_declined",
+        "consent_stale",
         "admin_waitlist_notice",
         "admin_approved",
         "approval_granted",

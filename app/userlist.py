@@ -99,6 +99,71 @@ class JsonUserList:
     def is_approved(self, chat_id: int) -> bool:
         return self.status_for_chat(chat_id) == APPROVED
 
+    def has_current_consent(self, chat_id: int, notice_version: str) -> bool:
+        record = self.load().get(str(chat_id), {})
+        consent = record.get("consent")
+        return bool(
+            isinstance(consent, dict)
+            and consent.get("status") == "accepted"
+            and consent.get("notice_version") == notice_version
+            and consent.get("adult_confirmed") is True
+            and consent.get("accepted_at")
+        )
+
+    def accept_consent(
+        self,
+        chat_id: int,
+        *,
+        notice_version: str,
+        now: datetime,
+    ) -> dict[str, Any]:
+        return self._record_consent(
+            chat_id,
+            {
+                "status": "accepted",
+                "notice_version": notice_version,
+                "adult_confirmed": True,
+                "accepted_at": format_utc(now),
+            },
+        )
+
+    def decline_consent(
+        self,
+        chat_id: int,
+        *,
+        notice_version: str,
+        now: datetime,
+    ) -> dict[str, Any]:
+        return self._record_consent(
+            chat_id,
+            {
+                "status": "declined",
+                "notice_version": notice_version,
+                "adult_confirmed": False,
+                "declined_at": format_utc(now),
+            },
+        )
+
+    def delete_identity(self, user_id: str) -> int:
+        with locked_path(self.path):
+            users = self._load_unlocked()
+            keys = [
+                key
+                for key, record in users.items()
+                if key == str(user_id) or str(record.get("user_id")) == str(user_id)
+            ]
+            for key in keys:
+                users.pop(key, None)
+            self._save_unlocked(users)
+            return len(keys)
+
+    def records_for_identity(self, user_id: str) -> dict[str, dict[str, Any]]:
+        return {
+            key: record
+            for key, record in self.load().items()
+            if key == str(user_id) or str(record.get("user_id")) == str(user_id)
+        }
+
     def _decide(
         self,
         chat_id: int,
@@ -131,6 +196,20 @@ class JsonUserList:
             users[key] = record
             self._save_unlocked(users)
             return dict(record)
+
+    def _record_consent(
+        self,
+        chat_id: int,
+        consent: dict[str, Any],
+    ) -> dict[str, Any]:
+        with locked_path(self.path):
+            users = self._load_unlocked()
+            key = str(chat_id)
+            if key not in users:
+                raise KeyError(f"unknown user: {chat_id}")
+            users[key]["consent"] = consent
+            self._save_unlocked(users)
+            return dict(users[key])
 
     def _save_unlocked(self, users: dict[str, dict[str, Any]]) -> None:
         atomic_write_json(

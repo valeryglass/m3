@@ -6,6 +6,8 @@ from app.config import (
     owner_chat_id_for_settings,
     parse_chat_ids,
     parse_bool,
+    parse_consent_version,
+    parse_optional_positive_int,
 )
 
 
@@ -19,6 +21,8 @@ def test_load_settings_uses_default_data_paths():
     assert settings.telegram_bot_token == "token"
     assert settings.telegram_admin_chat_ids == frozenset()
     assert settings.telegram_owner_chat_id is None
+    assert settings.consent_version == "beta-1"
+    assert settings.data_retention_days is None
     assert settings.app_mode == "ml"
     assert str(settings.episode_dir) == "data/episodes"
     assert str(settings.runtime_session_dir) == "data/runtime-sessions"
@@ -86,6 +90,8 @@ def test_load_settings_allows_overrides():
             "M3_PROFILE_LLM_MODEL": "profile-model",
             "M3_TELEGRAM_ADMIN_CHAT_IDS": "225672,327002663",
             "M3_TELEGRAM_OWNER_CHAT_ID": "225672",
+            "M3_CONSENT_VERSION": "public-beta-v2",
+            "M3_DATA_RETENTION_DAYS": "90",
             "M3_APP_MODE": "production",
             "M3_AUDIO_TEMP_DIR": "/tmp/audio",
             "M3_INTAKE_TRANSCRIPT_DIR": "/tmp/transcripts",
@@ -123,6 +129,8 @@ def test_load_settings_allows_overrides():
     assert settings.profile_llm_model == "profile-model"
     assert settings.telegram_admin_chat_ids == frozenset({225672, 327002663})
     assert settings.telegram_owner_chat_id == 225672
+    assert settings.consent_version == "public-beta-v2"
+    assert settings.data_retention_days == 90
     assert settings.app_mode == "production"
     assert str(settings.audio_temp_dir) == "/tmp/audio"
     assert str(settings.intake_transcript_dir) == "/tmp/transcripts"
@@ -224,3 +232,14 @@ def test_parse_bool_accepts_runtime_env_forms():
     assert parse_bool("", default=True) is True
     with pytest.raises(ValueError, match="boolean values"):
         parse_bool("maybe")
+
+
+def test_consent_and_retention_config_validation():
+    assert parse_consent_version(None) == "beta-1"
+    assert parse_consent_version("beta_2.1") == "beta_2.1"
+    assert parse_optional_positive_int("") is None
+    assert parse_optional_positive_int("30") == 30
+    with pytest.raises(ValueError, match="M3_CONSENT_VERSION"):
+        parse_consent_version("bad version")
+    with pytest.raises(ValueError, match="greater than zero"):
+        parse_optional_positive_int("0")

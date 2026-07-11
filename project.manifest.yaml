@@ -484,21 +484,33 @@ modules:
       - best_effort_journal_writes
 
   userlist_access:
-    stage: prototype
+    stage: experimental
     enabled: true
-    purpose: Track approved/waitlisted Telegram users and admin metadata.
+    purpose: Track access, versioned consent, and identity-scoped data rights.
     owned_paths:
       - app/userlist.py
+      - app/user_data_admin.py
+      - docs/workflows/user-data-rights.md
       - data/userlist/users.json
     inputs:
       - Telegram user profile metadata
       - admin approval changes
+      - private-chat and versioned-consent decisions
+      - owner export and deletion requests
     outputs:
       - private userlist records
       - admin waitlist notifications
+      - consent status without submitted content
+      - identity-scoped private export archives
+      - deletion verification summaries
     capabilities:
       - approved_user_gate
       - waitlist_profile_capture
+      - private_chat_gate
+      - versioned_adult_consent
+      - user_data_inventory
+      - identity_scoped_export
+      - confirmed_delete_and_verify
 
 interfaces:
   capture_to_draft:

@@ -140,7 +140,8 @@ versioned consent + private chat
 RM order:
 
 - RM-12: add versioned consent, private-chat enforcement, retention policy, and
-  complete per-user export/deletion tooling.
+  complete per-user export/deletion tooling. Status: technical implementation
+  complete; legal wording and retention policy await owner approval.
 - RM-13: make JSON persistence atomic, enforce a single writer, and move blocking
   provider work off the Telegram event loop. Status: implemented; live
   Docker-volume verification remains in RM-16.

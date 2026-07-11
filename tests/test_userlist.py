@@ -67,3 +67,34 @@ def test_userlist_approve_and_pause_persist_decisions(tmp_path):
     assert userlist.is_approved(456) is False
     assert userlist.load()["456"]["status"] == PAUSED
     assert userlist.load()["456"]["paused_at"] == "2026-05-07T12:00:00Z"
+
+
+def test_userlist_records_versioned_adult_consent(tmp_path):
+    userlist = JsonUserList(tmp_path / "users.json")
+    now = datetime(2026, 5, 7, 10, 0, tzinfo=timezone.utc)
+    userlist.approve(456, decided_by="123", now=now)
+
+    assert userlist.has_current_consent(456, "beta-1") is False
+    userlist.accept_consent(456, notice_version="beta-1", now=now)
+
+    assert userlist.has_current_consent(456, "beta-1") is True
+    assert userlist.has_current_consent(456, "beta-2") is False
+    assert userlist.load()["456"]["consent"] == {
+        "status": "accepted",
+        "notice_version": "beta-1",
+        "adult_confirmed": True,
+        "accepted_at": "2026-05-07T10:00:00Z",
+    }
+
+
+def test_userlist_decline_and_identity_deletion(tmp_path):
+    userlist = JsonUserList(tmp_path / "users.json")
+    now = datetime(2026, 5, 7, 10, 0, tzinfo=timezone.utc)
+    userlist.upsert_waitlisted(456, "user-1", now=now)
+    userlist.upsert_waitlisted(789, "user-2", now=now)
+    userlist.decline_consent(456, notice_version="beta-1", now=now)
+
+    assert userlist.has_current_consent(456, "beta-1") is False
+    assert set(userlist.records_for_identity("user-1")) == {"456"}
+    assert userlist.delete_identity("user-1") == 1
+    assert set(userlist.load()) == {"789"}

@@ -116,7 +116,8 @@ graph/report analytics directly.
 - Pattern Payloads owns renderer-neutral map and spatial projections built from
   the shared insight payload plus report-ready graph entities.
 - UX Analytics owns append-only loop event logs and aggregate UX views.
-- Userlist / Access owns approved-user and waitlist metadata.
+- Userlist / Access owns approved-user, waitlist, versioned consent, and
+  identity-scoped export/deletion operation.
 - Runtime Storage owns crash-safe local write and concurrency primitives; data
   contracts remain owned by their domain modules.
 
@@ -157,6 +158,11 @@ claims.
 Runtime profile and admin report paths compute projections on demand. Persistent
 report files under `data/reports/` are optional debug/export snapshots, not an
 active storage layer.
+
+Approval is not consent. Telegram Capture requires a private chat and a current
+versioned adult consent record before accepting episode input. User Data Rights
+can export one identity's artifacts or remove them; deletion also invalidates
+shared derived snapshots that cannot be safely separated by user.
 
 ## CBT Domain Boundary
 

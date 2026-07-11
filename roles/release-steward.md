@@ -89,6 +89,11 @@ beta remains approval-gated and additionally requires:
   evidence;
 - completed RM-06, RM-07, RM-10, and RM-11 product/operations work.
 
+For RM-12, run `docs/workflows/user-data-rights.md` against a disposable test
+identity. Do not mark the gate ready while `M3_DATA_RETENTION_DAYS` is empty
+unless the owner explicitly accepts no automatic expiry, or while the
+public-beta notice/support contact remains unreviewed.
+
 Use the RM-12 through RM-16 acceptance criteria in
 `docs/backlog/beta-production-rm.md` until RM-16 creates the dedicated public
 beta release workflow. Any missing criterion is a public-beta blocker, not a

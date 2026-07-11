@@ -317,7 +317,8 @@ Prerequisites:
 
 ## RM-12 Public Consent And Data Rights
 
-Status: planned.
+Status: implemented technically; public-beta gate remains blocked on reviewed
+legal copy and owner-selected retention policy.
 
 Goal: make sensitive-data collection explicit and give the operator a complete,
 verifiable per-user data lifecycle.
@@ -344,6 +345,24 @@ Acceptance:
 - export and deletion operate by Telegram identity without cross-user leakage;
 - deletion dry-run and verification report safe counts and paths only;
 - legal copy is reviewed separately from implementation correctness.
+
+Implemented result:
+
+- approved users must accept the current versioned adult notice in a private
+  chat before capture/profile access;
+- consent stores version/status/timestamp only and resets when the configured
+  version changes;
+- owner CLI supports safe inventory, identity-scoped ZIP export, deletion
+  preview, exact-confirmation deletion, and post-delete verification;
+- deletion preserves other users' source files while clearing affected
+  annotation runs and unattributable shared reports/exports/local backups;
+- export and deletion refuse to race an active bot writer.
+
+Remaining PO gate:
+
+- review final public-beta legal wording and support contact;
+- set `M3_DATA_RETENTION_DAYS` or explicitly approve no automatic expiry;
+- inventory and clear any external copies outside configured runtime paths.
 
 ## RM-13 Atomic Storage And Runtime Concurrency
 
