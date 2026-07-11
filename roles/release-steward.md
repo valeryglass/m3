@@ -94,6 +94,16 @@ identity. Do not mark the gate ready while `M3_DATA_RETENTION_DAYS` is empty
 unless the owner explicitly accepts no automatic expiry, or while the
 public-beta notice/support contact remains unreviewed.
 
+For RM-14, inspect count-only provider state with:
+
+```bash
+.venv/bin/python -m app.provider_guard
+```
+
+Confirm capture/profile quotas, global token budget, queue bounds, retry policy,
+and circuit cooldown are intentional for the beta cohort. Defaults are technical
+limits, not approved budget evidence.
+
 Use the RM-12 through RM-16 acceptance criteria in
 `docs/backlog/beta-production-rm.md` until RM-16 creates the dedicated public
 beta release workflow. Any missing criterion is a public-beta blocker, not a

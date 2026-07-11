@@ -146,14 +146,15 @@ RM order:
   provider work off the Telegram event loop. Status: implemented; live
   Docker-volume verification remains in RM-16.
 - RM-14: add per-user/global quotas, in-flight bounds, budget telemetry, and
-  provider circuit behavior.
+  provider circuit behavior. Status: implemented; live limit tuning remains in
+  RM-16.
 - RM-15: refresh deterministic annotations after Save and expose honest
   freshness state to profile/report consumers.
 - RM-16: harden Docker operations and certify live consent, provider, freshness,
   backup, restore, deletion, and rollback workflows.
 
-Public beta is blocked until RM-12 through RM-16 and the remaining RM-06,
-RM-07, RM-10, and RM-11 work are complete. This track changes operational and
+Public beta is blocked until the remaining RM-12 owner decisions, RM-15,
+RM-16, RM-06, and RM-07 work are complete. This track changes operational and
 personal-data boundaries, not the accepted episode or analytics contracts.
 
 ## MVP2 Audio Input Track

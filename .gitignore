@@ -9,6 +9,7 @@ data/runtime-flows/**
 data/userlist/*.json
 data/ux-events/*.jsonl
 data/journal/**
+data/provider-usage/**
 data/annotation-work/**
 data/annotation-runs/**
 data/intake-transcripts/**
@@ -31,6 +32,7 @@ data/**/*.tmp
 !data/userlist/
 !data/ux-events/
 !data/journal/
+!data/provider-usage/
 !data/annotation-work/
 !data/annotation-runs/
 !data/intake-transcripts/
@@ -46,6 +48,7 @@ data/**/*.tmp
 !data/userlist/.gitkeep
 !data/ux-events/.gitkeep
 !data/journal/.gitkeep
+!data/provider-usage/.gitkeep
 !data/annotation-runs/.gitkeep
 !data/intake-transcripts/.gitkeep
 !data/capture-artifacts/.gitkeep

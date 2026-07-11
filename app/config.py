@@ -26,6 +26,16 @@ class Settings:
     userlist_path: Path
     ux_event_log: Path
     journal_log: Path
+    provider_usage_state: Path
+    provider_capture_daily_limit: int
+    provider_profile_daily_limit: int
+    provider_daily_token_budget: int
+    provider_max_in_flight: int
+    provider_queue_timeout_sec: float
+    provider_circuit_failure_threshold: int
+    provider_circuit_cooldown_sec: int
+    provider_max_retries: int
+    provider_retry_backoff_sec: float
     annotation_run_dir: Path | None
     annotation_run_root: Path
     report_min_count: int
@@ -99,6 +109,34 @@ def parse_optional_positive_int(value: str | None) -> int | None:
     return parsed
 
 
+def parse_positive_int(value: str, *, name: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise ValueError(f"{name} must be greater than zero")
+    return parsed
+
+
+def parse_positive_float(value: str, *, name: str) -> float:
+    parsed = float(value)
+    if parsed <= 0:
+        raise ValueError(f"{name} must be greater than zero")
+    return parsed
+
+
+def parse_nonnegative_int(value: str, *, name: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise ValueError(f"{name} cannot be negative")
+    return parsed
+
+
+def parse_nonnegative_float(value: str, *, name: str) -> float:
+    parsed = float(value)
+    if parsed < 0:
+        raise ValueError(f"{name} cannot be negative")
+    return parsed
+
+
 def admin_chat_ids_for_settings(settings: Settings) -> frozenset[int]:
     return settings.telegram_admin_chat_ids
 
@@ -164,6 +202,45 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         userlist_path=Path(source.get("M3_USERLIST_PATH", "data/userlist/users.json")),
         ux_event_log=Path(source.get("M3_UX_EVENT_LOG", "data/ux-events/events.jsonl")),
         journal_log=Path(source.get("M3_JOURNAL_LOG", "data/journal/events.jsonl")),
+        provider_usage_state=Path(
+            source.get("M3_PROVIDER_USAGE_STATE", "data/provider-usage/state.json")
+        ),
+        provider_capture_daily_limit=parse_positive_int(
+            source.get("M3_PROVIDER_CAPTURE_DAILY_LIMIT", "20"),
+            name="M3_PROVIDER_CAPTURE_DAILY_LIMIT",
+        ),
+        provider_profile_daily_limit=parse_positive_int(
+            source.get("M3_PROVIDER_PROFILE_DAILY_LIMIT", "20"),
+            name="M3_PROVIDER_PROFILE_DAILY_LIMIT",
+        ),
+        provider_daily_token_budget=parse_positive_int(
+            source.get("M3_PROVIDER_DAILY_TOKEN_BUDGET", "200000"),
+            name="M3_PROVIDER_DAILY_TOKEN_BUDGET",
+        ),
+        provider_max_in_flight=parse_positive_int(
+            source.get("M3_PROVIDER_MAX_IN_FLIGHT", "2"),
+            name="M3_PROVIDER_MAX_IN_FLIGHT",
+        ),
+        provider_queue_timeout_sec=parse_positive_float(
+            source.get("M3_PROVIDER_QUEUE_TIMEOUT_SEC", "10"),
+            name="M3_PROVIDER_QUEUE_TIMEOUT_SEC",
+        ),
+        provider_circuit_failure_threshold=parse_positive_int(
+            source.get("M3_PROVIDER_CIRCUIT_FAILURE_THRESHOLD", "3"),
+            name="M3_PROVIDER_CIRCUIT_FAILURE_THRESHOLD",
+        ),
+        provider_circuit_cooldown_sec=parse_positive_int(
+            source.get("M3_PROVIDER_CIRCUIT_COOLDOWN_SEC", "300"),
+            name="M3_PROVIDER_CIRCUIT_COOLDOWN_SEC",
+        ),
+        provider_max_retries=parse_nonnegative_int(
+            source.get("M3_PROVIDER_MAX_RETRIES", "1"),
+            name="M3_PROVIDER_MAX_RETRIES",
+        ),
+        provider_retry_backoff_sec=parse_nonnegative_float(
+            source.get("M3_PROVIDER_RETRY_BACKOFF_SEC", "0.5"),
+            name="M3_PROVIDER_RETRY_BACKOFF_SEC",
+        ),
         annotation_run_dir=(
             Path(source["M3_ANNOTATION_RUN_DIR"])
             if source.get("M3_ANNOTATION_RUN_DIR", "").strip()

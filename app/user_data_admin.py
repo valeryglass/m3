@@ -12,7 +12,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-from app.runtime_storage import ProcessLock, atomic_write_text, locked_path
+from app.runtime_storage import (
+    ProcessLock,
+    atomic_write_json,
+    atomic_write_text,
+    locked_path,
+)
 from app.userlist import JsonUserList
 
 try:
@@ -32,6 +37,7 @@ class UserDataPaths:
     userlist_path: Path = Path("data/userlist/users.json")
     ux_event_log: Path = Path("data/ux-events/events.jsonl")
     journal_log: Path = Path("data/journal/events.jsonl")
+    provider_usage_state: Path = Path("data/provider-usage/state.json")
     annotation_run_root: Path = Path("data/annotation-runs")
     intake_transcript_dir: Path = Path("data/intake-transcripts")
     capture_artifact_dir: Path = Path("data/capture-artifacts")
@@ -51,6 +57,7 @@ class UserDataInventory:
     userlist_records: int
     ux_event_rows: int
     journal_rows: int
+    provider_usage_record: int
     affected_annotation_runs: tuple[Path, ...]
     shared_files_to_clear: tuple[Path, ...]
 
@@ -66,6 +73,7 @@ class UserDataInventory:
                 self.userlist_records,
                 self.ux_event_rows,
                 self.journal_rows,
+                self.provider_usage_record,
                 len(self.affected_annotation_runs),
                 len(self.shared_files_to_clear),
             )
@@ -84,6 +92,7 @@ class UserDataInventory:
             "userlist_records": self.userlist_records,
             "ux_event_rows": self.ux_event_rows,
             "journal_rows": self.journal_rows,
+            "provider_usage_record": self.provider_usage_record,
             "affected_annotation_runs": [
                 path.as_posix() for path in self.affected_annotation_runs
             ],
@@ -154,12 +163,16 @@ class UserDataManager:
             chat_ids,
             episode_ids,
         )
+        provider_usage_record = int(
+            bool(_provider_usage_record(self.paths.provider_usage_state, normalized_user_id))
+        )
         annotation_runs = self._affected_annotation_runs(episode_ids)
         has_personal_data = bool(
             records
             or files_by_category
             or ux_rows
             or journal_rows
+            or provider_usage_record
             or annotation_runs
         )
         shared_files = (
@@ -183,6 +196,7 @@ class UserDataManager:
             userlist_records=len(records),
             ux_event_rows=len(ux_rows),
             journal_rows=len(journal_rows),
+            provider_usage_record=provider_usage_record,
             affected_annotation_runs=annotation_runs,
             shared_files_to_clear=shared_files,
         )
@@ -227,6 +241,7 @@ class UserDataManager:
             "episode_count": len(inventory.episode_ids),
             "ux_event_rows": inventory.ux_event_rows,
             "journal_rows": inventory.journal_rows,
+            "provider_usage_record": inventory.provider_usage_record,
         }
 
     def delete(self, user_id: str, *, confirmation: str) -> dict[str, Any]:
@@ -265,6 +280,10 @@ class UserDataManager:
             set(inventory.chat_ids),
             set(inventory.episode_ids),
         )
+        removed_provider_usage = _remove_provider_usage_user(
+            self.paths.provider_usage_state,
+            inventory.user_id,
+        )
         removed_users = self.userlist.delete_identity(inventory.user_id)
         _remove_empty_private_dirs(self.paths)
 
@@ -289,6 +308,7 @@ class UserDataManager:
             "removed_annotation_runs": len(inventory.affected_annotation_runs),
             "removed_ux_rows": removed_ux,
             "removed_journal_rows": removed_journal,
+            "removed_provider_usage_records": removed_provider_usage,
             "removed_userlist_records": removed_users,
             "verified": verified,
             "remaining": verification["remaining"],
@@ -354,6 +374,16 @@ class UserDataManager:
                 set(inventory.episode_ids),
             ),
         )
+        _zip_json(
+            archive,
+            "events/provider-usage.json",
+            {
+                "user": _provider_usage_record(
+                    self.paths.provider_usage_state,
+                    inventory.user_id,
+                )
+            },
+        )
         _zip_jsonl(
             archive,
             "events/journal-events.jsonl",
@@ -380,6 +410,7 @@ class UserDataManager:
             "manifest.json",
             _export_manifest(inventory),
         )
+
     def _export_arcname(self, category: str, path: Path) -> str:
         roots = {
             "episodes": self.paths.episode_dir,
@@ -496,6 +527,9 @@ def _paths_for_root(root: Path) -> UserDataPaths:
         journal_log=_env_path(
             "M3_JOURNAL_LOG", root / "journal" / "events.jsonl"
         ),
+        provider_usage_state=_env_path(
+            "M3_PROVIDER_USAGE_STATE", root / "provider-usage" / "state.json"
+        ),
         annotation_run_root=_env_path(
             "M3_ANNOTATION_RUN_ROOT", root / "annotation-runs"
         ),
@@ -567,6 +601,31 @@ def _remove_matching_rows(
             lock=False,
         )
     return len(rows) - len(retained)
+
+
+def _provider_usage_record(path: Path, user_id: str) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    state = _read_json(path)
+    users = state.get("users", {})
+    if not isinstance(users, dict):
+        raise ValueError(f"invalid provider usage users: {path}")
+    value = users.get(str(user_id), {})
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def _remove_provider_usage_user(path: Path, user_id: str) -> int:
+    if not path.exists():
+        return 0
+    with locked_path(path):
+        state = _read_json(path)
+        users = state.get("users", {})
+        if not isinstance(users, dict):
+            raise ValueError(f"invalid provider usage users: {path}")
+        removed = int(str(user_id) in users)
+        users.pop(str(user_id), None)
+        atomic_write_json(path, state, sort_keys=True, lock=False)
+    return removed
 
 
 def _row_matches_identity(

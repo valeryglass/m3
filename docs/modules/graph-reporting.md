@@ -61,6 +61,11 @@ registry, use thinking-disabled mode, and have independent deterministic
 fallbacks. They do not generate annotations, receive raw episode text, or
 interpret the person. LLM map-focus generation is paused.
 
+Production profile calls pass through Provider Operations. A quota, budget,
+queue, circuit, or usage-state blocker returns the deterministic report without
+exposing provider details to the user. Provider-returned token counts are stored
+separately from report artifacts and contain no report copy.
+
 Deterministic and generated profile reports share one plain-text presentation:
 a fixed Unicode divider separates the report header and each meaning block.
 Telegram sends this text without HTML parsing, so presentation does not alter

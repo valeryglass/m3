@@ -105,7 +105,11 @@ def test_openai_adapter_maps_response_failures(response, code):
 
 @pytest.mark.parametrize(
     ("error", "code"),
-    [(TimeoutError(), "provider_timeout"), (RuntimeError(), "provider_error")],
+    [
+        (TimeoutError(), "provider_timeout"),
+        (RuntimeError(), "provider_error"),
+        (type("RateLimitError", (RuntimeError,), {})("limited"), "rate_limited"),
+    ],
 )
 def test_openai_adapter_maps_api_failures(error, code):
     provider, _ = _provider(error=error)

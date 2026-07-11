@@ -26,6 +26,8 @@ The active engine is JSON:
 - `data/ux-events/*.jsonl` stores private runtime UX event records.
 - `data/journal/*.jsonl` stores private process journal events for operator
   observability.
+- `data/provider-usage/state.json` stores private provider counts, token totals,
+  daily limits, and circuit state without prompts or content.
 - `data/capture-debug/` stores private provider/debug sidecars for capture
   extraction attempts.
 - `data/exports/map-payload/` stores explicit tracked map payload JSON/HTML exports.

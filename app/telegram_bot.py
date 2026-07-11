@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import MutableMapping
+from dataclasses import is_dataclass, replace
 from pathlib import Path
 from time import monotonic
+from types import SimpleNamespace
 from app.blocking_runtime import run_blocking
 from app.capture_artifacts import build_capture_artifact, save_capture_artifact
 from app.capture_extraction import (
+    UnavailableCaptureExtractionProvider,
     link_capture_extraction_to_episode,
     project_classic_10q,
     run_capture_extraction,
@@ -46,6 +49,12 @@ from app.report_runner import (
 from app.profile_interpreter import (
     interpret_profile_brief_for_settings,
     interpret_profile_expanded_for_settings,
+    resolve_profile_report_mode,
+)
+from app.provider_guard import (
+    ProviderGuard,
+    ProviderGuardBlocked,
+    provider_guard_for_settings,
 )
 from app.input_funnels import (
     artifact_text,
@@ -117,9 +126,17 @@ def _run_bot(settings: Settings) -> None:
     capture_flow_store = CaptureFlowStore(settings.runtime_flow_dir)
     userlist = JsonUserList(settings.userlist_path)
     ux_events = UxEventLog(settings.ux_event_log)
+    journal_log = _journal_log_for_settings(settings)
+    provider_guard = provider_guard_for_settings(
+        settings,
+        journal_log=journal_log,
+    )
     tone = load_tone_engine(settings.tone_config)
     transcription_provider = _transcription_provider_for_settings(settings)
-    extraction_provider = _capture_extraction_provider_for_settings(settings)
+    extraction_provider = _capture_extraction_provider_for_settings(
+        settings,
+        provider_guard=provider_guard,
+    )
 
     try:
         from app.telegram_update_processor import PerChatUpdateProcessor
@@ -229,6 +246,8 @@ def _run_bot(settings: Settings) -> None:
             settings,
             tone,
             profile_cache=context.chat_data,
+            provider_guard=provider_guard,
+            ux_events=ux_events,
         )
 
     async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -326,6 +345,7 @@ def _run_bot(settings: Settings) -> None:
             audio_flow_store=capture_flow_store,
             review_store=review_store,
             extraction_provider=extraction_provider,
+            provider_guard=provider_guard,
         )
 
     async def episode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -354,6 +374,7 @@ def _run_bot(settings: Settings) -> None:
             settings=settings,
             review_store=review_store,
             extraction_provider=extraction_provider,
+            provider_guard=provider_guard,
         )
 
     async def consent_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -375,6 +396,8 @@ def _run_bot(settings: Settings) -> None:
             settings,
             tone,
             profile_cache=context.chat_data,
+            provider_guard=provider_guard,
+            ux_events=ux_events,
         )
 
     async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -508,10 +531,24 @@ def _transcription_provider_for_settings(settings):
     return MissingTranscriptionProvider()
 
 
-def _capture_extraction_provider_for_settings(settings):
+def _capture_extraction_provider_for_settings(
+    settings,
+    provider_guard: ProviderGuard | None = None,
+):
+    usage_recorder = None
+    if provider_guard is not None:
+        def usage_recorder(user_id, prompt, completion, total):
+            provider_guard.record_usage(
+                user_id,
+                "capture",
+                prompt_tokens=prompt,
+                completion_tokens=completion,
+                total_tokens=total,
+            )
     return capture_extraction_provider_for_settings(
         settings,
         journal_log=_journal_log_for_settings(settings),
+        usage_recorder=usage_recorder,
     )
 
 
@@ -593,22 +630,172 @@ async def _handle_unknown_command_after_authorized(update, tone) -> None:
     await _reply_text(update, tone.unknown_command())
 
 
+async def _profile_brief_with_guard(
+    report,
+    settings,
+    *,
+    user_id: str,
+    provider_guard: ProviderGuard | None,
+    ux_events: UxEventLog | None,
+    update,
+):
+    async def operation():
+        options = {"journal_log": _journal_log_for_settings(settings)}
+        usage_recorder = _profile_usage_recorder(provider_guard, user_id)
+        if usage_recorder is not None:
+            options["usage_recorder"] = usage_recorder
+        return await run_blocking(
+            interpret_profile_brief_for_settings,
+            report,
+            settings,
+            **options,
+        )
+
+    if provider_guard is None or not _profile_provider_enabled(settings):
+        return await operation()
+    try:
+        return await provider_guard.call(
+            user_id,
+            "profile",
+            operation,
+            lambda result: (
+                None if result.mode == "llm" else result.fallback_reason
+            ),
+        )
+    except ProviderGuardBlocked as exc:
+        _log_provider_guard_block(ux_events, update, "profile", exc.code)
+        return await run_blocking(
+            interpret_profile_brief_for_settings,
+            report,
+            _deterministic_profile_settings(settings),
+            journal_log=_journal_log_for_settings(settings),
+        )
+
+
+async def _profile_expanded_with_guard(
+    report,
+    settings,
+    *,
+    user_id: str,
+    brief_artifact_ids: tuple[str, ...],
+    provider_guard: ProviderGuard | None,
+    ux_events: UxEventLog | None,
+    update,
+):
+    async def operation():
+        options = {
+            "brief_artifact_ids": brief_artifact_ids,
+            "journal_log": _journal_log_for_settings(settings),
+        }
+        usage_recorder = _profile_usage_recorder(provider_guard, user_id)
+        if usage_recorder is not None:
+            options["usage_recorder"] = usage_recorder
+        return await run_blocking(
+            interpret_profile_expanded_for_settings,
+            report,
+            settings,
+            **options,
+        )
+
+    if provider_guard is None or not _profile_provider_enabled(settings):
+        return await operation()
+    try:
+        return await provider_guard.call(
+            user_id,
+            "profile",
+            operation,
+            lambda result: (
+                None if result.mode == "llm" else result.fallback_reason
+            ),
+        )
+    except ProviderGuardBlocked as exc:
+        _log_provider_guard_block(ux_events, update, "profile", exc.code)
+        return await run_blocking(
+            interpret_profile_expanded_for_settings,
+            report,
+            _deterministic_profile_settings(settings),
+            brief_artifact_ids=brief_artifact_ids,
+            journal_log=_journal_log_for_settings(settings),
+        )
+
+
+def _profile_usage_recorder(
+    provider_guard: ProviderGuard | None,
+    user_id: str,
+):
+    if provider_guard is None:
+        return None
+
+    def record(prompt: int, completion: int, total: int) -> None:
+        provider_guard.record_usage(
+            user_id,
+            "profile",
+            prompt_tokens=prompt,
+            completion_tokens=completion,
+            total_tokens=total,
+        )
+
+    return record
+
+
+def _profile_provider_enabled(settings) -> bool:
+    return bool(
+        resolve_profile_report_mode(settings) == "llm"
+        and getattr(settings, "profile_llm_provider", "unavailable") == "deepseek"
+        and getattr(settings, "deepseek_api_key", "")
+        and getattr(settings, "profile_llm_model", "")
+    )
+
+
+def _deterministic_profile_settings(settings):
+    if is_dataclass(settings):
+        return replace(settings, profile_report_mode="deterministic")
+    values = dict(vars(settings))
+    values["profile_report_mode"] = "deterministic"
+    return SimpleNamespace(**values)
+
+
+def _log_provider_guard_block(
+    ux_events: UxEventLog | None,
+    update,
+    surface: str,
+    failure_code: str,
+) -> None:
+    if ux_events is None:
+        return
+    metadata = _telegram_update_metadata(update)
+    ux_events.append(
+        telegram_event(
+            "provider_call_blocked",
+            _telegram_update_user_id(update),
+            chat_id=getattr(getattr(update, "effective_chat", None), "id", None),
+            message_kind=metadata.get("message_kind") or "callback",
+            funnel=surface,
+            reject_reason=failure_code,
+        )
+    )
+
+
 async def _handle_profile_after_authorized(
     update,
     settings: Settings,
     tone,
     *,
     profile_cache: MutableMapping[str, object] | None = None,
+    provider_guard: ProviderGuard | None = None,
+    ux_events: UxEventLog | None = None,
 ) -> None:
     report = _build_chat_profile_report(settings, update.effective_chat.id)
     if report is None:
         await _reply_text(update, tone.profile_missing())
         return
-    brief = await run_blocking(
-        interpret_profile_brief_for_settings,
+    brief = await _profile_brief_with_guard(
         report,
         settings,
-        journal_log=_journal_log_for_settings(settings),
+        user_id=str(update.effective_chat.id),
+        provider_guard=provider_guard,
+        ux_events=ux_events,
+        update=update,
     )
     if profile_cache is not None:
         profile_cache[PROFILE_CACHE_KEY] = {
@@ -628,6 +815,8 @@ async def _handle_profile_callback_after_authorized(
     tone,
     *,
     profile_cache: MutableMapping[str, object] | None = None,
+    provider_guard: ProviderGuard | None = None,
+    ux_events: UxEventLog | None = None,
 ) -> None:
     query = getattr(update, "callback_query", None)
     if query is not None:
@@ -649,12 +838,14 @@ async def _handle_profile_callback_after_authorized(
     if report is None:
         await _reply_to_callback(query, tone.profile_missing(), parse_mode=None)
         return
-    expanded = await run_blocking(
-        interpret_profile_expanded_for_settings,
+    expanded = await _profile_expanded_with_guard(
         report,
         settings,
+        user_id=str(update.effective_chat.id),
         brief_artifact_ids=_cached_profile_brief_artifact_ids(profile_cache),
-        journal_log=_journal_log_for_settings(settings),
+        provider_guard=provider_guard,
+        ux_events=ux_events,
+        update=update,
     )
     if profile_cache is not None:
         cached = profile_cache.get(PROFILE_CACHE_KEY)
@@ -1051,6 +1242,7 @@ async def _extract_capture_to_review(
     media_kind: str,
     intake_transcript_path: str | None = None,
     message_id: int | None = None,
+    provider_guard: ProviderGuard | None = None,
 ) -> None:
     artifact = build_capture_artifact(
         chat_id=chat_id,
@@ -1085,7 +1277,7 @@ async def _extract_capture_to_review(
             answer_chars=sum(len(piece.text) for piece in artifact.pieces),
         )
     )
-    outcome = await _run_capture_extraction_in_worker(
+    outcome = await _capture_extraction_with_guard(
         artifact,
         extraction_provider,
         getattr(
@@ -1093,8 +1285,9 @@ async def _extract_capture_to_review(
             "capture_extraction_dir",
             review_store.review_dir.parent / "capture-extractions",
         ),
+        provider_guard=provider_guard,
+        ux_events=ux_events,
         journal_log=_journal_log_for_settings(settings),
-        allow_partial_draft=True,
     )
     if outcome.draft is None:
         ux_events.append(
@@ -1181,6 +1374,60 @@ async def _extract_capture_to_review(
         tone.review_screen(review.observed, target_fields_for_review()),
         reply_markup=_review_reply_markup(),
     )
+
+
+async def _capture_extraction_with_guard(
+    artifact,
+    provider,
+    output_root,
+    *,
+    provider_guard: ProviderGuard | None,
+    ux_events: UxEventLog,
+    journal_log=None,
+):
+    async def operation():
+        return await _run_capture_extraction_in_worker(
+            artifact,
+            provider,
+            output_root,
+            journal_log=journal_log,
+            allow_partial_draft=True,
+        )
+
+    if (
+        provider_guard is None
+        or getattr(provider, "provider_name", "") == "unavailable"
+    ):
+        return await operation()
+    try:
+        return await provider_guard.call(
+            str(artifact.chat_id),
+            "capture",
+            operation,
+            lambda outcome: (
+                None
+                if outcome.extraction.status == "succeeded"
+                else outcome.extraction.failure_code
+            ),
+        )
+    except ProviderGuardBlocked as exc:
+        ux_events.append(
+            base_event(
+                "provider_call_blocked",
+                artifact.capture_id,
+                str(artifact.chat_id),
+                funnel=artifact.mode,
+                media_kind=artifact.media_kind,
+                failure_code=exc.code,
+            )
+        )
+        return await _run_capture_extraction_in_worker(
+            artifact,
+            UnavailableCaptureExtractionProvider(f"guard-{exc.code}"),
+            output_root,
+            journal_log=journal_log,
+            allow_partial_draft=True,
+        )
 
 
 async def _run_capture_extraction_in_worker(
@@ -1434,6 +1681,7 @@ async def _handle_message_after_authorized(
     audio_flow_store: CaptureFlowStore | None = None,
     review_store: DraftReviewSessionStore | None = None,
     extraction_provider=None,
+    provider_guard: ProviderGuard | None = None,
 ) -> None:
     chat_id = update.effective_chat.id
     now = utc_now()
@@ -1489,6 +1737,7 @@ async def _handle_message_after_authorized(
             now=now,
             media_kind="text",
             message_id=getattr(update.message, "message_id", None),
+            provider_guard=provider_guard,
         )
         return
     if decision is RouteDecision.HANDLE_THREE_BLOCK_TEXT:
@@ -1526,6 +1775,7 @@ async def _handle_message_after_authorized(
             now=now,
             media_kind="text",
             message_id=getattr(update.message, "message_id", None),
+            provider_guard=provider_guard,
         )
         return
     if decision is RouteDecision.TRANSCRIPT_CONFIRMATION_REQUIRED:
@@ -1818,6 +2068,7 @@ async def _handle_transcript_callback_after_authorized(
     settings=None,
     review_store: DraftReviewSessionStore | None = None,
     extraction_provider=None,
+    provider_guard: ProviderGuard | None = None,
 ) -> None:
     query = getattr(update, "callback_query", None)
     if query is not None:
@@ -1891,6 +2142,7 @@ async def _handle_transcript_callback_after_authorized(
         media_kind=transcript.media_kind,
         intake_transcript_path=str(transcript_path),
         message_id=transcript.message_id,
+        provider_guard=provider_guard,
     )
 
 

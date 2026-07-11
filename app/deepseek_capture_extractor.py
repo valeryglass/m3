@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from pydantic import ValidationError
 
@@ -13,6 +13,7 @@ from app.capture_extraction import (
 )
 from app.capture_debug import record_provider_debug
 from app.openai_capture_extractor import SYSTEM_PROMPT
+from app.provider_guard import api_failure_code, usage_counts
 from app.schemas.capture import CaptureArtifact, CaptureExtractionResult
 
 
@@ -51,6 +52,7 @@ class DeepSeekCaptureExtractionProvider:
         timeout_seconds: float = 60.0,
         capture_debug_dir: Path | None = None,
         capture_debug_raw_provider_output: bool = False,
+        usage_recorder: Callable[[str, int, int, int], None] | None = None,
     ) -> None:
         if not api_key.strip():
             raise ValueError("DEEPSEEK_API_KEY is required")
@@ -60,6 +62,7 @@ class DeepSeekCaptureExtractionProvider:
         self.base_url = base_url.strip() or DEFAULT_DEEPSEEK_BASE_URL
         self.capture_debug_dir = capture_debug_dir
         self.capture_debug_raw_provider_output = capture_debug_raw_provider_output
+        self.usage_recorder = usage_recorder
         if client is None:
             try:
                 from openai import OpenAI
@@ -100,8 +103,12 @@ class DeepSeekCaptureExtractionProvider:
             self._record_debug(artifact, None, failure_code="provider_timeout")
             raise CaptureExtractionError("provider_timeout") from exc
         except Exception as exc:
-            self._record_debug(artifact, None, failure_code="provider_error")
-            raise CaptureExtractionError("provider_error") from exc
+            failure_code = api_failure_code(exc)
+            self._record_debug(artifact, None, failure_code=failure_code)
+            raise CaptureExtractionError(failure_code) from exc
+
+        if self.usage_recorder is not None:
+            self.usage_recorder(str(artifact.chat_id), *usage_counts(response))
 
         content = _first_message_text(response)
         if content is None:

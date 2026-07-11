@@ -31,7 +31,8 @@ different user.
 
 The archive excludes shared reports, exports, and backups because they can
 contain other users. It includes the selected user's source artifacts, matching
-UX/journal rows, access record, and matching annotation rows.
+UX/journal rows, provider usage counts, access record, and matching annotation
+rows.
 
 ## Delete Preview
 

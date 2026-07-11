@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Callable
 
 from pydantic import ValidationError
 
@@ -11,6 +11,7 @@ from app.capture_extraction import (
     extraction_result_schema,
 )
 from app.schemas.capture import CaptureArtifact, CaptureExtractionResult
+from app.provider_guard import api_failure_code, usage_counts
 
 
 SYSTEM_PROMPT = """\
@@ -36,12 +37,14 @@ class OpenAICaptureExtractionProvider:
         model: str,
         client: Any | None = None,
         timeout_seconds: float = 60.0,
+        usage_recorder: Callable[[str, int, int, int], None] | None = None,
     ) -> None:
         if not api_key.strip():
             raise ValueError("OPENAI_API_KEY is required")
         if not model.strip():
             raise ValueError("M3_CAPTURE_EXTRACTION_MODEL is required")
         self.model = model.strip()
+        self.usage_recorder = usage_recorder
         if client is None:
             try:
                 from openai import OpenAI
@@ -82,7 +85,10 @@ class OpenAICaptureExtractionProvider:
         except TimeoutError as exc:
             raise CaptureExtractionError("provider_timeout") from exc
         except Exception as exc:
-            raise CaptureExtractionError("provider_error") from exc
+            raise CaptureExtractionError(api_failure_code(exc)) from exc
+
+        if self.usage_recorder is not None:
+            self.usage_recorder(str(artifact.chat_id), *usage_counts(response))
 
         if getattr(response, "status", None) == "incomplete":
             details = getattr(response, "incomplete_details", None)

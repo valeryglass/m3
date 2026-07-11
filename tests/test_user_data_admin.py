@@ -16,6 +16,7 @@ def test_inventory_and_export_are_identity_scoped(tmp_path):
     assert inventory.episode_ids == ("episode-20260711-1",)
     assert inventory.userlist_records == 1
     assert inventory.ux_event_rows == 1
+    assert inventory.provider_usage_record == 1
     assert len(inventory.affected_annotation_runs) == 1
     assert inventory.safe_summary()["delete_confirmation"] == "DELETE-111"
 
@@ -59,6 +60,7 @@ def test_delete_requires_exact_confirmation_and_preserves_other_user(tmp_path):
     assert set(JsonUserList(paths.userlist_path).load()) == {"222"}
     ux_rows = _read_jsonl(paths.ux_event_log)
     assert [row["user_id"] for row in ux_rows] == ["222"]
+    assert set(json.loads(paths.provider_usage_state.read_text())["users"]) == {"222"}
     assert manager.verify("111")["verified"] is True
 
 
@@ -123,6 +125,24 @@ def _seed_two_users(tmp_path):
             {"event_type": "update_received", "user_id": "222", "chat_id": 222},
         ],
     )
+    _write_json(
+        paths.provider_usage_state,
+        {
+            "schema_version": "m3.provider_usage.v1",
+            "day": "2026-07-11",
+            "users": {
+                "111": {"capture_calls": 1, "profile_calls": 2, "tokens": 30},
+                "222": {"capture_calls": 2, "profile_calls": 1, "tokens": 40},
+            },
+            "global": {
+                "calls": 6,
+                "prompt_tokens": 40,
+                "completion_tokens": 30,
+                "total_tokens": 70,
+            },
+            "circuit": {"consecutive_failures": 0, "opened_at": None},
+        },
+    )
     _write_jsonl(
         paths.journal_log,
         [
@@ -159,6 +179,7 @@ def _paths(root):
         userlist_path=root / "userlist" / "users.json",
         ux_event_log=root / "ux-events" / "events.jsonl",
         journal_log=root / "journal" / "events.jsonl",
+        provider_usage_state=root / "provider-usage" / "state.json",
         annotation_run_root=root / "annotation-runs",
         intake_transcript_dir=root / "intake-transcripts",
         capture_artifact_dir=root / "capture-artifacts",

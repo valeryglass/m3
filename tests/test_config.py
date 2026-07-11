@@ -30,6 +30,16 @@ def test_load_settings_uses_default_data_paths():
     assert str(settings.userlist_path) == "data/userlist/users.json"
     assert str(settings.ux_event_log) == "data/ux-events/events.jsonl"
     assert str(settings.journal_log) == "data/journal/events.jsonl"
+    assert str(settings.provider_usage_state) == "data/provider-usage/state.json"
+    assert settings.provider_capture_daily_limit == 20
+    assert settings.provider_profile_daily_limit == 20
+    assert settings.provider_daily_token_budget == 200000
+    assert settings.provider_max_in_flight == 2
+    assert settings.provider_queue_timeout_sec == 10.0
+    assert settings.provider_circuit_failure_threshold == 3
+    assert settings.provider_circuit_cooldown_sec == 300
+    assert settings.provider_max_retries == 1
+    assert settings.provider_retry_backoff_sec == 0.5
     assert settings.annotation_run_dir is None
     assert str(settings.annotation_run_root) == "data/annotation-runs"
     assert settings.report_min_count == 2
@@ -76,6 +86,16 @@ def test_load_settings_allows_overrides():
             "TELEGRAM_BOT_TOKEN": "token",
             "M3_UX_EVENT_LOG": "/tmp/events.jsonl",
             "M3_JOURNAL_LOG": "/tmp/journal.jsonl",
+            "M3_PROVIDER_USAGE_STATE": "/tmp/provider-usage.json",
+            "M3_PROVIDER_CAPTURE_DAILY_LIMIT": "7",
+            "M3_PROVIDER_PROFILE_DAILY_LIMIT": "8",
+            "M3_PROVIDER_DAILY_TOKEN_BUDGET": "9000",
+            "M3_PROVIDER_MAX_IN_FLIGHT": "3",
+            "M3_PROVIDER_QUEUE_TIMEOUT_SEC": "2.5",
+            "M3_PROVIDER_CIRCUIT_FAILURE_THRESHOLD": "4",
+            "M3_PROVIDER_CIRCUIT_COOLDOWN_SEC": "60",
+            "M3_PROVIDER_MAX_RETRIES": "2",
+            "M3_PROVIDER_RETRY_BACKOFF_SEC": "0.25",
             "M3_RUNTIME_SESSION_DIR": "/tmp/runtime-sessions",
             "M3_RUNTIME_FLOW_DIR": "/tmp/runtime-flows",
             "M3_UX_IDLE_AFTER_SEC": "60",
@@ -115,6 +135,16 @@ def test_load_settings_allows_overrides():
 
     assert str(settings.ux_event_log) == "/tmp/events.jsonl"
     assert str(settings.journal_log) == "/tmp/journal.jsonl"
+    assert str(settings.provider_usage_state) == "/tmp/provider-usage.json"
+    assert settings.provider_capture_daily_limit == 7
+    assert settings.provider_profile_daily_limit == 8
+    assert settings.provider_daily_token_budget == 9000
+    assert settings.provider_max_in_flight == 3
+    assert settings.provider_queue_timeout_sec == 2.5
+    assert settings.provider_circuit_failure_threshold == 4
+    assert settings.provider_circuit_cooldown_sec == 60
+    assert settings.provider_max_retries == 2
+    assert settings.provider_retry_backoff_sec == 0.25
     assert str(settings.runtime_session_dir) == "/tmp/runtime-sessions"
     assert str(settings.runtime_flow_dir) == "/tmp/runtime-flows"
     assert settings.ux_idle_after_sec == 60
@@ -243,3 +273,20 @@ def test_consent_and_retention_config_validation():
         parse_consent_version("bad version")
     with pytest.raises(ValueError, match="greater than zero"):
         parse_optional_positive_int("0")
+
+
+def test_provider_guard_config_rejects_invalid_limits():
+    with pytest.raises(ValueError, match="M3_PROVIDER_MAX_IN_FLIGHT"):
+        load_settings(
+            {
+                "TELEGRAM_BOT_TOKEN": "token",
+                "M3_PROVIDER_MAX_IN_FLIGHT": "0",
+            }
+        )
+    with pytest.raises(ValueError, match="M3_PROVIDER_MAX_RETRIES"):
+        load_settings(
+            {
+                "TELEGRAM_BOT_TOKEN": "token",
+                "M3_PROVIDER_MAX_RETRIES": "-1",
+            }
+        )

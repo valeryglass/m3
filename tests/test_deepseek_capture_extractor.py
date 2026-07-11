@@ -53,7 +53,14 @@ class _ChatCompletions:
         return self.response
 
 
-def _provider(response=None, error=None, *, capture_debug_dir=None, raw_debug=False):
+def _provider(
+    response=None,
+    error=None,
+    *,
+    capture_debug_dir=None,
+    raw_debug=False,
+    usage_recorder=None,
+):
     completions = _ChatCompletions(response, error)
     client = SimpleNamespace(
         chat=SimpleNamespace(completions=completions),
@@ -66,18 +73,20 @@ def _provider(response=None, error=None, *, capture_debug_dir=None, raw_debug=Fa
             client=client,
             capture_debug_dir=capture_debug_dir,
             capture_debug_raw_provider_output=raw_debug,
+            usage_recorder=usage_recorder,
         ),
         completions,
     )
 
 
-def _response(content):
+def _response(content, *, usage=None):
     return SimpleNamespace(
         choices=[
             SimpleNamespace(
                 message=SimpleNamespace(content=content),
             )
-        ]
+        ],
+        usage=usage,
     )
 
 
@@ -92,6 +101,25 @@ def test_deepseek_adapter_uses_chat_json_mode_and_disables_thinking():
     assert completions.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
     assert "json" in completions.kwargs["messages"][0]["content"].lower()
     assert completions.kwargs["max_tokens"] >= 1000
+
+
+def test_deepseek_adapter_records_safe_usage_metadata():
+    recorded = []
+    provider, _ = _provider(
+        _response(
+            json.dumps(_payload()),
+            usage=SimpleNamespace(
+                prompt_tokens=12,
+                completion_tokens=8,
+                total_tokens=20,
+            ),
+        ),
+        usage_recorder=lambda *values: recorded.append(values),
+    )
+
+    provider.extract(_artifact())
+
+    assert recorded == [("42", 12, 8, 20)]
 
 
 def test_deepseek_adapter_writes_success_debug_sidecar(tmp_path):
@@ -199,7 +227,11 @@ def test_deepseek_adapter_raw_debug_output_requires_toggle(tmp_path):
 
 @pytest.mark.parametrize(
     ("error", "code"),
-    [(TimeoutError(), "provider_timeout"), (RuntimeError(), "provider_error")],
+    [
+        (TimeoutError(), "provider_timeout"),
+        (RuntimeError(), "provider_error"),
+        (type("RateLimitError", (RuntimeError,), {})("limited"), "rate_limited"),
+    ],
 )
 def test_deepseek_adapter_maps_api_failures(error, code):
     provider, _ = _provider(error=error)

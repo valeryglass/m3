@@ -24,6 +24,12 @@ explicitly sets `M3_CAPTURE_EXTRACTION_PROVIDER=openai` and configures
 
 There is no default model and no fallback to classic 10Q.
 
+Paid extraction calls pass through Provider Operations. Per-user capture quota,
+global token budget, queue bound, retry, and circuit state are checked before
+DeepSeek/OpenAI work. A blocked call follows the unavailable-provider path: the
+capture artifact and typed failure sidecar remain private evidence, usable
+partial material may enter gap hydration, and final Save stays schema-gated.
+
 ## Debug Visibility
 
 Provider attempts may write private debug sidecars under `data/capture-debug/`.

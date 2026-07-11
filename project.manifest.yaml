@@ -91,6 +91,31 @@ modules:
       - bounded_blocking_worker_pool
       - per_chat_update_serialization
 
+  provider_operations:
+    stage: experimental
+    enabled: true
+    purpose: Bound and account for paid provider calls without retaining content.
+    owned_paths:
+      - app/provider_guard.py
+      - docs/modules/provider-operations.md
+      - data/provider-usage/
+    inputs:
+      - capture and profile provider call reservations
+      - owner-configured quota and circuit policy
+      - provider-returned token usage counts
+    outputs:
+      - count-only daily provider usage state
+      - typed provider admission blockers
+      - bounded retry and circuit state
+    capabilities:
+      - per_user_daily_provider_quotas
+      - global_provider_token_budget
+      - bounded_provider_concurrency
+      - provider_queue_timeout
+      - bounded_provider_retry
+      - provider_circuit_breaker
+      - content_free_usage_accounting
+
   telegram_media:
     stage: draft
     enabled: true

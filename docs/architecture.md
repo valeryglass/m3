@@ -50,6 +50,10 @@ Runtime Storage sits below active JSON owners. It provides atomic replacement,
 serialized JSONL append, one bot-writer lease, per-chat Telegram ordering, and
 bounded worker execution without changing artifact schemas.
 
+Provider Operations sits before paid capture/profile calls. It provides
+per-user/global admission, count-only usage state, bounded retry, and circuit
+behavior without receiving ownership of capture or report contracts.
+
 Telegram Capture emits UX/access events and chooses one explicit flow before
 input handlers mutate runtime state. The four visible methods use typed
 pre-draft state where needed. Classic 10Q uses `LoopSession`; completed
@@ -120,6 +124,8 @@ graph/report analytics directly.
   identity-scoped export/deletion operation.
 - Runtime Storage owns crash-safe local write and concurrency primitives; data
   contracts remain owned by their domain modules.
+- Provider Operations owns paid-call admission, count-only token/call state,
+  retry bounds, and circuit behavior across capture and profile surfaces.
 
 ## Data Boundaries
 
@@ -163,6 +169,10 @@ Approval is not consent. Telegram Capture requires a private chat and a current
 versioned adult consent record before accepting episode input. User Data Rights
 can export one identity's artifacts or remove them; deletion also invalidates
 shared derived snapshots that cannot be safely separated by user.
+
+Provider usage state is private operational metadata, not analytics evidence. It
+contains user IDs, calls, token totals, and circuit counters only and participates
+in identity-scoped export/deletion.
 
 ## CBT Domain Boundary
 

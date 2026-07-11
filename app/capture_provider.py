@@ -11,6 +11,7 @@ def capture_extraction_provider_for_settings(
     settings: Settings,
     *,
     journal_log: JournalLog | None = None,
+    usage_recorder=None,
 ):
     provider = getattr(settings, "capture_extraction_provider", "unavailable")
     model = getattr(settings, "capture_extraction_model", "")
@@ -28,16 +29,21 @@ def capture_extraction_provider_for_settings(
                 "missing_key_or_model",
             )
             return UnavailableCaptureExtractionProvider(model or "deepseek-unconfigured")
-        return DeepSeekCaptureExtractionProvider(
-            api_key=api_key,
-            model=model,
-            base_url=getattr(settings, "deepseek_base_url", ""),
-            capture_debug_dir=getattr(settings, "capture_debug_dir", None),
-            capture_debug_raw_provider_output=getattr(
+        options = {
+            "api_key": api_key,
+            "model": model,
+            "base_url": getattr(settings, "deepseek_base_url", ""),
+            "capture_debug_dir": getattr(settings, "capture_debug_dir", None),
+            "capture_debug_raw_provider_output": getattr(
                 settings,
                 "capture_debug_raw_provider_output",
                 False,
             ),
+        }
+        if usage_recorder is not None:
+            options["usage_recorder"] = usage_recorder
+        return DeepSeekCaptureExtractionProvider(
+            **options,
         )
     if provider == "openai":
         api_key = getattr(settings, "openai_api_key", "")
@@ -49,7 +55,10 @@ def capture_extraction_provider_for_settings(
                 "missing_key_or_model",
             )
             return UnavailableCaptureExtractionProvider(model or "openai-unconfigured")
-        return OpenAICaptureExtractionProvider(api_key=api_key, model=model)
+        options = {"api_key": api_key, "model": model}
+        if usage_recorder is not None:
+            options["usage_recorder"] = usage_recorder
+        return OpenAICaptureExtractionProvider(**options)
     raise ValueError(f"unsupported capture extraction provider: {provider}")
 
 

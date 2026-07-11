@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -32,6 +32,7 @@ from app.report_view_model import (
     render_details_view,
     render_summary_view,
 )
+from app.provider_guard import api_failure_code, usage_counts
 
 
 BRIEF_PROMPT_VERSION = "profile-brief-interpretation-v2"
@@ -228,6 +229,7 @@ def interpret_profile_brief_for_settings(
     *,
     journal_log: JournalLog | None = None,
     client: Any | None = None,
+    usage_recorder: Callable[[int, int, int], None] | None = None,
 ) -> ProfileBriefResult:
     payload = build_insight_payload(report)
     deterministic = _deterministic_brief(payload)
@@ -244,7 +246,11 @@ def interpret_profile_brief_for_settings(
             "insufficient_interpretation_material",
         )
     try:
-        interpreter = _deepseek_interpreter_for_settings(settings, client=client)
+        interpreter = _deepseek_interpreter_for_settings(
+            settings,
+            client=client,
+            usage_recorder=usage_recorder,
+        )
         return interpreter.interpret_brief(payload, journal_log=journal_log)
     except Exception as exc:
         return _brief_fallback(
@@ -264,6 +270,7 @@ def interpret_profile_expanded_for_settings(
     brief_artifact_ids: tuple[str, ...] = (),
     journal_log: JournalLog | None = None,
     client: Any | None = None,
+    usage_recorder: Callable[[int, int, int], None] | None = None,
 ) -> ProfileExpandedResult:
     payload = build_insight_payload(report)
     deterministic = _deterministic_expanded(payload)
@@ -280,7 +287,11 @@ def interpret_profile_expanded_for_settings(
             "insufficient_interpretation_material",
         )
     try:
-        interpreter = _deepseek_interpreter_for_settings(settings, client=client)
+        interpreter = _deepseek_interpreter_for_settings(
+            settings,
+            client=client,
+            usage_recorder=usage_recorder,
+        )
         return interpreter.interpret_expanded(
             payload,
             brief_artifact_ids=brief_artifact_ids,
@@ -315,6 +326,7 @@ class DeepSeekProfileInterpreter:
         base_url: str = DEFAULT_DEEPSEEK_BASE_URL,
         client: Any | None = None,
         timeout_seconds: float = 60.0,
+        usage_recorder: Callable[[int, int, int], None] | None = None,
     ) -> None:
         if not api_key.strip():
             raise ValueError("DEEPSEEK_API_KEY is required")
@@ -322,6 +334,7 @@ class DeepSeekProfileInterpreter:
             raise ValueError("M3_PROFILE_LLM_MODEL is required")
         self.model = model.strip()
         self.base_url = base_url.strip() or DEFAULT_DEEPSEEK_BASE_URL
+        self.usage_recorder = usage_recorder
         if client is None:
             try:
                 from openai import OpenAI
@@ -499,7 +512,10 @@ class DeepSeekProfileInterpreter:
         except TimeoutError as exc:
             raise ProfileInterpreterError("provider_timeout") from exc
         except Exception as exc:
-            raise ProfileInterpreterError("provider_error") from exc
+            raise ProfileInterpreterError(api_failure_code(exc)) from exc
+
+        if self.usage_recorder is not None:
+            self.usage_recorder(*usage_counts(response))
 
         content = _first_message_text(response)
         if content is None:
@@ -559,6 +575,7 @@ def _deepseek_interpreter_for_settings(
     settings: Settings,
     *,
     client: Any | None,
+    usage_recorder: Callable[[int, int, int], None] | None = None,
 ) -> DeepSeekProfileInterpreter:
     provider = getattr(settings, "profile_llm_provider", "unavailable")
     model = getattr(settings, "profile_llm_model", "")
@@ -574,6 +591,7 @@ def _deepseek_interpreter_for_settings(
         model=model,
         base_url=getattr(settings, "deepseek_base_url", DEFAULT_DEEPSEEK_BASE_URL),
         client=client,
+        usage_recorder=usage_recorder,
     )
 
 

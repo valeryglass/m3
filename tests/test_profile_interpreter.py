@@ -18,10 +18,11 @@ from tests.test_user_report import _episode, _load_episode
 
 
 class _ChatCompletions:
-    def __init__(self, contents=None, error=None):
+    def __init__(self, contents=None, error=None, usage=None):
         self.contents = list(contents or [])
         self.error = error
         self.calls = []
+        self.usage = usage
 
     def create(self, **kwargs):
         self.calls.append(kwargs)
@@ -29,12 +30,13 @@ class _ChatCompletions:
             raise self.error
         content = self.contents.pop(0) if self.contents else None
         return SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
+            choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
+            usage=self.usage,
         )
 
 
-def _client(*contents, error=None):
-    completions = _ChatCompletions(contents=contents, error=error)
+def _client(*contents, error=None, usage=None):
+    completions = _ChatCompletions(contents=contents, error=error, usage=usage)
     return SimpleNamespace(chat=SimpleNamespace(completions=completions)), completions
 
 
@@ -99,6 +101,28 @@ def test_deepseek_brief_uses_small_safe_contract_and_disables_thinking():
     assert "map_focus" not in serialized
     assert "allowed_map_roles" not in serialized
     _assert_safe_request(serialized)
+
+
+def test_deepseek_profile_records_safe_usage_metadata():
+    recorded = []
+    client, _ = _client(
+        _valid_brief_response(),
+        usage=SimpleNamespace(
+            prompt_tokens=30,
+            completion_tokens=10,
+            total_tokens=40,
+        ),
+    )
+    interpreter = DeepSeekProfileInterpreter(
+        api_key="test",
+        model="deepseek-v4-flash",
+        client=client,
+        usage_recorder=lambda *values: recorded.append(values),
+    )
+
+    interpreter.interpret_brief(_payload())
+
+    assert recorded == [(30, 10, 40)]
 
 
 def test_deepseek_expanded_uses_separate_contract_and_brief_focus():

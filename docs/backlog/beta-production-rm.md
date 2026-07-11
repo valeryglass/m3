@@ -407,7 +407,8 @@ Implemented result:
 
 ## RM-14 Provider Quotas And Cost Guardrails
 
-Status: planned.
+Status: implemented; live limit tuning and provider-health evidence remain in
+RM-16.
 
 Goal: prevent public-beta misuse or provider failure from creating unbounded
 cost, latency, or queue pressure.
@@ -431,6 +432,19 @@ Acceptance:
 - provider timeout, rate limit, circuit-open, and budget-exhausted states are
   distinguishable in safe journal/UX metadata;
 - API keys, prompts, provider output, and episode text never enter usage logs.
+
+Implemented result:
+
+- capture and profile share persistent UTC-day call/token accounting, a global
+  in-flight bound, and one active provider slot per user;
+- owner-configured per-surface quotas, global token budget, queue timeout,
+  bounded retry/backoff, and circuit cooldown apply before paid work;
+- provider-returned token counts are recorded without prompts or content;
+- corrupt/unavailable usage state fails closed before a paid call, while a
+  telemetry write failure after a response cannot trigger duplicate spend;
+- blocked profile calls use deterministic reporting and blocked non-10Q capture
+  keeps the existing private sidecar and schema-safe partial-gap behavior;
+- identity-scoped usage records participate in export and deletion.
 
 ## RM-15 Automatic Analytics Freshness
 

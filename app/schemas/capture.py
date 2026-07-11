@@ -47,6 +47,7 @@ ExtractionStatus = Literal["succeeded", "failed"]
 ExtractionFailureCode = Literal[
     "provider_unavailable",
     "provider_error",
+    "rate_limited",
     "provider_timeout",
     "refusal",
     "incomplete",
