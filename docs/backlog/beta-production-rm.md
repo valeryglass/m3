@@ -249,7 +249,7 @@ Planning evidence:
 
 ## RM-11 Command Usage UX Analytics
 
-Status: planned.
+Status: implemented.
 
 Goal: expose per-command usage from the safe command metadata already stored in
 private UX events.
@@ -286,6 +286,15 @@ Acceptance:
 - `/report_ux` and `app.ux_analytics` expose the same command counts;
 - tests cover normalization, authorized/unauthorized separation, historical
   unknown commands, and per-user counts.
+
+Implemented result:
+
+- JSON, Markdown, and hidden `/report_ux` use the same aggregation path;
+- command tokens are lowercased and stripped of bot-name suffixes and
+  arguments before counting;
+- historical retired and unknown command names remain visible;
+- `commands_by_user` contains authorized invocations only, while unauthorized
+  attempts remain separately aggregated.
 
 ## Beta-2 Public Readiness Boundary
 

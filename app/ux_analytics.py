@@ -36,6 +36,16 @@ def summarize_events(
     unauthorized_attempts = [
         e for e in events if e.get("event_type") == "unauthorized_attempt"
     ]
+    received_commands = _command_counts(updates_received)
+    unauthorized_commands = _command_counts(unauthorized_attempts)
+    authorized_commands = _subtract_counts(
+        received_commands,
+        unauthorized_commands,
+    )
+    commands_by_user = _authorized_commands_by_user(
+        updates_received,
+        unauthorized_attempts,
+    )
     step_prompted = [e for e in events if e.get("event_type") == "step_prompted"]
     step_answered = [e for e in events if e.get("event_type") == "step_answered"]
     gap_question_asked = [
@@ -66,10 +76,11 @@ def summarize_events(
         if session_id in finished_session_ids
     ]
 
-    sessions_per_user = Counter(e["user_id"] for e in sessions_started)
+    sessions_per_user = Counter(str(e["user_id"]) for e in sessions_started)
     user_labels = _user_labels(
         set(sessions_per_user)
-        | {e["user_id"] for e in unauthorized_attempts if "user_id" in e},
+        | {str(e["user_id"]) for e in unauthorized_attempts if "user_id" in e}
+        | set(commands_by_user),
         user_records or {},
     )
     repeat_users = sum(1 for count in sessions_per_user.values() if count > 1)
@@ -90,6 +101,10 @@ def summarize_events(
         "updates_by_message_kind": dict(
             Counter(e["message_kind"] for e in updates_received if "message_kind" in e)
         ),
+        "commands_received_by_name": dict(received_commands),
+        "authorized_commands_by_name": dict(authorized_commands),
+        "unauthorized_commands_by_name": dict(unauthorized_commands),
+        "commands_by_user": commands_by_user,
         "inputs_by_funnel": dict(
             Counter(e["funnel"] for e in input_received if "funnel" in e)
         ),
@@ -208,6 +223,30 @@ def render_markdown(summary: dict[str, Any]) -> str:
         f"- avg_session_duration_sec: {_format_float(summary.get('avg_session_duration_sec', 0.0))}",
         "",
     ]
+    lines.extend(
+        _render_mapping(
+            "## Commands Received By Name",
+            summary.get("commands_received_by_name", {}),
+        )
+    )
+    lines.extend(
+        _render_mapping(
+            "## Authorized Commands By Name",
+            summary.get("authorized_commands_by_name", {}),
+        )
+    )
+    lines.extend(
+        _render_mapping(
+            "## Unauthorized Commands By Name",
+            summary.get("unauthorized_commands_by_name", {}),
+        )
+    )
+    lines.extend(
+        _render_commands_by_user(
+            summary.get("commands_by_user", {}),
+            labels=summary.get("user_labels", {}),
+        )
+    )
     lines.extend(
         _render_mapping(
             "## Inputs By Funnel",
@@ -380,6 +419,30 @@ def _render_mapping(
     return lines
 
 
+def _render_commands_by_user(
+    values: Any,
+    *,
+    labels: Any | None = None,
+) -> list[str]:
+    lines = ["## Authorized Commands By User"]
+    if not isinstance(values, dict) or not values:
+        return [*lines, "- none", ""]
+    labels = labels if isinstance(labels, dict) else {}
+    for user_id, commands in sorted(values.items(), key=lambda item: str(item[0])):
+        if not isinstance(commands, dict) or not commands:
+            continue
+        label = labels.get(str(user_id), str(user_id))
+        rendered = ", ".join(
+            f"{command}: {count}"
+            for command, count in sorted(commands.items(), key=_mapping_sort_key)
+        )
+        lines.append(f"- {label}: {rendered}")
+    if len(lines) == 1:
+        lines.append("- none")
+    lines.append("")
+    return lines
+
+
 def _mapping_sort_key(item: tuple[Any, Any]) -> tuple[int, float, str]:
     key, value = item
     if isinstance(value, int | float):
@@ -412,6 +475,61 @@ def _user_label(user_id: str, record: dict[str, Any]) -> str:
     if full_name:
         return f"{user_id} ({full_name})"
     return user_id
+
+
+def _command_counts(events: list[dict[str, Any]]) -> Counter[str]:
+    return Counter(
+        command
+        for event in events
+        if (command := _normalize_command(event.get("command"))) is not None
+    )
+
+
+def _authorized_commands_by_user(
+    updates_received: list[dict[str, Any]],
+    unauthorized_attempts: list[dict[str, Any]],
+) -> dict[str, dict[str, int]]:
+    received: Counter[tuple[str, str]] = Counter()
+    unauthorized: Counter[tuple[str, str]] = Counter()
+    for event in updates_received:
+        command = _normalize_command(event.get("command"))
+        user_id = event.get("user_id")
+        if command is not None and user_id is not None:
+            received[(str(user_id), command)] += 1
+    for event in unauthorized_attempts:
+        command = _normalize_command(event.get("command"))
+        user_id = event.get("user_id")
+        if command is not None and user_id is not None:
+            unauthorized[(str(user_id), command)] += 1
+
+    authorized = _subtract_counts(received, unauthorized)
+    by_user: dict[str, dict[str, int]] = defaultdict(dict)
+    for (user_id, command), count in sorted(authorized.items()):
+        by_user[user_id][command] = count
+    return dict(by_user)
+
+
+def _subtract_counts(
+    total: Counter[Any],
+    removed: Counter[Any],
+) -> Counter[Any]:
+    return Counter(
+        {
+            key: remaining
+            for key, count in total.items()
+            if (remaining := count - removed.get(key, 0)) > 0
+        }
+    )
+
+
+def _normalize_command(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    token = value.strip().split(maxsplit=1)[0]
+    if not token.startswith("/") or token == "/":
+        return None
+    command = token.split("@", maxsplit=1)[0].lower()
+    return command if len(command) > 1 else None
 
 
 def _format_percent(value: Any) -> str:

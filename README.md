@@ -106,3 +106,6 @@ python -m app.ux_analytics
 ```
 
 `app.ux_analytics` writes files only when `--output-dir` is explicitly passed.
+Reports include normalized command totals, authorized/unauthorized splits, and
+private authorized usage by user; Telegram cannot distinguish menu selection
+from typing the same command.

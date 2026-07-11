@@ -31,6 +31,10 @@ They help compare capture routes while preserving the canonical episode boundary
 Current summary-level metrics:
 
 ```text
+commands_received_by_name
+authorized_commands_by_name
+unauthorized_commands_by_name
+commands_by_user
 inputs_by_funnel
 inputs_by_media_kind
 drafts_created_by_funnel
@@ -47,6 +51,12 @@ input_rejections_by_reason
 
 Interpretation rules:
 
+- command metrics normalize case, Telegram bot-name suffixes, and arguments;
+  historical command names remain visible even after a route is retired;
+- `commands_by_user` contains authorized command invocations and uses private
+  userlist labels; unauthorized command counts remain separate;
+- Telegram exposes the same command update for a menu selection and a typed
+  command, so menu-click attribution is intentionally unavailable;
 - `inputs_by_funnel` and `inputs_by_media_kind` show which intake surfaces users
   attempt to use.
 - `drafts_created_by_funnel` shows which funnels can produce usable provisional
@@ -79,3 +89,4 @@ Non-goals:
 The event log exists and is useful, but analytics outputs are still lightweight.
 
 `app.ux_analytics` writes files only when `--output-dir` is explicitly passed.
+The hidden `/report_ux` command renders the same aggregate summary in memory.

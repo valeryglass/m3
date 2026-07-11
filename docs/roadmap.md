@@ -73,7 +73,7 @@ RM order:
 - RM-10: retire hidden Telegram compatibility commands and unused flow
   compatibility code after ADR and private-state checks. Status: implemented.
 - RM-11: aggregate safe per-command and per-user command usage in UX reports.
-  Status: planned.
+  Status: implemented.
 - RM-A5: add production LLM profile interpretation over safe analytics payloads.
   Status: implemented.
 - RM-A6: introduce a render-ready Report ViewModel contract. Status:
@@ -99,8 +99,8 @@ Current beta capture finding:
 
 Current command-surface truth: only canonical beta user commands and explicit
 admin/operator commands are registered. Retired commands use generic `/help`
-guidance. Raw UX events retain historical command names; command-level report
-aggregation remains RM-11.
+guidance. UX reports aggregate normalized command usage while preserving
+historical retired and unknown command names.
 
 Current runtime truth: non-10Q production capture extraction defaults to
 DeepSeek through owner-controlled runtime mode/provider settings. OpenAI

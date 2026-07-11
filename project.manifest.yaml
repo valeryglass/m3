@@ -431,6 +431,8 @@ modules:
       - optional UX debug exports
     capabilities:
       - append_only_event_log
+      - normalized_command_usage
+      - authorized_command_usage_by_user
       - funnel_summary
       - saved_ux_reports
 

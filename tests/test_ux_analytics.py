@@ -220,6 +220,54 @@ def test_summarize_events_counts_cancel_and_idle_deadends():
     assert summary["repeat_users"] == 0
 
 
+def test_summarize_events_normalizes_and_splits_command_usage():
+    events = [
+        telegram_event(
+            "update_received",
+            "123",
+            command="/PROFILE@MishaBot details",
+        ),
+        telegram_event("update_received", "123", command="/voice"),
+        telegram_event("update_received", "123", command="/capture3 old input"),
+        telegram_event(
+            "update_received",
+            "456",
+            command="/Start@MishaBot private argument",
+        ),
+        telegram_event(
+            "unauthorized_attempt",
+            "456",
+            command="/START@mishabot private argument",
+        ),
+        telegram_event("update_received", "789", command="not-a-command"),
+    ]
+
+    summary = summarize_events(
+        events,
+        user_records={"123": {"username": "owner"}},
+    )
+
+    assert summary["commands_received_by_name"] == {
+        "/profile": 1,
+        "/voice": 1,
+        "/capture3": 1,
+        "/start": 1,
+    }
+    assert summary["authorized_commands_by_name"] == {
+        "/profile": 1,
+        "/voice": 1,
+        "/capture3": 1,
+    }
+    assert summary["unauthorized_commands_by_name"] == {"/start": 1}
+    assert summary["commands_by_user"] == {
+        "123": {"/capture3": 1, "/profile": 1, "/voice": 1}
+    }
+    assert summary["user_labels"]["123"] == "123 (@owner)"
+    serialized = json.dumps(summary, ensure_ascii=False)
+    assert "private argument" not in serialized
+    assert "details" not in serialized
+
+
 def test_ux_analytics_renders_and_writes_markdown_and_json(tmp_path):
     summary = {
         "sessions_started": 2,
@@ -232,6 +280,10 @@ def test_ux_analytics_renders_and_writes_markdown_and_json(tmp_path):
         "repeat_users": 0,
         "abandoned_count": 1,
         "avg_session_duration_sec": 42.5,
+        "commands_received_by_name": {"/profile": 3, "/voice": 1},
+        "authorized_commands_by_name": {"/profile": 2},
+        "unauthorized_commands_by_name": {"/profile": 1, "/voice": 1},
+        "commands_by_user": {"123": {"/profile": 2}},
         "inputs_by_funnel": {"one_take_text": 2, "voice": 1},
         "inputs_by_media_kind": {"text": 2, "voice": 1},
         "drafts_created_by_funnel": {"one_take_text": 2},
@@ -257,6 +309,10 @@ def test_ux_analytics_renders_and_writes_markdown_and_json(tmp_path):
 
     assert "# UX Analytics" in text
     assert "- completion_rate: 50.00%" in text
+    assert "## Commands Received By Name" in text
+    assert "- /profile: 3" in text
+    assert "## Authorized Commands By User" in text
+    assert "- 123 (@test_user): /profile: 2" in text
     assert "## Inputs By Funnel" in text
     assert "- one_take_text: 2" in text
     assert "- voice: 1" in text
